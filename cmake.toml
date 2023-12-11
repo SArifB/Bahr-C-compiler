@@ -1,0 +1,54 @@
+# Reference: https://build-cpp.github.io/cmkr/cmake-toml
+[project]
+name = "comp-test3"
+languages = ["C"]
+
+# Targets
+[target.bin]
+type = "my_executable"
+sources = ["./src/bin/*.c"]
+link-libraries = ["lexer", "parser", "codegen", "engine"]
+
+[target.codegen]
+type = "my_library"
+sources = ["./src/codegen/*.c"]
+link-libraries = ["LLVM"]
+
+[target.engine]
+type = "my_library"
+sources = ["./src/engine/*.c"]
+link-libraries = ["LLVM"]
+
+[target.lexer]
+type = "my_library"
+sources = ["./src/lexer/*.c"]
+
+[target.parser]
+type = "my_library"
+sources = ["./src/parser/*.c"]
+link-libraries = ["lexer"]
+
+[target.utility]
+type = "my_interface"
+sources = ["./src/utility/*.h"]
+
+# Templates
+[template.my_executable]
+type = "executable"
+include-directories = ["src"]
+compile-options = ["-Wall", "-Werror", "-Wextra", "-std=c2x"]
+link-libraries = ["utility"]
+
+[template.my_library]
+type = "static"
+include-directories = ["src"]
+compile-options = ["-Wall", "-Werror", "-Wextra", "-std=c2x"]
+link-libraries = ["utility"]
+
+[template.my_interface]
+type = "interface"
+include-directories = ["src"]
+compile-options = ["-Wall", "-Werror", "-Wextra", "-std=c2x"]
+
+# Tests
+# TODO: add tests
