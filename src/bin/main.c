@@ -1,16 +1,19 @@
 #include <codegen/mod.h>
 #include <engine/mod.h>
 #include <lexer/mod.h>
-#include <llvm-c/Core.h>
 #include <parser/mod.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <utility/mod.h>
 
-i32 main(i32, cstr[]) {
+i32 main(i32 argc, cstr argv[]) {
   // Get String
-  FILE* fptr = fopen("test/src/test.bh", "r");
+  if (argc != 2) {
+    eprintf("Usage: %s <input file>", argv[0]);
+    return 1;
+  }
+  FILE* fptr = fopen(argv[1], "r");
   if (fptr == nullptr) {
     perror("fopen");
     return 1;
@@ -54,7 +57,7 @@ i32 main(i32, cstr[]) {
   LLVMExecutionEngineRef engine = engine_make(cdgn);
 
   free(ref_str);
-  free_ast_tree(node);
+  free_ast_tree();
   engine_shutdown(engine);
   codegen_dispose(cdgn);
   return 0;
