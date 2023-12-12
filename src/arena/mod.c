@@ -5,7 +5,7 @@
 
 Arena* DEFAULT_ARENA = &(Arena){};
 
-#define DEF_REG_CAP (8 * 1024)
+#define DEF_REG_CAP (usize)(8 * 1024)
 
 Region* region_alloc(const usize capacity) {
   Region* tmp = malloc(sizeof(Region) + sizeof(usize) * capacity);
