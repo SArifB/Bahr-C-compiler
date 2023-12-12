@@ -181,6 +181,33 @@ target_link_libraries(parser PUBLIC
 
 target_link_libraries(parser PUBLIC
 	lexer
+	arena
+)
+
+# Target: arena
+set(arena_SOURCES
+	"./src/arena/mod.c"
+	cmake.toml
+)
+
+add_library(arena STATIC)
+
+target_sources(arena PRIVATE ${arena_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${arena_SOURCES})
+
+target_compile_options(arena PUBLIC
+	-Wall
+	-Werror
+	-Wextra
+	-std=c2x
+)
+
+target_include_directories(arena PUBLIC
+	src
+)
+
+target_link_libraries(arena PUBLIC
+	utility
 )
 
 # Target: utility
