@@ -22,7 +22,7 @@ The project can simply be configured, built and run with:
 ```sh
 cmake -B build
 cmake --build build
-./build/bin
+./build/bin test/src/test.bh
 ```
 Building the test requires the fish shell, gcc and clang. Fish and gcc can be replaced with any shell or compiler of your choosing. The test project can be ran with:
 ```sh
