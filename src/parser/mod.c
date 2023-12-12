@@ -1,3 +1,4 @@
+#include <arena/mod.h>
 #include <lexer/mod.h>
 #include <parser/mod.h>
 #include <stdio.h>
@@ -5,20 +6,9 @@
 #include <string.h>
 #include <utility/mod.h>
 
-DEFINE_VECTOR(Node, malloc, free)
-
-NodeVector* ast_vec = nullptr;
-Node* cur_node = nullptr;
-
-static any try_malloc(usize size) {
-  any tmp = malloc(size);
-  if (tmp == nullptr) {
-    perror("malloc");
-    exit(-1);
-  }
-  return tmp;
-}
-
+static Arena PARSER_ARENA = {};
+#define parser_alloc(size) arena_alloc(&PARSER_ARENA, size)
+  
 // TODO: use token info
 unused static i32 get_tok_precedence(cstr tok) {
   if (char_equals(tok, "*") || char_equals(tok, "/")) {
@@ -44,7 +34,7 @@ static __attribute((noreturn)) void print_expr_err(cstr itr) {
 }
 
 static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
-  Node* node = try_malloc(sizeof(Node));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Oper,
     .binop = (OperNode){ .kind = oper, .lhs = lhs, .rhs = rhs },
@@ -53,7 +43,7 @@ static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
 }
 
 static Node* make_number(i64 value) {
-  Node* node = try_malloc(sizeof(Node));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Val,
     .value =
@@ -66,7 +56,7 @@ static Node* make_number(i64 value) {
 }
 
 unused static Node* make_float(f64 value) {
-  Node* node = try_malloc(sizeof(Node));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Val,
     .value =
@@ -79,7 +69,7 @@ unused static Node* make_float(f64 value) {
 }
 
 unused static Node* make_string(StrView view) {
-  Node* node = try_malloc(sizeof(Node));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Val,
     .value =
@@ -164,15 +154,6 @@ void print_ast_tree(Node* node) {
   }
 }
 
-unused void free_ast_tree(Node* node) {
-  if (node == nullptr) {
-
-  } else if (node->kind == ND_Oper) {
-    free_ast_tree(node->binop.lhs);
-    free_ast_tree(node->binop.rhs);
-    free(node);
-
-  } else if (node->kind == ND_Val) {
-    free(node);
-  }
+void free_ast_tree() {
+  arena_free(&PARSER_ARENA);
 }

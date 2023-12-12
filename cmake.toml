@@ -26,7 +26,11 @@ sources = ["./src/lexer/*.c"]
 [target.parser]
 type = "my_library"
 sources = ["./src/parser/*.c"]
-link-libraries = ["lexer"]
+link-libraries = ["lexer", "arena"]
+
+[target.arena]
+type = "my_library"
+sources = ["./src/arena/*.c"]
 
 [target.utility]
 type = "my_interface"

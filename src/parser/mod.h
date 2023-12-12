@@ -1,5 +1,4 @@
 #pragma once
-#include <utility/vec.h>
 #include <lexer/mod.h>
 #include <utility/mod.h>
 
@@ -66,10 +65,10 @@ struct Node {
     ValueNode value;
   };
 };
-DECLARE_VECTOR(Node)
 
 extern Node* expr(Token** rest, Token* tok);
 extern Node* mul(Token** rest, Token* tok);
 extern Node* primary(Token** rest, Token* tok);
 extern void print_ast_tree(Node* node);
-extern void free_ast_tree(Node* node);
+extern void free_ast_tree();
+
