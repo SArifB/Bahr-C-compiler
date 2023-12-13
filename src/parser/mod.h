@@ -41,11 +41,17 @@ struct OperNode {
   Node* rhs;
 };
 
+typedef struct VarCharArr VarCharArr;
+struct VarCharArr {
+  usize size;
+  char arr[];
+};
+
 typedef struct VariNode VariNode;
 struct VariNode {
   TypeKind kind;
-  cstr name;
   Node* next;
+  VarCharArr name;
 };
 
 typedef struct ValueNode ValueNode;
@@ -54,7 +60,7 @@ struct ValueNode {
   union {
     i64 i_num;
     f64 f_num;
-    StrView str_lit;
+    VarCharArr str_lit;
   };
 };
 
@@ -71,4 +77,3 @@ extern Node* mul(Token** rest, Token* tok);
 extern Node* primary(Token** rest, Token* tok);
 extern void print_ast_tree(Node* node);
 extern void free_ast_tree();
-

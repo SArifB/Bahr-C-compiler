@@ -8,18 +8,17 @@
 
 static Arena PARSER_ARENA = {};
 #define parser_alloc(size) arena_alloc(&PARSER_ARENA, size)
-  
-// TODO: use token info
-unused static i32 get_tok_precedence(cstr tok) {
-  if (char_equals(tok, "*") || char_equals(tok, "/")) {
+
+unused static i32 get_tok_precedence(Token* token) {
+  if (token->info == PK_Mul || token->info == PK_Div) {
     return 5;
-  } else if (char_equals(tok, "+") || char_equals(tok, "-")) {
+  } else if (token->info == PK_Plus || token->info == PK_Minus) {
     return 4;
-  } else if (equals(tok, "==")) {
+  } else if (token->info == PK_Eq) {
     return 3;
-  } else if (equals(tok, "<=") || equals(tok, ">=")) {
+  } else if (token->info == PK_Lte || token->info == PK_Gte) {
     return 2;
-  } else if (char_equals(tok, "<") || char_equals(tok, ">")) {
+  } else if (token->info == PK_Gt || token->info == PK_Lt) {
     return 1;
   }
   return 0;
@@ -69,15 +68,17 @@ unused static Node* make_float(f64 value) {
 }
 
 unused static Node* make_string(StrView view) {
-  Node* node = parser_alloc(sizeof(Node));
+  usize size = view.sen - view.itr + 1;
+  Node* node = parser_alloc(sizeof(Node) + sizeof(char) * size);
   *node = (Node){
     .kind = ND_Val,
     .value =
       (ValueNode){
         .kind = TP_Str,
-        .str_lit = view,
+        .str_lit = (VarCharArr){ .size = size },
       },
   };
+  strncpy(node->value.str_lit.arr, view.itr, size);
   return node;
 }
 
