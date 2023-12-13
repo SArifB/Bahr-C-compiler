@@ -8,44 +8,67 @@ typedef enum TokenKind TokenKind;
 typedef enum AddInfo AddInfo;
 
 enum TokenKind {
+  TK_EOF,
   TK_Ident,
   TK_NumLiteral,
   TK_StrLiteral,
   TK_Keyword,
   TK_Punct,
-  TK_EOF,
 };
 
 enum AddInfo {
   PK_None,
 
   // Punct
-  PK_RightArrow,
   PK_LeftParen,
   PK_RightParen,
   PK_LeftBracket,
   PK_RightBracket,
   PK_LeftSqrBrack,
   PK_RightSqrBrack,
-  PK_PlusEq,
-  PK_MinusEq,
-  PK_DivEq,
-  PK_MulEq,
+  PK_PlusAssign,
+  PK_MinusAssign,
+  PK_MulAssign,
+  PK_DivAssign,
+  PK_RightArrow,
+  PK_FatRightArrow,
+  PK_And,
+  PK_Or,
+  PK_Neg,
+  PK_Question,
+  PK_ShiftLeft,
+  PK_ShiftRight,
+  PK_Eq,
+  PK_Lte,
+  PK_Gte,
+  PK_Lt,
+  PK_Gt,
+  PK_BitAnd,
+  PK_BitOr,
+  PK_BitNeg,
+  PK_Assign,
   PK_Plus,
   PK_Minus,
-  PK_Div,
   PK_Mul,
-  PK_Eq,
+  PK_Div,
   PK_Colon,
   PK_SemiCol,
   PK_Dot,
   PK_DoubleDot,
+  PK_Hash,
+  PK_Percent,
+  PK_AddrOf,
 
   // Keyword
   KW_Pub,
   KW_Let,
   KW_Fn,
   KW_Use,
+  KW_If,
+  KW_Else,
+  KW_For,
+  KW_While,
+  KW_Match,
 };
 
 struct Token {
@@ -56,7 +79,4 @@ struct Token {
 DECLARE_VECTOR(Token)
 
 extern TokenVector* lex_string(const StrView view);
-// extern void dispose_lexer(Lexer lexer);
 extern void lexer_print(TokenVector* lexer);
-extern bool equals(cstr itr, cstr ref);
-extern bool char_equals(cstr itr, cstr ref);

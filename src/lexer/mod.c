@@ -35,30 +35,33 @@ bool is_ident(cstr ref) {
 }
 
 static cstr pnct_table[] = {
-  "->", "(", ")", "{", "}", "[", "]", "+=", "-=", "/=",
-  "*=", "+", "-", "/", "*", "=", ",", ";",  ".",  ":",
+  "(",  ")", "{", "}",  "[",  "]",  "+=", "-=", "*=", "/=", "->", "=>", "&&",
+  "||", "!", "?", "<<", ">>", "==", "<=", ">=", "<",  ">",  "&",  "|",  "~",
+  "=",  "+", "-", "*",  "/",  ",",  ";",  ".",  ":",  "#",  "%",  "@",
 };
 
 static AddInfo pnct_info_table[] = {
-  PK_RightArrow,   PK_LeftParen,    PK_RightParen,    PK_LeftBracket,
-  PK_RightBracket, PK_LeftSqrBrack, PK_RightSqrBrack, PK_PlusEq,
-  PK_MinusEq,      PK_DivEq,        PK_MulEq,         PK_Plus,
-  PK_Minus,        PK_Div,          PK_Mul,           PK_Eq,
-  PK_Colon,        PK_SemiCol,      PK_Dot,           PK_DoubleDot,
+  PK_LeftParen,    PK_RightParen,   PK_LeftBracket,
+  PK_RightBracket, PK_LeftSqrBrack, PK_RightSqrBrack,
+  PK_PlusAssign,   PK_MinusAssign,  PK_MulAssign,
+  PK_DivAssign,    PK_RightArrow,   PK_FatRightArrow,
+  PK_And,          PK_Or,           PK_Neg,
+  PK_Question,     PK_ShiftLeft,    PK_ShiftRight,
+  PK_Eq,           PK_Lte,          PK_Gte,
+  PK_Lt,           PK_Gt,           PK_BitAnd,
+  PK_BitOr,        PK_BitNeg,       PK_Assign,
+  PK_Plus,         PK_Minus,        PK_Mul,
+  PK_Div,          PK_Colon,        PK_SemiCol,
+  PK_Dot,          PK_DoubleDot,    PK_Hash,
+  PK_Percent,      PK_AddrOf,
 };
 
 static cstr kwrd_table[] = {
-  "pub",
-  "let",
-  "fn",
-  "use",
+  "pub", "let", "fn", "use", "if", "else", "for", "while", "match",
 };
 
 static AddInfo kwrd_info_table[] = {
-  KW_Pub,
-  KW_Let,
-  KW_Fn,
-  KW_Use,
+  KW_Pub, KW_Let, KW_Fn, KW_Use, KW_If, KW_Else, KW_For, KW_While, KW_Match,
 };
 
 bool is_punct(cstr ref) {
@@ -105,7 +108,7 @@ TokenVector* lex_string(const StrView view) {
         tmp_sen += 1;
       }
       Token_vector_push(
-        &tokens, (Token){ .kind = TK_StrLiteral, .pos = { itr, ++tmp_sen } }
+        &tokens, (Token){ .kind = TK_StrLiteral, .pos = { itr + 1, tmp_sen } }
       );
       itr = tmp_sen;
 
