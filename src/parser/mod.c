@@ -114,7 +114,7 @@ Node* expr(Token** rest, Token* token) {
       node = make_oper(OP_Minus, node, mul(&token, token + 1));
     } else {
       *rest = token;
-    return node;
+      return node;
     }
   }
 }
@@ -133,7 +133,7 @@ Node* mul(Token** rest, Token* token) {
       return node;
     }
   }
-    }
+}
 
 // unary = ("+" | "-") unary
 //       | primary
@@ -167,11 +167,17 @@ void print_ast_tree(Node* node) {
     return;
 
   } else if (node->kind == ND_Oper) {
-    if (node->binop.kind == OP_Plus) {
-      eputs("OP_Plus: +");
-    }
     print_ast_tree(node->binop.lhs);
+    if (node->binop.kind == OP_Plus) {
+      eputs("ND_Oper: OP_Plus");
+    } else if (node->binop.kind == OP_Minus) {
+      eputs("ND_Oper: OP_Minus");
+    }
     print_ast_tree(node->binop.rhs);
+
+  } else if (node->kind == ND_Neg) {
+    eputs("ND_Neg: OP_Neg");
+    print_ast_tree(node->binop.lhs);
 
   } else if (node->kind == ND_Val) {
     if (node->value.kind == TP_Int) {
