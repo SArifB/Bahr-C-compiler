@@ -36,6 +36,15 @@ static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Oper,
+    .binop =
+      (OperNode){
+        .kind = oper,
+        .lhs = lhs,
+        .rhs = rhs,
+      },
+  };
+  return node;
+}
 
 static Node* make_unary(Node* lhs) {
   Node* node = parser_alloc(sizeof(Node));
@@ -50,41 +59,44 @@ static Node* make_unary(Node* lhs) {
   return node;
 }
 
-static Node* make_number(i64 value) {
+static Node* make_number(StrView view) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Val,
     .value =
       (ValueNode){
         .kind = TP_Int,
-        .i_num = value,
+        .i_num = strtol(view.itr, nullptr, 10),
       },
   };
   return node;
 }
 
-unused static Node* make_float(f64 value) {
+unused static Node* make_float(StrView view) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Val,
     .value =
       (ValueNode){
         .kind = TP_Flt,
-        .f_num = value,
+        .f_num = strtod(view.itr, nullptr),
       },
   };
   return node;
 }
 
 unused static Node* make_string(StrView view) {
-  usize size = view.sen - view.itr + 1;
-  Node* node = parser_alloc(sizeof(Node) + sizeof(char) * size);
+  usize size = view.sen - view.itr;
+  Node* node = parser_alloc(sizeof(Node) + sizeof(char) * (size + 1));
   *node = (Node){
     .kind = ND_Val,
     .value =
       (ValueNode){
         .kind = TP_Str,
-        .str_lit = (VarCharArr){ .size = size },
+        .str_lit =
+          (VarCharArr){
+            .size = size,
+          },
       },
   };
   strncpy(node->value.str_lit.arr, view.itr, size - 1);
