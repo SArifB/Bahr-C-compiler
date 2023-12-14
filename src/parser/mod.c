@@ -36,7 +36,16 @@ static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Oper,
-    .binop = (OperNode){ .kind = oper, .lhs = lhs, .rhs = rhs },
+
+static Node* make_unary(Node* lhs) {
+  Node* node = parser_alloc(sizeof(Node));
+  *node = (Node){
+    .kind = ND_Neg,
+    .binop =
+      (OperNode){
+        .kind = OP_Neg,
+        .lhs = lhs,
+      },
   };
   return node;
 }
@@ -115,9 +124,16 @@ Node* mul(Token** rest, Token* tok) {
       node = make_oper(OP_Div, node, primary(&tok, tok + 1));
       continue;
     }
-    *rest = tok;
-    return node;
+
+// unary = ("+" | "-") unary
+//       | primary
+Node* unary(Token** rest, Token* token) {
+  if (token->info == PK_Plus) {
+    return unary(rest, token + 1);
+  } else if (token->info == PK_Minus) {
+    return make_unary(unary(rest, token + 1));
   }
+  return primary(rest, token);
 }
 
 // primary = "(" expr ")" | num
