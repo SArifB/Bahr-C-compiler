@@ -92,37 +92,35 @@ unused static Node* make_string(StrView view) {
 }
 
 // expr = mul ("+" mul | "-" mul)*
-Node* expr(Token** rest, Token* tok) {
-  Node* node = mul(&tok, tok);
+Node* expr(Token** rest, Token* token) {
+  Node* node = mul(&token, token);
 
-  for (;;) {
-    if (tok->info == PK_Plus) {
-      node = make_oper(OP_Plus, node, mul(&tok, tok + 1));
-      continue;
-    }
-
-    if (tok->info == PK_Minus) {
-      node = make_oper(OP_Minus, node, mul(&tok, tok + 1));
-      continue;
-    }
-
-    *rest = tok;
+  while (true) {
+    if (token->info == PK_Plus) {
+      node = make_oper(OP_Plus, node, mul(&token, token + 1));
+    } else if (token->info == PK_Minus) {
+      node = make_oper(OP_Minus, node, mul(&token, token + 1));
+    } else {
+      *rest = token;
     return node;
+    }
   }
 }
 
-// mul = primary ("*" primary | "/" primary)*
-Node* mul(Token** rest, Token* tok) {
-  Node* node = primary(&tok, tok);
+// mul = unary ("*" unary | "/" unary)*
+Node* mul(Token** rest, Token* token) {
+  Node* node = unary(&token, token);
 
-  for (;;) {
-    if (tok->info == PK_Mul) {
-      node = make_oper(OP_Mul, node, primary(&tok, tok + 1));
-      continue;
+  while (true) {
+    if (token->info == PK_Mul) {
+      node = make_oper(OP_Mul, node, unary(&token, token + 1));
+    } else if (token->info == PK_Div) {
+      node = make_oper(OP_Div, node, unary(&token, token + 1));
+    } else {
+      *rest = token;
+      return node;
     }
-    if (tok->info == PK_Div) {
-      node = make_oper(OP_Div, node, primary(&tok, tok + 1));
-      continue;
+  }
     }
 
 // unary = ("+" | "-") unary
@@ -137,20 +135,19 @@ Node* unary(Token** rest, Token* token) {
 }
 
 // primary = "(" expr ")" | num
-Node* primary(Token** rest, Token* tok) {
-  if (tok->info == PK_LeftParen) {
-    Node* node = expr(&tok, tok + 1);
-    if (tok->info == PK_RightParen) {
-      *rest = tok + 1;
+Node* primary(Token** rest, Token* token) {
+  if (token->info == PK_LeftParen) {
+    Node* node = expr(&token, token + 1);
+    if (token->info == PK_RightParen) {
+      *rest = token + 1;
       return node;
     }
-  }
-  if (tok->kind == TK_NumLiteral) {
-    Node* node = make_number(strtol(tok->pos.itr, nullptr, 10));
-    *rest = tok + 1;
+  } else if (token->kind == TK_NumLiteral) {
+    Node* node = make_number(token->pos);
+    *rest = token + 1;
     return node;
   }
-  print_expr_err(tok->pos.itr);
+  print_expr_err(token->pos.itr);
 }
 
 void print_ast_tree(Node* node) {
