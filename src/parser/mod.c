@@ -78,7 +78,7 @@ unused static Node* make_string(StrView view) {
         .str_lit = (VarCharArr){ .size = size },
       },
   };
-  strncpy(node->value.str_lit.arr, view.itr, size);
+  strncpy(node->value.str_lit.arr, view.itr, size - 1);
   return node;
 }
 
