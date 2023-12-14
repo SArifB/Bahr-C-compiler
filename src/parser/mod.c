@@ -99,7 +99,7 @@ unused static Node* make_string(StrView view) {
           },
       },
   };
-  strncpy(node->value.str_lit.arr, view.itr, size - 1);
+  strncpy(node->value.str_lit.arr, view.itr, size);
   return node;
 }
 
