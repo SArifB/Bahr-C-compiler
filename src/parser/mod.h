@@ -3,6 +3,14 @@
 #include <utility/mod.h>
 
 typedef enum OperKind OperKind;
+typedef enum TypeKind TypeKind;
+typedef enum NodeKind NodeKind;
+typedef struct Node Node;
+typedef struct OperNode OperNode;
+typedef struct VarCharArr VarCharArr;
+typedef struct VariNode VariNode;
+typedef struct ValueNode ValueNode;
+
 enum OperKind {
   OP_Plus,
   OP_Minus,
@@ -17,14 +25,12 @@ enum OperKind {
   OP_Not,
 };
 
-typedef enum TypeKind TypeKind;
 enum TypeKind {
   TP_Int,
   TP_Flt,
   TP_Str,
 };
 
-typedef enum NodeKind NodeKind;
 enum NodeKind {
   ND_Var,
   // ND_Call,
@@ -32,29 +38,23 @@ enum NodeKind {
   ND_Val,
 };
 
-typedef struct Node Node;
-
-typedef struct OperNode OperNode;
 struct OperNode {
   OperKind kind;
   Node* lhs;
   Node* rhs;
 };
 
-typedef struct VarCharArr VarCharArr;
 struct VarCharArr {
   usize size;
   char arr[];
 };
 
-typedef struct VariNode VariNode;
 struct VariNode {
   TypeKind kind;
   Node* next;
   VarCharArr name;
 };
 
-typedef struct ValueNode ValueNode;
 struct ValueNode {
   TypeKind kind;
   union {
