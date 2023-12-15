@@ -16,7 +16,6 @@ enum OperKind {
   OP_Sub,
   OP_Mul,
   OP_Div,
-  OP_Neg,
   OP_Eq,
   OP_NEq,
   OP_Lt,
@@ -32,10 +31,11 @@ enum TypeKind {
 };
 
 enum NodeKind {
-  ND_Var,
+  // ND_Var,
   // ND_Call,
   ND_Oper,
   ND_Val,
+  ND_Neg,
 };
 
 struct OperNode {
@@ -69,6 +69,7 @@ struct Node {
   union {
     OperNode binop;
     ValueNode value;
+    Node* unaval;
   };
 };
 

@@ -46,15 +46,11 @@ static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   return node;
 }
 
-static Node* make_unary(Node* lhs) {
+static Node* make_unary(Node* value) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
-    .kind = ND_Oper,
-    .binop =
-      (OperNode){
-        .kind = OP_Neg,
-        .lhs = lhs,
-      },
+    .kind = ND_Neg,
+    .unaval = value,
   };
   return node;
 }
