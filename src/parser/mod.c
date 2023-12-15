@@ -6,8 +6,132 @@
 #include <string.h>
 #include <utility/mod.h>
 
+static i32 get_tok_precedence(Token* token);
+static __attribute((noreturn)) void print_expr_err(cstr itr);
+static Node* make_oper(OperKind oper, Node* lhs, Node* rhs);
+static Node* make_unary(Node* value);
+static Node* make_number(StrView view);
+static Node* make_float(StrView view);
+static Node* make_string(StrView view);
+
+static Node* expr(Token** rest, Token* token);
+static Node* equality(Token** rest, Token* tok);
+static Node* relational(Token** rest, Token* tok);
+static Node* add(Token** rest, Token* tok);
+static Node* mul(Token** rest, Token* token);
+static Node* unary(Token** rest, Token* token);
+static Node* primary(Token** rest, Token* token);
+
+// expr = equality
+static Node* expr(Token** rest, Token* token) {
+  return equality(rest, token);
+}
+
+// equality = relational ("==" relational | "!=" relational)*
+static Node* equality(Token** rest, Token* token) {
+  Node* node = relational(&token, token);
+
+  while (true) {
+    if (token->info == PK_Eq) {
+      node = make_oper(OP_Eq, node, relational(&token, token + 1));
+    } else if (token->info == PK_NEq) {
+      node = make_oper(OP_NEq, node, relational(&token, token + 1));
+    } else {
+      *rest = token;
+      return node;
+    }
+  }
+}
+
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+static Node* relational(Token** rest, Token* token) {
+  Node* node = add(&token, token);
+
+  while (true) {
+    if (token->info == PK_Lt) {
+      node = make_oper(OP_Lt, node, add(&token, token + 1));
+    } else if (token->info == PK_Lte) {
+      node = make_oper(OP_Lte, node, add(&token, token + 1));
+    } else if (token->info == PK_Gt) {
+      node = make_oper(OP_Gt, node, add(&token, token + 1));
+    } else if (token->info == PK_Gte) {
+      node = make_oper(OP_Gte, node, add(&token, token + 1));
+    } else {
+      *rest = token;
+      return node;
+    }
+  }
+}
+
+// add = mul ("+" mul | "-" mul)*
+static Node* add(Token** rest, Token* token) {
+  Node* node = mul(&token, token);
+
+  while (true) {
+    if (token->info == PK_Add) {
+      node = make_oper(OP_Add, node, mul(&token, token + 1));
+    } else if (token->info == PK_Sub) {
+      node = make_oper(OP_Sub, node, mul(&token, token + 1));
+    } else {
+      *rest = token;
+      return node;
+    }
+  }
+}
+
+// mul = unary ("*" unary | "/" unary)*
+static Node* mul(Token** rest, Token* token) {
+  Node* node = unary(&token, token);
+
+  while (true) {
+    if (token->info == PK_Mul) {
+      node = make_oper(OP_Mul, node, unary(&token, token + 1));
+    } else if (token->info == PK_Div) {
+      node = make_oper(OP_Div, node, unary(&token, token + 1));
+    } else {
+      *rest = token;
+      return node;
+    }
+  }
+}
+
+// unary = ("+" | "-") unary
+//       | primary
+static Node* unary(Token** rest, Token* token) {
+  if (token->info == PK_Add) {
+    return unary(rest, token + 1);
+  } else if (token->info == PK_Sub) {
+    return make_unary(unary(rest, token + 1));
+  }
+  return primary(rest, token);
+}
+
+// primary = "(" expr ")" | num
+static Node* primary(Token** rest, Token* token) {
+  if (token->info == PK_LeftParen) {
+    Node* node = expr(&token, token + 1);
+    if (token->info == PK_RightParen) {
+      *rest = token + 1;
+      return node;
+    }
+  } else if (token->kind == TK_NumLiteral) {
+    Node* node = make_number(token->pos);
+    *rest = token + 1;
+    return node;
+  }
+  print_expr_err(token->pos.itr);
+}
+
+Node* parse_lexer(Token** rest, Token* token) {
+  return expr(rest, token);
+}
+
 static Arena PARSER_ARENA = {};
 #define parser_alloc(size) arena_alloc(&PARSER_ARENA, size)
+
+void free_ast_tree() {
+  arena_free(&PARSER_ARENA);
+}
 
 unused static i32 get_tok_precedence(Token* token) {
   if (token->info == PK_Mul || token->info == PK_Div) {
@@ -24,7 +148,7 @@ unused static i32 get_tok_precedence(Token* token) {
   return 0;
 }
 
-static __attribute((noreturn)) void print_expr_err(cstr itr) {
+static void print_expr_err(cstr itr) {
   eputs("Error: Invalid expression at: ");
   while (*itr != '\n') {
     eputc(*itr++);
@@ -99,106 +223,6 @@ unused static Node* make_string(StrView view) {
   return node;
 }
 
-// expr = equality
-Node* expr(Token** rest, Token* token) {
-  return equality(rest, token);
-}
-
-// equality = relational ("==" relational | "!=" relational)*
-Node* equality(Token** rest, Token* token) {
-  Node* node = relational(&token, token);
-
-  while (true) {
-    if (token->info == PK_Eq) {
-      node = make_oper(OP_Eq, node, relational(&token, token + 1));
-    } else if (token->info == PK_NEq) {
-      node = make_oper(OP_NEq, node, relational(&token, token + 1));
-    } else {
-      *rest = token;
-      return node;
-    }
-  }
-}
-
-// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-Node* relational(Token** rest, Token* token) {
-  Node* node = add(&token, token);
-
-  while (true) {
-    if (token->info == PK_Lt) {
-      node = make_oper(OP_Lt, node, add(&token, token + 1));
-    } else if (token->info == PK_Lte) {
-      node = make_oper(OP_Lte, node, add(&token, token + 1));
-    } else if (token->info == PK_Gt) {
-      node = make_oper(OP_Gt, node, add(&token, token + 1));
-    } else if (token->info == PK_Gte) {
-      node = make_oper(OP_Gte, node, add(&token, token + 1));
-    } else {
-      *rest = token;
-      return node;
-    }
-  }
-}
-
-// add = mul ("+" mul | "-" mul)*
-Node* add(Token** rest, Token* token) {
-  Node* node = mul(&token, token);
-
-  while (true) {
-    if (token->info == PK_Add) {
-      node = make_oper(OP_Add, node, mul(&token, token + 1));
-    } else if (token->info == PK_Sub) {
-      node = make_oper(OP_Sub, node, mul(&token, token + 1));
-    } else {
-      *rest = token;
-      return node;
-    }
-  }
-}
-
-// mul = unary ("*" unary | "/" unary)*
-Node* mul(Token** rest, Token* token) {
-  Node* node = unary(&token, token);
-
-  while (true) {
-    if (token->info == PK_Mul) {
-      node = make_oper(OP_Mul, node, unary(&token, token + 1));
-    } else if (token->info == PK_Div) {
-      node = make_oper(OP_Div, node, unary(&token, token + 1));
-    } else {
-      *rest = token;
-      return node;
-    }
-  }
-}
-
-// unary = ("+" | "-") unary
-//       | primary
-Node* unary(Token** rest, Token* token) {
-  if (token->info == PK_Add) {
-    return unary(rest, token + 1);
-  } else if (token->info == PK_Sub) {
-    return make_unary(unary(rest, token + 1));
-  }
-  return primary(rest, token);
-}
-
-// primary = "(" expr ")" | num
-Node* primary(Token** rest, Token* token) {
-  if (token->info == PK_LeftParen) {
-    Node* node = expr(&token, token + 1);
-    if (token->info == PK_RightParen) {
-      *rest = token + 1;
-      return node;
-    }
-  } else if (token->kind == TK_NumLiteral) {
-    Node* node = make_number(token->pos);
-    *rest = token + 1;
-    return node;
-  }
-  print_expr_err(token->pos.itr);
-}
-
 void print_ast_tree(Node* node) {
   static i32 indent = 0;
   // eprintf("%*s", indent, "| ");
@@ -243,8 +267,4 @@ void print_ast_tree(Node* node) {
     }
   }
   indent -= 1;
-}
-
-void free_ast_tree() {
-  arena_free(&PARSER_ARENA);
 }
