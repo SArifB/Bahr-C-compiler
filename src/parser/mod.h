@@ -74,6 +74,9 @@ struct Node {
 };
 
 extern Node* expr(Token** rest, Token* token);
+extern Node* equality(Token** rest, Token* tok);
+extern Node* relational(Token** rest, Token* tok);
+extern Node* add(Token** rest, Token* tok);
 extern Node* mul(Token** rest, Token* token);
 extern Node* unary(Token** rest, Token* token);
 extern Node* primary(Token** rest, Token* token);

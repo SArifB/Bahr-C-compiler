@@ -46,15 +46,11 @@ static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   return node;
 }
 
-static Node* make_unary(Node* lhs) {
+static Node* make_unary(Node* value) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
-    .kind = ND_Oper,
-    .binop =
-      (OperNode){
-        .kind = OP_Neg,
-        .lhs = lhs,
-      },
+    .kind = ND_Neg,
+    .unaval = value,
   };
   return node;
 }
@@ -103,8 +99,49 @@ unused static Node* make_string(StrView view) {
   return node;
 }
 
-// expr = mul ("+" mul | "-" mul)*
+// expr = equality
 Node* expr(Token** rest, Token* token) {
+  return equality(rest, token);
+}
+
+// equality = relational ("==" relational | "!=" relational)*
+Node* equality(Token** rest, Token* token) {
+  Node* node = relational(&token, token);
+
+  while (true) {
+    if (token->info == PK_Eq) {
+      node = make_oper(OP_Eq, node, relational(&token, token + 1));
+    } else if (token->info == PK_NEq) {
+      node = make_oper(OP_NEq, node, relational(&token, token + 1));
+    } else {
+      *rest = token;
+      return node;
+    }
+  }
+}
+
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+Node* relational(Token** rest, Token* token) {
+  Node* node = add(&token, token);
+
+  while (true) {
+    if (token->info == PK_Lt) {
+      node = make_oper(OP_Lt, node, add(&token, token + 1));
+    } else if (token->info == PK_Lte) {
+      node = make_oper(OP_Lte, node, add(&token, token + 1));
+    } else if (token->info == PK_Gt) {
+      node = make_oper(OP_Gt, node, add(&token, token + 1));
+    } else if (token->info == PK_Gte) {
+      node = make_oper(OP_Gte, node, add(&token, token + 1));
+    } else {
+      *rest = token;
+      return node;
+    }
+  }
+}
+
+// add = mul ("+" mul | "-" mul)*
+Node* add(Token** rest, Token* token) {
   Node* node = mul(&token, token);
 
   while (true) {
@@ -184,7 +221,7 @@ void print_ast_tree(Node* node) {
     // clang-format off
     switch (node->binop.kind) {
       case OP_Add:  eputs("ND_Oper: OP_Add"); break;
-    case OP_Sub:  eputs("ND_Oper: OP_Sub"); break;
+      case OP_Sub:  eputs("ND_Oper: OP_Sub"); break;
       case OP_Mul:  eputs("ND_Oper: OP_Mul"); break;
       case OP_Div:  eputs("ND_Oper: OP_Div"); break;
       case OP_Eq:   eputs("ND_Oper: OP_Eq");  break;
