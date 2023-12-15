@@ -175,12 +175,12 @@ void print_ast_tree(Node* node) {
     case OP_Mul:    eputs("ND_Oper: OP_Mul");   break;
     case OP_Div:    eputs("ND_Oper: OP_Div");   break;
     case OP_Neg:    eputs("ND_Oper: OP_Neg");   return;
+    case OP_Eq:     eputs("ND_Oper: OP_Eq");    break;
+    case OP_NEq:    eputs("ND_Oper: OP_Not");   break;
     case OP_Lt:     eputs("ND_Oper: OP_Lt");    break;
     case OP_Lte:    eputs("ND_Oper: OP_Lte");   break;
-    case OP_Eq:     eputs("ND_Oper: OP_Eq");    break;
     case OP_Gte:    eputs("ND_Oper: OP_Gte");   break;
     case OP_Gt:     eputs("ND_Oper: OP_Gt");    break;
-    case OP_Not:    eputs("ND_Oper: OP_Not");   break;
     }
     // clang-format on
     print_ast_tree(node->binop.rhs);

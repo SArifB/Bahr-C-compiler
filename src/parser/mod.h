@@ -17,12 +17,12 @@ enum OperKind {
   OP_Mul,
   OP_Div,
   OP_Neg,
+  OP_Eq,
+  OP_NEq,
   OP_Lt,
   OP_Lte,
-  OP_Eq,
   OP_Gte,
   OP_Gt,
-  OP_Not,
 };
 
 enum TypeKind {

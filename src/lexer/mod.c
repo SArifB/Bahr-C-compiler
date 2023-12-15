@@ -36,8 +36,8 @@ bool is_ident(cstr ref) {
 
 static cstr pnct_table[] = {
   "(",  ")", "{", "}",  "[",  "]",  "+=", "-=", "*=", "/=", "->", "=>", "&&",
-  "||", "!", "?", "<<", ">>", "==", "<=", ">=", "<",  ">",  "&",  "|",  "~",
-  "=",  "+", "-", "*",  "/",  ",",  ";",  ".",  ":",  "#",  "%",  "@",
+  "||", "!", "?", "<<", ">>", "==", "!=", "<=", ">=", "<",  ">",  "&",  "|",
+  "~",  "=", "+", "-",  "*",  "/",  ",",  ";",  ".",  ":",  "#",  "%",  "@",
 };
 
 static AddInfo pnct_info_table[] = {
@@ -47,13 +47,13 @@ static AddInfo pnct_info_table[] = {
   PK_DivAssign,    PK_RightArrow,   PK_FatRightArrow,
   PK_And,          PK_Or,           PK_Neg,
   PK_Question,     PK_ShiftLeft,    PK_ShiftRight,
-  PK_Eq,           PK_Lte,          PK_Gte,
-  PK_Lt,           PK_Gt,           PK_BitAnd,
-  PK_BitOr,        PK_BitNeg,       PK_Assign,
-  PK_Add,          PK_Sub,          PK_Mul,
-  PK_Div,          PK_Colon,        PK_SemiCol,
-  PK_Dot,          PK_DoubleDot,    PK_Hash,
-  PK_Percent,      PK_AddrOf,
+  PK_Eq,           PK_NEq,          PK_Lte,
+  PK_Gte,          PK_Lt,           PK_Gt,
+  PK_BitAnd,       PK_BitOr,        PK_BitNeg,
+  PK_Assign,       PK_Add,          PK_Sub,
+  PK_Mul,          PK_Div,          PK_Colon,
+  PK_SemiCol,      PK_Dot,          PK_DoubleDot,
+  PK_Hash,         PK_Percent,      PK_AddrOf,
 };
 
 static cstr kwrd_table[] = {

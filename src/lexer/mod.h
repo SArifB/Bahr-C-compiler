@@ -39,6 +39,7 @@ enum AddInfo {
   PK_ShiftLeft,
   PK_ShiftRight,
   PK_Eq,
+  PK_NEq,
   PK_Lte,
   PK_Gte,
   PK_Lt,
