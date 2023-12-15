@@ -9,18 +9,33 @@
 static i32 get_tok_precedence(Token* token);
 static __attribute((noreturn)) void print_expr_err(cstr itr);
 static Node* make_oper(OperKind oper, Node* lhs, Node* rhs);
-static Node* make_unary(Node* value);
+static Node* make_unary(NodeKind kind, Node* value);
 static Node* make_number(StrView view);
 static Node* make_float(StrView view);
 static Node* make_string(StrView view);
+static Token* skip(Token* token, AddInfo info);
 
+static Node* stmt(Token** rest, Token* token);
+static Node* expr_stmt(Token** rest, Token* token);
 static Node* expr(Token** rest, Token* token);
-static Node* equality(Token** rest, Token* tok);
-static Node* relational(Token** rest, Token* tok);
-static Node* add(Token** rest, Token* tok);
+static Node* equality(Token** rest, Token* token);
+static Node* relational(Token** rest, Token* token);
+static Node* add(Token** rest, Token* token);
 static Node* mul(Token** rest, Token* token);
 static Node* unary(Token** rest, Token* token);
 static Node* primary(Token** rest, Token* token);
+
+// stmt = expr-stmt
+unused static Node* stmt(Token** rest, Token* token) {
+  return expr_stmt(rest, token);
+}
+
+// expr-stmt = expr ";"
+static Node* expr_stmt(Token** rest, Token* token) {
+  Node* node = make_unary(ND_ExprStmt, expr(&token, token));
+  *rest = skip(token, PK_SemiCol);
+  return node;
+}
 
 // expr = equality
 static Node* expr(Token** rest, Token* token) {
@@ -101,7 +116,7 @@ static Node* unary(Token** rest, Token* token) {
   if (token->info == PK_Add) {
     return unary(rest, token + 1);
   } else if (token->info == PK_Sub) {
-    return make_unary(unary(rest, token + 1));
+    return make_unary(ND_Neg, unary(rest, token + 1));
   }
   return primary(rest, token);
 }
@@ -110,10 +125,9 @@ static Node* unary(Token** rest, Token* token) {
 static Node* primary(Token** rest, Token* token) {
   if (token->info == PK_LeftParen) {
     Node* node = expr(&token, token + 1);
-    if (token->info == PK_RightParen) {
-      *rest = token + 1;
-      return node;
-    }
+    *rest = skip(token, PK_RightParen);
+    return node;
+
   } else if (token->kind == TK_NumLiteral) {
     Node* node = make_number(token->pos);
     *rest = token + 1;
@@ -122,8 +136,14 @@ static Node* primary(Token** rest, Token* token) {
   print_expr_err(token->pos.itr);
 }
 
-Node* parse_lexer(Token** rest, Token* token) {
-  return expr(rest, token);
+// program = stmt*
+Node* parse_lexer(TokenVector* tokens) {
+  Token* tok_cur = tokens->buffer;
+  Node* node_cur = nullptr;
+  while (tok_cur->kind != TK_EOF) {
+    node_cur = stmt(&tok_cur, tok_cur);
+  }
+  return node_cur;
 }
 
 static Arena PARSER_ARENA = {};
@@ -170,11 +190,11 @@ static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   return node;
 }
 
-static Node* make_unary(Node* value) {
+static Node* make_unary(NodeKind kind, Node* value) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
-    .kind = ND_Neg,
-    .unaval = value,
+    .kind = kind,
+    .next = value,
   };
   return node;
 }
@@ -223,10 +243,16 @@ unused static Node* make_string(StrView view) {
   return node;
 }
 
+static Token* skip(Token* token, AddInfo info) {
+  if (token->info != info) {
+    print_expr_err(token->pos.itr);
+  }
+  return token + 1;
+}
+
 void print_ast_tree(Node* node) {
   static i32 indent = 0;
-  // eprintf("%*s", indent, "| ");
-  for (i32 i = 0; i < indent / 2; ++i) {
+  for (i32 i = 0; i < indent; ++i) {
     eputc('|');
     eputc(' ');
   }
@@ -235,11 +261,13 @@ void print_ast_tree(Node* node) {
   if (node == nullptr) {
     // return;
 
+  } else if (node->kind == ND_ExprStmt) {
+    eputs("ND_ExprStmt:");
+    print_ast_tree(node->next);
+
   } else if (node->kind == ND_Neg) {
-    eputs("ND_Neg: ");
-    indent += 1;
-    print_ast_tree(node->unaval);
-    indent -= 1;
+    eputs("ND_Neg:");
+    print_ast_tree(node->next);
 
   } else if (node->kind == ND_Oper) {
     // clang-format off
@@ -256,10 +284,8 @@ void print_ast_tree(Node* node) {
       case OP_Gt:   eputs("ND_Oper: OP_Gt");  break;
     }
     // clang-format on
-    indent += 1;
     print_ast_tree(node->binop.lhs);
     print_ast_tree(node->binop.rhs);
-    indent -= 1;
 
   } else if (node->kind == ND_Val) {
     if (node->value.kind == TP_Int) {

@@ -62,6 +62,7 @@ enum NodeKind {
   ND_Oper,
   ND_Val,
   ND_Neg,
+  ND_ExprStmt,
 };
 
 struct Node {
@@ -69,10 +70,10 @@ struct Node {
   union {
     OperNode binop;
     ValueNode value;
-    Node* unaval;
+    Node* next;
   };
 };
 
-extern Node* parse_lexer(Token** rest, Token* token);
+extern Node* parse_lexer(TokenVector* tokens);
 extern void print_ast_tree(Node* node);
 extern void free_ast_tree();

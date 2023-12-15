@@ -40,14 +40,11 @@ i32 main(i32 argc, cstr argv[]) {
   eputs("\n-----------------------------------------------");
 
   // Parse lexer
-  Token* tok_cur = tokens->buffer;
-  Node* node = expr(&tok_cur, tok_cur);
+  Node* node = parse_lexer(tokens);
   free(tokens);
-
+  free(ref_str);
   print_ast_tree(node);
   eputs("\n-----------------------------------------------");
-  // NodeVector* exprs = parse_lexer(tokens);
-  // any res = codegen(exprs);
 
   // Generate code
   Codegen* cdgn = codegen_make("some_code");
@@ -56,7 +53,6 @@ i32 main(i32 argc, cstr argv[]) {
 
   LLVMExecutionEngineRef engine = engine_make(cdgn);
 
-  free(ref_str);
   free_ast_tree();
   engine_shutdown(engine);
   codegen_dispose(cdgn);
