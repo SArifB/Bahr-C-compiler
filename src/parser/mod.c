@@ -46,11 +46,15 @@ static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   return node;
 }
 
-static Node* make_unary(Node* value) {
+static Node* make_unary(Node* lhs) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
-    .kind = ND_Neg,
-    .unaval = value,
+    .kind = ND_Oper,
+    .binop =
+      (OperNode){
+        .kind = OP_Neg,
+        .lhs = lhs,
+      },
   };
   return node;
 }
@@ -159,33 +163,49 @@ Node* primary(Token** rest, Token* token) {
 }
 
 void print_ast_tree(Node* node) {
+  static i32 indent = 0;
+  // eprintf("%*s", indent, "| ");
+  for (i32 i = 0; i < indent / 2; ++i) {
+    eputc('|');
+    eputc(' ');
+  }
+  indent += 1;
+
   if (node == nullptr) {
-    return;
+    // return;
+
+  } else if (node->kind == ND_Neg) {
+    eputs("ND_Neg: ");
+    indent += 1;
+    print_ast_tree(node->unaval);
+    indent -= 1;
 
   } else if (node->kind == ND_Oper) {
-    print_ast_tree(node->binop.lhs);
     // clang-format off
     switch (node->binop.kind) {
-    case OP_Add:   eputs("ND_Oper: OP_Add");  break;
+      case OP_Add:  eputs("ND_Oper: OP_Add"); break;
     case OP_Sub:  eputs("ND_Oper: OP_Sub"); break;
-    case OP_Mul:    eputs("ND_Oper: OP_Mul");   break;
-    case OP_Div:    eputs("ND_Oper: OP_Div");   break;
-    case OP_Neg:    eputs("ND_Oper: OP_Neg");   return;
-    case OP_Eq:     eputs("ND_Oper: OP_Eq");    break;
-    case OP_NEq:    eputs("ND_Oper: OP_Not");   break;
-    case OP_Lt:     eputs("ND_Oper: OP_Lt");    break;
-    case OP_Lte:    eputs("ND_Oper: OP_Lte");   break;
-    case OP_Gte:    eputs("ND_Oper: OP_Gte");   break;
-    case OP_Gt:     eputs("ND_Oper: OP_Gt");    break;
+      case OP_Mul:  eputs("ND_Oper: OP_Mul"); break;
+      case OP_Div:  eputs("ND_Oper: OP_Div"); break;
+      case OP_Eq:   eputs("ND_Oper: OP_Eq");  break;
+      case OP_NEq:  eputs("ND_Oper: OP_Not"); break;
+      case OP_Lt:   eputs("ND_Oper: OP_Lt");  break;
+      case OP_Lte:  eputs("ND_Oper: OP_Lte"); break;
+      case OP_Gte:  eputs("ND_Oper: OP_Gte"); break;
+      case OP_Gt:   eputs("ND_Oper: OP_Gt");  break;
     }
     // clang-format on
+    indent += 1;
+    print_ast_tree(node->binop.lhs);
     print_ast_tree(node->binop.rhs);
+    indent -= 1;
 
   } else if (node->kind == ND_Val) {
     if (node->value.kind == TP_Int) {
       eprintf("ND_Val: TP_Int = %li\n", node->value.i_num);
     }
   }
+  indent -= 1;
 }
 
 void free_ast_tree() {
