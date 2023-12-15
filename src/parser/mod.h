@@ -12,8 +12,8 @@ typedef struct VariNode VariNode;
 typedef struct ValueNode ValueNode;
 
 enum OperKind {
-  OP_Plus,
-  OP_Minus,
+  OP_Add,
+  OP_Sub,
   OP_Mul,
   OP_Div,
   OP_Neg,

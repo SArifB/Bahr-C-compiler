@@ -12,7 +12,7 @@ static Arena PARSER_ARENA = {};
 unused static i32 get_tok_precedence(Token* token) {
   if (token->info == PK_Mul || token->info == PK_Div) {
     return 5;
-  } else if (token->info == PK_Plus || token->info == PK_Minus) {
+  } else if (token->info == PK_Add || token->info == PK_Sub) {
     return 4;
   } else if (token->info == PK_Eq) {
     return 3;
@@ -108,10 +108,10 @@ Node* expr(Token** rest, Token* token) {
   Node* node = mul(&token, token);
 
   while (true) {
-    if (token->info == PK_Plus) {
-      node = make_oper(OP_Plus, node, mul(&token, token + 1));
-    } else if (token->info == PK_Minus) {
-      node = make_oper(OP_Minus, node, mul(&token, token + 1));
+    if (token->info == PK_Add) {
+      node = make_oper(OP_Add, node, mul(&token, token + 1));
+    } else if (token->info == PK_Sub) {
+      node = make_oper(OP_Sub, node, mul(&token, token + 1));
     } else {
       *rest = token;
       return node;
@@ -138,9 +138,9 @@ Node* mul(Token** rest, Token* token) {
 // unary = ("+" | "-") unary
 //       | primary
 Node* unary(Token** rest, Token* token) {
-  if (token->info == PK_Plus) {
+  if (token->info == PK_Add) {
     return unary(rest, token + 1);
-  } else if (token->info == PK_Minus) {
+  } else if (token->info == PK_Sub) {
     return make_unary(unary(rest, token + 1));
   }
   return primary(rest, token);
@@ -170,8 +170,8 @@ void print_ast_tree(Node* node) {
     print_ast_tree(node->binop.lhs);
     // clang-format off
     switch (node->binop.kind) {
-    case OP_Plus:   eputs("ND_Oper: OP_Plus");  break;
-    case OP_Minus:  eputs("ND_Oper: OP_Minus"); break;
+    case OP_Add:   eputs("ND_Oper: OP_Add");  break;
+    case OP_Sub:  eputs("ND_Oper: OP_Sub"); break;
     case OP_Mul:    eputs("ND_Oper: OP_Mul");   break;
     case OP_Div:    eputs("ND_Oper: OP_Div");   break;
     case OP_Neg:    eputs("ND_Oper: OP_Neg");   return;
