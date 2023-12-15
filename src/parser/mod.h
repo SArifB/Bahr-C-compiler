@@ -36,7 +36,6 @@ enum NodeKind {
   // ND_Call,
   ND_Oper,
   ND_Val,
-  ND_Neg,
 };
 
 struct OperNode {

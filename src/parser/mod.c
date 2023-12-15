@@ -49,7 +49,7 @@ static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
 static Node* make_unary(Node* lhs) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
-    .kind = ND_Neg,
+    .kind = ND_Oper,
     .binop =
       (OperNode){
         .kind = OP_Neg,
@@ -168,16 +168,22 @@ void print_ast_tree(Node* node) {
 
   } else if (node->kind == ND_Oper) {
     print_ast_tree(node->binop.lhs);
-    if (node->binop.kind == OP_Plus) {
-      eputs("ND_Oper: OP_Plus");
-    } else if (node->binop.kind == OP_Minus) {
-      eputs("ND_Oper: OP_Minus");
+    // clang-format off
+    switch (node->binop.kind) {
+    case OP_Plus:   eputs("ND_Oper: OP_Plus");  break;
+    case OP_Minus:  eputs("ND_Oper: OP_Minus"); break;
+    case OP_Mul:    eputs("ND_Oper: OP_Mul");   break;
+    case OP_Div:    eputs("ND_Oper: OP_Div");   break;
+    case OP_Neg:    eputs("ND_Oper: OP_Neg");   return;
+    case OP_Lt:     eputs("ND_Oper: OP_Lt");    break;
+    case OP_Lte:    eputs("ND_Oper: OP_Lte");   break;
+    case OP_Eq:     eputs("ND_Oper: OP_Eq");    break;
+    case OP_Gte:    eputs("ND_Oper: OP_Gte");   break;
+    case OP_Gt:     eputs("ND_Oper: OP_Gt");    break;
+    case OP_Not:    eputs("ND_Oper: OP_Not");   break;
     }
+    // clang-format on
     print_ast_tree(node->binop.rhs);
-
-  } else if (node->kind == ND_Neg) {
-    eputs("ND_Neg: OP_Neg");
-    print_ast_tree(node->binop.lhs);
 
   } else if (node->kind == ND_Val) {
     if (node->value.kind == TP_Int) {
