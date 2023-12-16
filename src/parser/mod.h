@@ -22,6 +22,7 @@ enum OperKind {
   OP_Lte,
   OP_Gte,
   OP_Gt,
+  OP_Asg,
 };
 
 struct OperNode {
@@ -42,8 +43,8 @@ enum TypeKind {
 };
 
 struct VariNode {
-  TypeKind kind;
-  Node* next;
+  // TypeKind kind;
+  // Node* next;
   VarCharArr name;
 };
 
@@ -57,12 +58,12 @@ struct ValueNode {
 };
 
 enum NodeKind {
-  // ND_Var,
   // ND_Call,
   ND_Oper,
   ND_Val,
   ND_Neg,
   ND_ExprStmt,
+  ND_Vari,
 };
 
 struct Node {
@@ -70,10 +71,11 @@ struct Node {
   union {
     OperNode binop;
     ValueNode value;
+    VariNode vari;
     Node* next;
   };
 };
 
 extern Node* parse_lexer(TokenVector* tokens);
-extern void print_ast_tree(Node* node);
-extern void free_ast_tree();
+extern void print_ast(Node* node);
+extern void free_ast();

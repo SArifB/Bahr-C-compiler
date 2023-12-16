@@ -13,10 +13,12 @@ static Node* make_unary(NodeKind kind, Node* value);
 static Node* make_number(StrView view);
 static Node* make_float(StrView view);
 static Node* make_string(StrView view);
+static Node* make_variable(StrView view);
 static Token* skip(Token* token, AddInfo info);
 
 static Node* stmt(Token** rest, Token* token);
 static Node* expr_stmt(Token** rest, Token* token);
+static Node* assign(Token** rest, Token* tok);
 static Node* expr(Token** rest, Token* token);
 static Node* equality(Token** rest, Token* token);
 static Node* relational(Token** rest, Token* token);
@@ -26,7 +28,7 @@ static Node* unary(Token** rest, Token* token);
 static Node* primary(Token** rest, Token* token);
 
 // stmt = expr-stmt
-unused static Node* stmt(Token** rest, Token* token) {
+static Node* stmt(Token** rest, Token* token) {
   return expr_stmt(rest, token);
 }
 
@@ -37,9 +39,19 @@ static Node* expr_stmt(Token** rest, Token* token) {
   return node;
 }
 
-// expr = equality
+// expr = assign
 static Node* expr(Token** rest, Token* token) {
-  return equality(rest, token);
+  return assign(rest, token);
+}
+
+// assign = equality ("=" assign)?
+static Node* assign(Token** rest, Token* token) {
+  Node* node = equality(&token, token);
+  if (token->info == PK_Assign) {
+    node = make_oper(OP_Asg, node, assign(&token, token + 1));
+  }
+  *rest = token;
+  return node;
 }
 
 // equality = relational ("==" relational | "!=" relational)*
@@ -121,11 +133,16 @@ static Node* unary(Token** rest, Token* token) {
   return primary(rest, token);
 }
 
-// primary = "(" expr ")" | num
+// primary = "(" expr ")" | ident | num
 static Node* primary(Token** rest, Token* token) {
   if (token->info == PK_LeftParen) {
     Node* node = expr(&token, token + 1);
     *rest = skip(token, PK_RightParen);
+    return node;
+
+  } else if (token->kind == TK_Ident) {
+    Node* node = make_variable(token->pos);
+    *rest = token + 1;
     return node;
 
   } else if (token->kind == TK_NumLiteral) {
@@ -149,7 +166,7 @@ Node* parse_lexer(TokenVector* tokens) {
 static Arena PARSER_ARENA = {};
 #define parser_alloc(size) arena_alloc(&PARSER_ARENA, size)
 
-void free_ast_tree() {
+void free_ast() {
   arena_free(&PARSER_ARENA);
 }
 
@@ -240,6 +257,25 @@ unused static Node* make_string(StrView view) {
       },
   };
   strncpy(node->value.str_lit.arr, view.itr, size);
+  node->value.str_lit.arr[size] = 0;
+  return node;
+}
+
+static Node* make_variable(StrView view) {
+  usize size = view.sen - view.itr;
+  Node* node = parser_alloc(sizeof(Node) + sizeof(char) * (size + 1));
+  *node = (Node){
+    .kind = ND_Vari,
+    .vari =
+      (VariNode){
+        .name =
+          (VarCharArr){
+            .size = size,
+          },
+      },
+  };
+  strncpy(node->vari.name.arr, view.itr, size);
+  node->vari.name.arr[size] = 0;
   return node;
 }
 
@@ -250,7 +286,7 @@ static Token* skip(Token* token, AddInfo info) {
   return token + 1;
 }
 
-void print_ast_tree(Node* node) {
+void print_ast(Node* node) {
   static i32 indent = 0;
   for (i32 i = 0; i < indent; ++i) {
     eputc('|');
@@ -261,13 +297,16 @@ void print_ast_tree(Node* node) {
   if (node == nullptr) {
     // return;
 
+  } else if (node->kind == ND_Vari) {
+    eprintf("ND_Vari: %s\n", node->vari.name.arr);
+
   } else if (node->kind == ND_ExprStmt) {
     eputs("ND_ExprStmt:");
-    print_ast_tree(node->next);
+    print_ast(node->next);
 
   } else if (node->kind == ND_Neg) {
     eputs("ND_Neg:");
-    print_ast_tree(node->next);
+    print_ast(node->next);
 
   } else if (node->kind == ND_Oper) {
     // clang-format off
@@ -282,10 +321,11 @@ void print_ast_tree(Node* node) {
       case OP_Lte:  eputs("ND_Oper: OP_Lte"); break;
       case OP_Gte:  eputs("ND_Oper: OP_Gte"); break;
       case OP_Gt:   eputs("ND_Oper: OP_Gt");  break;
+      case OP_Asg:  eputs("ND_Oper: OP_Asg"); break;
     }
     // clang-format on
-    print_ast_tree(node->binop.lhs);
-    print_ast_tree(node->binop.rhs);
+    print_ast(node->binop.lhs);
+    print_ast(node->binop.rhs);
 
   } else if (node->kind == ND_Val) {
     if (node->value.kind == TP_Int) {
