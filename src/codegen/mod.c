@@ -35,12 +35,12 @@ static __attribute((noreturn)) void print_cdgn_err(NodeKind kind) {
 }
 
 LLVMValueRef codegen_make_value(Codegen* cdgn, Node* node) {
-  if (node->kind == ND_Oper) {
-    LLVMValueRef lhs = codegen_make_value(cdgn, node->binop.lhs);
-    LLVMValueRef rhs = codegen_make_value(cdgn, node->binop.rhs);
+  if (node->kind == ND_Operation) {
+    LLVMValueRef lhs = codegen_make_value(cdgn, node->operation.lhs);
+    LLVMValueRef rhs = codegen_make_value(cdgn, node->operation.rhs);
     return LLVMBuildAdd(cdgn->bldr, lhs, rhs, "oper_add");
 
-  } else if (node->kind == ND_Val) {
+  } else if (node->kind == ND_Value) {
     if (node->value.kind == TP_Int) {
       LLVMTypeRef type = LLVMInt32TypeInContext(cdgn->ctx);
       return LLVMConstInt(type, node->value.i_num, true);
