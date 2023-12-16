@@ -9,7 +9,7 @@
 static i32 get_tok_precedence(Token* token);
 static __attribute((noreturn)) void print_expr_err(cstr itr);
 static Node* make_oper(OperKind oper, Node* lhs, Node* rhs);
-static Node* make_unary(NodeKind kind, Node* value);
+static Node* make_unary(UnaryKind kind, Node* value);
 static Node* make_number(StrView view);
 static Node* make_float(StrView view);
 static Node* make_string(StrView view);
@@ -27,14 +27,21 @@ static Node* mul(Token** rest, Token* token);
 static Node* unary(Token** rest, Token* token);
 static Node* primary(Token** rest, Token* token);
 
-// stmt = expr-stmt
+// stmt = "return" expr ";"
+//      | expr-stmt
 static Node* stmt(Token** rest, Token* token) {
+  if (token->info == KW_Return) {
+    Node* node = make_unary(UN_Return, expr(&token, token + 1));
+    *rest = skip(token, PK_SemiCol);
+    return node;
+  }
+
   return expr_stmt(rest, token);
 }
 
 // expr-stmt = expr ";"
 static Node* expr_stmt(Token** rest, Token* token) {
-  Node* node = make_unary(ND_ExprStmt, expr(&token, token));
+  Node* node = make_unary(UN_ExprStmt, expr(&token, token));
   *rest = skip(token, PK_SemiCol);
   return node;
 }
@@ -128,7 +135,7 @@ static Node* unary(Token** rest, Token* token) {
   if (token->info == PK_Add) {
     return unary(rest, token + 1);
   } else if (token->info == PK_Sub) {
-    return make_unary(ND_Neg, unary(rest, token + 1));
+    return make_unary(UN_Negation, unary(rest, token + 1));
   }
   return primary(rest, token);
 }
@@ -196,8 +203,8 @@ static void print_expr_err(cstr itr) {
 static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
-    .kind = ND_Oper,
-    .binop =
+    .kind = ND_Operation,
+    .operation =
       (OperNode){
         .kind = oper,
         .lhs = lhs,
@@ -207,11 +214,15 @@ static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   return node;
 }
 
-static Node* make_unary(NodeKind kind, Node* value) {
+static Node* make_unary(UnaryKind kind, Node* value) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
-    .kind = kind,
-    .next = value,
+    .kind = ND_Unary,
+    .unary =
+      (UnaryNode){
+        .kind = kind,
+        .next = value,
+      },
   };
   return node;
 }
@@ -219,7 +230,7 @@ static Node* make_unary(NodeKind kind, Node* value) {
 static Node* make_number(StrView view) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
-    .kind = ND_Val,
+    .kind = ND_Value,
     .value =
       (ValueNode){
         .kind = TP_Int,
@@ -232,7 +243,7 @@ static Node* make_number(StrView view) {
 unused static Node* make_float(StrView view) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
-    .kind = ND_Val,
+    .kind = ND_Value,
     .value =
       (ValueNode){
         .kind = TP_Flt,
@@ -246,7 +257,7 @@ unused static Node* make_string(StrView view) {
   usize size = view.sen - view.itr;
   Node* node = parser_alloc(sizeof(Node) + sizeof(char) * (size + 1));
   *node = (Node){
-    .kind = ND_Val,
+    .kind = ND_Value,
     .value =
       (ValueNode){
         .kind = TP_Str,
@@ -265,17 +276,17 @@ static Node* make_variable(StrView view) {
   usize size = view.sen - view.itr;
   Node* node = parser_alloc(sizeof(Node) + sizeof(char) * (size + 1));
   *node = (Node){
-    .kind = ND_Vari,
-    .vari =
-      (VariNode){
+    .kind = ND_Variable,
+    .variable =
+      (VarNode){
         .name =
           (VarCharArr){
             .size = size,
           },
       },
   };
-  strncpy(node->vari.name.arr, view.itr, size);
-  node->vari.name.arr[size] = 0;
+  strncpy(node->variable.name.arr, view.itr, size);
+  node->variable.name.arr[size] = 0;
   return node;
 }
 
@@ -297,20 +308,22 @@ void print_ast(Node* node) {
   if (node == nullptr) {
     // return;
 
-  } else if (node->kind == ND_Vari) {
-    eprintf("ND_Vari: %s\n", node->vari.name.arr);
+  } else if (node->kind == ND_Variable) {
+    eprintf("ND_Vari: %s\n", node->variable.name.arr);
 
-  } else if (node->kind == ND_ExprStmt) {
-    eputs("ND_ExprStmt:");
-    print_ast(node->next);
-
-  } else if (node->kind == ND_Neg) {
-    eputs("ND_Neg:");
-    print_ast(node->next);
-
-  } else if (node->kind == ND_Oper) {
+  } else if (node->kind == ND_Unary) {
     // clang-format off
-    switch (node->binop.kind) {
+    switch (node->unary.kind) {
+      case UN_Negation: eputs("ND_Unary: UN_Negation"); break;
+      case UN_ExprStmt: eputs("ND_Unary: UN_ExprStmt"); break;
+      case UN_Return:   eputs("ND_Unary: UN_Return");   break;
+    }
+    // clang-format on
+    print_ast(node->unary.next);
+
+  } else if (node->kind == ND_Operation) {
+    // clang-format off
+    switch (node->operation.kind) {
       case OP_Add:  eputs("ND_Oper: OP_Add"); break;
       case OP_Sub:  eputs("ND_Oper: OP_Sub"); break;
       case OP_Mul:  eputs("ND_Oper: OP_Mul"); break;
@@ -324,10 +337,10 @@ void print_ast(Node* node) {
       case OP_Asg:  eputs("ND_Oper: OP_Asg"); break;
     }
     // clang-format on
-    print_ast(node->binop.lhs);
-    print_ast(node->binop.rhs);
+    print_ast(node->operation.lhs);
+    print_ast(node->operation.rhs);
 
-  } else if (node->kind == ND_Val) {
+  } else if (node->kind == ND_Value) {
     if (node->value.kind == TP_Int) {
       eprintf("ND_Val: TP_Int = %li\n", node->value.i_num);
     }

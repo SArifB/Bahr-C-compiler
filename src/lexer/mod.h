@@ -70,6 +70,7 @@ enum AddInfo {
   KW_For,
   KW_While,
   KW_Match,
+  KW_Return,
 };
 
 struct Token {

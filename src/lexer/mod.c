@@ -1,4 +1,3 @@
-// #include <arena/mod.h>
 #include <lexer/mod.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,41 +5,41 @@
 
 DEFINE_VECTOR(Token, malloc, free)
 
-bool equals(cstr itr, cstr ref) {
+static bool equals(cstr itr, cstr ref) {
   return strncmp(itr, ref, strlen(ref)) == 0;
 }
 
-bool char_equals(cstr itr, cstr ref) {
+static bool char_equals(cstr itr, cstr ref) {
   // return strncmp(itr, ref, 1) == 0;
   return *itr == *ref;
 }
 
-bool skippable(cstr itr) {
+static bool skippable(cstr itr) {
   return char_equals(itr, " ") || char_equals(itr, "\t") ||
          char_equals(itr, "\r") || char_equals(itr, "\n") ||
          char_equals(itr, "\f");
 }
 
-bool is_numliteral(cstr ref) {
+static bool is_numliteral(cstr ref) {
   return (*ref >= '0' && *ref <= '9') || *ref == '.' || *ref == '_';
 }
 
-bool is_str_lit_char(cstr ref) {
+static bool is_str_lit_char(cstr ref) {
   return *ref == '\"' || (*ref == '\"' && *(ref - 1) == '\\');
 }
 
-bool is_ident(cstr ref) {
+static bool is_ident(cstr ref) {
   return (*ref >= 'a' && *ref <= 'z') || (*ref >= 'A' && *ref <= 'Z') ||
          *ref == '_';
 }
 
-static cstr pnct_table[] = {
+static const char pnct_table[][4] = {
   "(",  ")", "{", "}",  "[",  "]",  "+=", "-=", "*=", "/=", "->", "=>", "&&",
   "||", "!", "?", "<<", ">>", "==", "!=", "<=", ">=", "<",  ">",  "&",  "|",
   "~",  "=", "+", "-",  "*",  "/",  ",",  ";",  ".",  ":",  "#",  "%",  "@",
 };
 
-static AddInfo pnct_info_table[] = {
+static const AddInfo pnct_info_table[] = {
   PK_LeftParen,    PK_RightParen,   PK_LeftBracket,
   PK_RightBracket, PK_LeftSqrBrack, PK_RightSqrBrack,
   PK_AddAssign,    PK_SubAssign,    PK_MulAssign,
@@ -56,15 +55,16 @@ static AddInfo pnct_info_table[] = {
   PK_Hash,         PK_Percent,      PK_AddrOf,
 };
 
-static cstr kwrd_table[] = {
-  "pub", "let", "fn", "use", "if", "else", "for", "while", "match",
+static const char kwrd_table[][8] = {
+  "pub", "let", "fn", "use", "if", "else", "for", "while", "match", "return",
 };
 
-static AddInfo kwrd_info_table[] = {
-  KW_Pub, KW_Let, KW_Fn, KW_Use, KW_If, KW_Else, KW_For, KW_While, KW_Match,
+static const AddInfo kwrd_info_table[] = {
+  KW_Pub,  KW_Let, KW_Fn,    KW_Use,   KW_If,
+  KW_Else, KW_For, KW_While, KW_Match, KW_Return,
 };
 
-bool is_punct(cstr ref) {
+static bool is_punct(cstr ref) {
   for (usize i = 0; i < sizeof_arr(pnct_table); ++i) {
     if (equals(ref, pnct_table[i])) {
       return true;
@@ -73,7 +73,7 @@ bool is_punct(cstr ref) {
   return false;
 }
 
-bool is_charnum(cstr ref) {
+static bool is_charnum(cstr ref) {
   return (*ref >= 'a' && *ref <= 'z') || (*ref >= 'A' && *ref <= 'Z') ||
          (*ref >= '0' && *ref <= '9') || *ref == '_';
 }

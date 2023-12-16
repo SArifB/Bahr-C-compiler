@@ -5,11 +5,13 @@
 typedef enum OperKind OperKind;
 typedef enum TypeKind TypeKind;
 typedef enum NodeKind NodeKind;
+typedef enum UnaryKind UnaryKind;
 typedef struct Node Node;
 typedef struct OperNode OperNode;
 typedef struct VarCharArr VarCharArr;
-typedef struct VariNode VariNode;
+typedef struct VarNode VarNode;
 typedef struct ValueNode ValueNode;
+typedef struct UnaryNode UnaryNode;
 
 enum OperKind {
   OP_Add,
@@ -42,7 +44,7 @@ enum TypeKind {
   TP_Str,
 };
 
-struct VariNode {
+struct VarNode {
   // TypeKind kind;
   // Node* next;
   VarCharArr name;
@@ -57,22 +59,31 @@ struct ValueNode {
   };
 };
 
+enum UnaryKind {
+  UN_Negation,
+  UN_ExprStmt,
+  UN_Return,
+};
+
+struct UnaryNode {
+  UnaryKind kind;
+  Node* next;
+};
+
 enum NodeKind {
-  // ND_Call,
-  ND_Oper,
-  ND_Val,
-  ND_Neg,
-  ND_ExprStmt,
-  ND_Vari,
+  ND_Operation,
+  ND_Value,
+  ND_Unary,
+  ND_Variable,
 };
 
 struct Node {
   NodeKind kind;
   union {
-    OperNode binop;
+    OperNode operation;
     ValueNode value;
-    VariNode vari;
-    Node* next;
+    VarNode variable;
+    UnaryNode unary;
   };
 };
 
