@@ -6,6 +6,8 @@
 #include <string.h>
 #include <utility/mod.h>
 
+static Token* skip(Token* token, AddInfo info);
+static Object* find_var(Token* token);
 static i32 get_tok_precedence(Token* token);
 static __attribute((noreturn)) void print_expr_err(cstr itr);
 static Node* make_oper(OperKind oper, Node* lhs, Node* rhs);
@@ -13,8 +15,9 @@ static Node* make_unary(UnaryKind kind, Node* value);
 static Node* make_number(StrView view);
 static Node* make_float(StrView view);
 static Node* make_string(StrView view);
-static Node* make_variable(StrView view);
-static Token* skip(Token* token, AddInfo info);
+static Node* make_variable(Object* obj);
+static Object* make_object(StrView view);
+static Function* make_function(Node* node);
 
 static Node* stmt(Token** rest, Token* token);
 static Node* expr_stmt(Token** rest, Token* token);
@@ -35,7 +38,6 @@ static Node* stmt(Token** rest, Token* token) {
     *rest = skip(token, PK_SemiCol);
     return node;
   }
-
   return expr_stmt(rest, token);
 }
 
@@ -148,9 +150,12 @@ static Node* primary(Token** rest, Token* token) {
     return node;
 
   } else if (token->kind == TK_Ident) {
-    Node* node = make_variable(token->pos);
+    Object* obj = find_var(token);
+    if (obj == nullptr) {
+      obj = make_object(token->pos);
+    }
     *rest = token + 1;
-    return node;
+    return make_variable(obj);
 
   } else if (token->kind == TK_NumLiteral) {
     Node* node = make_number(token->pos);
@@ -161,13 +166,15 @@ static Node* primary(Token** rest, Token* token) {
 }
 
 // program = stmt*
-Node* parse_lexer(TokenVector* tokens) {
+Function* parse_lexer(TokenVector* tokens) {
   Token* tok_cur = tokens->buffer;
-  Node* node_cur = nullptr;
+  Node handle = {};
+  Node* node_cur = &handle;
   while (tok_cur->kind != TK_EOF) {
-    node_cur = stmt(&tok_cur, tok_cur);
+    node_cur->next = stmt(&tok_cur, tok_cur);
+    node_cur = node_cur->next;
   }
-  return node_cur;
+  return make_function(handle.next);
 }
 
 static Arena PARSER_ARENA = {};
@@ -175,6 +182,18 @@ static Arena PARSER_ARENA = {};
 
 void free_ast() {
   arena_free(&PARSER_ARENA);
+}
+
+static Object* cur_locals = nullptr;
+
+// Find a local variable by name.
+static Object* find_var(Token* token) {
+  for (Object* obj = cur_locals; obj; obj = obj->next) {
+    if (strncmp(token->pos.itr, obj->name.arr, token->pos.sen - token->pos.itr) == 0) {
+      return obj;
+    }
+  }
+  return nullptr;
 }
 
 unused static i32 get_tok_precedence(Token* token) {
@@ -272,22 +291,38 @@ unused static Node* make_string(StrView view) {
   return node;
 }
 
-static Node* make_variable(StrView view) {
-  usize size = view.sen - view.itr;
-  Node* node = parser_alloc(sizeof(Node) + sizeof(char) * (size + 1));
+static Node* make_variable(Object* obj) {
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Variable,
-    .variable =
-      (VarNode){
-        .name =
-          (VarCharArr){
-            .size = size,
-          },
+    .variable = obj,
+  };
+  return node;
+}
+
+static Object* make_object(StrView view) {
+  usize size = view.sen - view.itr;
+  Object* obj = parser_alloc(sizeof(Object) + sizeof(char) * (size + 1));
+  *obj = (Object){
+    .next = cur_locals,
+    .name =
+      (VarCharArr){
+        .size = size,
       },
   };
-  strncpy(node->variable.name.arr, view.itr, size);
-  node->variable.name.arr[size] = 0;
-  return node;
+  strncpy(obj->name.arr, view.itr, size);
+  obj->name.arr[size] = 0;
+  cur_locals = obj;
+  return obj;
+}
+
+static Function* make_function(Node* node) {
+  Function* func = parser_alloc(sizeof(Function));
+  *func = (Function){
+    .body = node,
+    .locals = cur_locals,
+  };
+  return func;
 }
 
 static Token* skip(Token* token, AddInfo info) {
@@ -297,19 +332,19 @@ static Token* skip(Token* token, AddInfo info) {
   return token + 1;
 }
 
-void print_ast(Node* node) {
+static void print_branch(Node* node) {
   static i32 indent = 0;
+  indent += 1;
   for (i32 i = 0; i < indent; ++i) {
     eputc('|');
     eputc(' ');
   }
-  indent += 1;
 
-  if (node == nullptr) {
-    // return;
+  if (node->kind == ND_None) {
+    eputs("ND_None");
 
   } else if (node->kind == ND_Variable) {
-    eprintf("ND_Vari: %s\n", node->variable.name.arr);
+    eprintf("ND_Variable: %s\n", node->variable->name.arr);
 
   } else if (node->kind == ND_Unary) {
     // clang-format off
@@ -319,31 +354,39 @@ void print_ast(Node* node) {
       case UN_Return:   eputs("ND_Unary: UN_Return");   break;
     }
     // clang-format on
-    print_ast(node->unary.next);
+    print_branch(node->unary.next);
 
   } else if (node->kind == ND_Operation) {
     // clang-format off
     switch (node->operation.kind) {
-      case OP_Add:  eputs("ND_Oper: OP_Add"); break;
-      case OP_Sub:  eputs("ND_Oper: OP_Sub"); break;
-      case OP_Mul:  eputs("ND_Oper: OP_Mul"); break;
-      case OP_Div:  eputs("ND_Oper: OP_Div"); break;
-      case OP_Eq:   eputs("ND_Oper: OP_Eq");  break;
-      case OP_NEq:  eputs("ND_Oper: OP_Not"); break;
-      case OP_Lt:   eputs("ND_Oper: OP_Lt");  break;
-      case OP_Lte:  eputs("ND_Oper: OP_Lte"); break;
-      case OP_Gte:  eputs("ND_Oper: OP_Gte"); break;
-      case OP_Gt:   eputs("ND_Oper: OP_Gt");  break;
-      case OP_Asg:  eputs("ND_Oper: OP_Asg"); break;
+      case OP_Add:  eputs("ND_Operation: OP_Add"); break;
+      case OP_Sub:  eputs("ND_Operation: OP_Sub"); break;
+      case OP_Mul:  eputs("ND_Operation: OP_Mul"); break;
+      case OP_Div:  eputs("ND_Operation: OP_Div"); break;
+      case OP_Eq:   eputs("ND_Operation: OP_Eq");  break;
+      case OP_NEq:  eputs("ND_Operation: OP_Not"); break;
+      case OP_Lt:   eputs("ND_Operation: OP_Lt");  break;
+      case OP_Lte:  eputs("ND_Operation: OP_Lte"); break;
+      case OP_Gte:  eputs("ND_Operation: OP_Gte"); break;
+      case OP_Gt:   eputs("ND_Operation: OP_Gt");  break;
+      case OP_Asg:  eputs("ND_Operation: OP_Asg"); break;
     }
     // clang-format on
-    print_ast(node->operation.lhs);
-    print_ast(node->operation.rhs);
+    print_branch(node->operation.lhs);
+    print_branch(node->operation.rhs);
 
   } else if (node->kind == ND_Value) {
     if (node->value.kind == TP_Int) {
-      eprintf("ND_Val: TP_Int = %li\n", node->value.i_num);
+      eprintf("ND_Value: TP_Int = %li\n", node->value.i_num);
+    } else {
+      eputs("unimplemented");
     }
   }
   indent -= 1;
+}
+
+void print_ast(Function* prog) {
+  for (Node* node = prog->body; node != nullptr; node = node->next) {
+    print_branch(node);
+  }
 }

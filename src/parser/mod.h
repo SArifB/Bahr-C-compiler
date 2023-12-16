@@ -9,9 +9,10 @@ typedef enum UnaryKind UnaryKind;
 typedef struct Node Node;
 typedef struct OperNode OperNode;
 typedef struct VarCharArr VarCharArr;
-typedef struct VarNode VarNode;
 typedef struct ValueNode ValueNode;
 typedef struct UnaryNode UnaryNode;
+typedef struct Object Object;
+typedef struct Function Function;
 
 enum OperKind {
   OP_Add,
@@ -44,12 +45,6 @@ enum TypeKind {
   TP_Str,
 };
 
-struct VarNode {
-  // TypeKind kind;
-  // Node* next;
-  VarCharArr name;
-};
-
 struct ValueNode {
   TypeKind kind;
   union {
@@ -71,6 +66,7 @@ struct UnaryNode {
 };
 
 enum NodeKind {
+  ND_None,
   ND_Operation,
   ND_Value,
   ND_Unary,
@@ -79,14 +75,25 @@ enum NodeKind {
 
 struct Node {
   NodeKind kind;
+  Node* next;
   union {
     OperNode operation;
     ValueNode value;
-    VarNode variable;
     UnaryNode unary;
+    Object* variable;
   };
 };
 
-extern Node* parse_lexer(TokenVector* tokens);
-extern void print_ast(Node* node);
+struct Object {
+  Object* next;
+  VarCharArr name;
+};
+
+struct Function {
+  Node* body;
+  Object* locals;
+};
+
+extern Function* parse_lexer(TokenVector* tokens);
+extern void print_ast(Function* prog);
 extern void free_ast();
