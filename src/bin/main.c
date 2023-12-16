@@ -1,5 +1,5 @@
-#include <codegen/mod.h>
-#include <engine/mod.h>
+// #include <codegen/mod.h>
+// #include <engine/mod.h>
 #include <lexer/mod.h>
 #include <parser/mod.h>
 #include <stdio.h>
@@ -36,25 +36,27 @@ i32 main(i32 argc, cstr argv[]) {
     ref_str,
     ref_str + strlen(ref_str),
   });
-  lexer_print(tokens);
-  eputs("\n-----------------------------------------------");
+  // lexer_print(tokens);
+  // eputs("\n-----------------------------------------------");
 
   // Parse lexer
-  Node* node = parse_lexer(tokens);
+  Function* prog = parse_lexer(tokens);
   free(tokens);
   free(ref_str);
-  print_ast_tree(node);
+  print_ast(prog);
   eputs("\n-----------------------------------------------");
+  free_ast();
 
-  // Generate code
-  Codegen* cdgn = codegen_make("some_code");
-  codegen_build_function(cdgn, node);
-  // LLVMValueRef value = codegen_generate(cdgn, node);
+  // Temporarily disable codegen
+  // // Generate code
+  // Codegen* cdgn = codegen_make("some_code");
+  // codegen_build_function(cdgn, node);
+  // // LLVMValueRef value = codegen_generate(cdgn, node);
 
-  LLVMExecutionEngineRef engine = engine_make(cdgn);
+  // LLVMExecutionEngineRef engine = engine_make(cdgn);
 
-  free_ast_tree();
-  engine_shutdown(engine);
-  codegen_dispose(cdgn);
+  // free_ast();
+  // engine_shutdown(engine);
+  // codegen_dispose(cdgn);
   return 0;
 }

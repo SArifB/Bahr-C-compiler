@@ -58,8 +58,6 @@ target_link_libraries(bin PRIVATE
 target_link_libraries(bin PRIVATE
 	lexer
 	parser
-	codegen
-	engine
 )
 
 get_directory_property(CMKR_VS_STARTUP_PROJECT DIRECTORY ${PROJECT_SOURCE_DIR} DEFINITION VS_STARTUP_PROJECT)
