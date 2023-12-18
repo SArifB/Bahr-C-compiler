@@ -58,8 +58,12 @@ static Node* compound_stmt(Token** rest, Token* token) {
   return node;
 }
 
-// expr-stmt = expr ";"
+// expr-stmt = expr? ";"
 static Node* expr_stmt(Token** rest, Token* token) {
+  if (token->info == PK_SemiCol) {
+    *rest = token + 1;
+    return make_unary(UN_Block, nullptr);
+  }
   Node* node = make_unary(UN_ExprStmt, expr(&token, token));
   *rest = expect(token, PK_SemiCol);
   return node;
@@ -367,9 +371,11 @@ static void print_branch(Node* node) {
     // clang-format on
     case UN_Block:
       eputs("ND_Unary: UN_Block");
-      for (Node* branch = node->unary.next; branch; branch = branch->next) {
+      for (Node* branch = node->unary.next; branch != nullptr;
+           branch = branch->next) {
         print_branch(branch);
       }
+      indent -= 1;
       return;
     }
     print_branch(node->unary.next);
@@ -377,19 +383,18 @@ static void print_branch(Node* node) {
   } else if (node->kind == ND_Operation) {
     // clang-format off
     switch (node->operation.kind) {
-      case OP_Add:  eputs("ND_Operation: OP_Add"); break;
-      case OP_Sub:  eputs("ND_Operation: OP_Sub"); break;
-      case OP_Mul:  eputs("ND_Operation: OP_Mul"); break;
-      case OP_Div:  eputs("ND_Operation: OP_Div"); break;
-      case OP_Eq:   eputs("ND_Operation: OP_Eq");  break;
-      case OP_NEq:  eputs("ND_Operation: OP_Not"); break;
-      case OP_Lt:   eputs("ND_Operation: OP_Lt");  break;
-      case OP_Lte:  eputs("ND_Operation: OP_Lte"); break;
-      case OP_Gte:  eputs("ND_Operation: OP_Gte"); break;
-      case OP_Gt:   eputs("ND_Operation: OP_Gt");  break;
-      case OP_Asg:  eputs("ND_Operation: OP_Asg"); break;
-    }
-    // clang-format on
+      case OP_Add:  eputs("ND_Operation: OP_Add");  break;
+      case OP_Sub:  eputs("ND_Operation: OP_Sub");  break;
+      case OP_Mul:  eputs("ND_Operation: OP_Mul");  break;
+      case OP_Div:  eputs("ND_Operation: OP_Div");  break;
+      case OP_Eq:   eputs("ND_Operation: OP_Eq");   break;
+      case OP_NEq:  eputs("ND_Operation: OP_Not");  break;
+      case OP_Lt:   eputs("ND_Operation: OP_Lt");   break;
+      case OP_Lte:  eputs("ND_Operation: OP_Lte");  break;
+      case OP_Gte:  eputs("ND_Operation: OP_Gte");  break;
+      case OP_Gt:   eputs("ND_Operation: OP_Gt");   break;
+      case OP_Asg:  eputs("ND_Operation: OP_Asg");  break;
+    } // clang-format on
     print_branch(node->operation.lhs);
     print_branch(node->operation.rhs);
 
