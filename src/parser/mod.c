@@ -6,7 +6,7 @@
 #include <string.h>
 #include <utility/mod.h>
 
-static Token* skip(Token* token, AddInfo info);
+static Token* expect(Token* token, AddInfo info);
 static Object* find_var(Token* token);
 static i32 get_tok_precedence(Token* token);
 static __attribute((noreturn)) void print_expr_err(cstr itr);
@@ -20,6 +20,7 @@ static Object* make_object(StrView view);
 static Function* make_function(Node* node);
 
 static Node* stmt(Token** rest, Token* token);
+static Node* compound_stmt(Token** rest, Token* tok);
 static Node* expr_stmt(Token** rest, Token* token);
 static Node* assign(Token** rest, Token* tok);
 static Node* expr(Token** rest, Token* token);
@@ -31,20 +32,36 @@ static Node* unary(Token** rest, Token* token);
 static Node* primary(Token** rest, Token* token);
 
 // stmt = "return" expr ";"
+//      | "{" compound-stmt
 //      | expr-stmt
 static Node* stmt(Token** rest, Token* token) {
   if (token->info == KW_Return) {
     Node* node = make_unary(UN_Return, expr(&token, token + 1));
-    *rest = skip(token, PK_SemiCol);
+    *rest = expect(token, PK_SemiCol);
     return node;
+  } else if (token->info == PK_LeftBracket) {
+    return compound_stmt(rest, token + 1);
   }
   return expr_stmt(rest, token);
+}
+
+// compound-stmt = stmt* "}"
+static Node* compound_stmt(Token** rest, Token* token) {
+  Node handle = {};
+  Node* node_cur = &handle;
+  while (token->info != PK_RightBracket) {
+    node_cur->next = stmt(&token, token);
+    node_cur = node_cur->next;
+  }
+  Node* node = make_unary(UN_Block, handle.next);
+  *rest = token + 1;
+  return node;
 }
 
 // expr-stmt = expr ";"
 static Node* expr_stmt(Token** rest, Token* token) {
   Node* node = make_unary(UN_ExprStmt, expr(&token, token));
-  *rest = skip(token, PK_SemiCol);
+  *rest = expect(token, PK_SemiCol);
   return node;
 }
 
@@ -146,7 +163,7 @@ static Node* unary(Token** rest, Token* token) {
 static Node* primary(Token** rest, Token* token) {
   if (token->info == PK_LeftParen) {
     Node* node = expr(&token, token + 1);
-    *rest = skip(token, PK_RightParen);
+    *rest = expect(token, PK_RightParen);
     return node;
 
   } else if (token->kind == TK_Ident) {
@@ -168,13 +185,8 @@ static Node* primary(Token** rest, Token* token) {
 // program = stmt*
 Function* parse_lexer(TokenVector* tokens) {
   Token* tok_cur = tokens->buffer;
-  Node handle = {};
-  Node* node_cur = &handle;
-  while (tok_cur->kind != TK_EOF) {
-    node_cur->next = stmt(&tok_cur, tok_cur);
-    node_cur = node_cur->next;
-  }
-  return make_function(handle.next);
+  Token* token = expect(tok_cur, PK_LeftBracket);
+  return make_function(compound_stmt(&token, token));
 }
 
 static Arena PARSER_ARENA = {};
@@ -325,7 +337,7 @@ static Function* make_function(Node* node) {
   return func;
 }
 
-static Token* skip(Token* token, AddInfo info) {
+static Token* expect(Token* token, AddInfo info) {
   if (token->info != info) {
     print_expr_err(token->pos.itr);
   }
@@ -352,8 +364,14 @@ static void print_branch(Node* node) {
       case UN_Negation: eputs("ND_Unary: UN_Negation"); break;
       case UN_ExprStmt: eputs("ND_Unary: UN_ExprStmt"); break;
       case UN_Return:   eputs("ND_Unary: UN_Return");   break;
-    }
     // clang-format on
+    case UN_Block:
+      eputs("ND_Unary: UN_Block");
+      for (Node* branch = node->unary.next; branch; branch = branch->next) {
+        print_branch(branch);
+      }
+      return;
+    }
     print_branch(node->unary.next);
 
   } else if (node->kind == ND_Operation) {
@@ -386,7 +404,5 @@ static void print_branch(Node* node) {
 }
 
 void print_ast(Function* prog) {
-  for (Node* node = prog->body; node != nullptr; node = node->next) {
-    print_branch(node);
-  }
+  print_branch(prog->body);
 }

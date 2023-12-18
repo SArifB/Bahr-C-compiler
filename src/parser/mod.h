@@ -58,6 +58,7 @@ enum UnaryKind {
   UN_Negation,
   UN_ExprStmt,
   UN_Return,
+  UN_Block,
 };
 
 struct UnaryNode {
