@@ -31,6 +31,7 @@ struct StrView {
 
 #define unused [[maybe_unused]]
 #define undiscardable [[nodiscard]]
+#define unreturning [[noreturn]]
 #define noaddress [[no_unique_address]]
 
 #define stringify_inner(STR) #STR
@@ -43,5 +44,6 @@ struct StrView {
 #define sizeof_arr(arr) (sizeof(arr) / sizeof(*(arr)))
 
 #define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__);
+#define evprintf(fmt, ...) vfprintf(stderr, fmt, __VA_ARGS__);
 #define eputs(string) fputs(string "\n", stderr);
 #define eputc(ch) fputc(ch, stderr);

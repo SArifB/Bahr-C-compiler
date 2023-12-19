@@ -1,4 +1,5 @@
 #include <arena/mod.h>
+#include <lexer/errors.h>
 #include <lexer/mod.h>
 #include <parser/mod.h>
 #include <stdio.h>
@@ -15,7 +16,6 @@ void free_ast() {
 
 static Object* cur_locals = nullptr;
 
-// Find a local variable by name.
 static Object* find_var(Token* token) {
   for (Object* obj = cur_locals; obj; obj = obj->next) {
     if (strncmp(token->pos.itr, obj->name.arr, token->pos.sen - token->pos.itr) == 0) {
@@ -23,29 +23,6 @@ static Object* find_var(Token* token) {
     }
   }
   return nullptr;
-}
-
-unused static i32 get_tok_precedence(Token* token) {
-  if (token->info == PK_Mul || token->info == PK_Div) {
-    return 5;
-  } else if (token->info == PK_Add || token->info == PK_Sub) {
-    return 4;
-  } else if (token->info == PK_Eq) {
-    return 3;
-  } else if (token->info == PK_Lte || token->info == PK_Gte) {
-    return 2;
-  } else if (token->info == PK_Gt || token->info == PK_Lt) {
-    return 1;
-  }
-  return 0;
-}
-
-static __attribute__((noreturn)) void print_expr_err(cstr itr) {
-  eputs("Error: Invalid expression at: ");
-  while (*itr != '\n') {
-    eputc(*itr++);
-  }
-  exit(-2);
 }
 
 static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
@@ -170,7 +147,7 @@ static Function* make_function(Node* node) {
 
 static Token* expect(Token* token, AddInfo info) {
   if (token->info != info) {
-    print_expr_err(token->pos.itr);
+    error_tok(token - 1, "Invalid expression");
   }
   return token + 1;
 }
@@ -352,7 +329,7 @@ static Node* primary(Token** rest, Token* token) {
     *rest = token + 1;
     return node;
   }
-  print_expr_err(token->pos.itr);
+  error_tok(token, "Expected an expression");
 }
 
 // program = stmt*

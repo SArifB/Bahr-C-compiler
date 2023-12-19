@@ -1,9 +1,60 @@
+#include "utility/mod.h"
+#include "lexer/errors.h"
 #include <lexer/mod.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 DEFINE_VECTOR(Token, malloc, free)
+
+static StrView current_input;
+
+unreturning void error(cstr fmt, ...) {
+  va_list ap;
+  va_start(ap);
+  evprintf(fmt, ap);
+  eputs();
+  exit(1);
+}
+
+unreturning static void verror_at(cstr location, cstr fmt, va_list ap) {
+  i32 line_num = 1;
+  for (cstr cursor = current_input.itr; cursor < location; ++cursor) {
+    if (*cursor == '\n') {
+      line_num += 1;
+    }
+  }
+  cstr input = current_input.itr;
+  cstr line = location;
+  while (input < line && line[-1] != '\n') {
+    line--;
+  }
+  cstr end = location;
+  while (*end && *end != '\n') {
+    end++;
+  }
+  i32 chars_written = eprintf("%d: ", line_num);
+  eprintf("%.*s\n", (i32)(end - line), line);
+  i32 position = (i32)(location - line) + chars_written;
+
+  eprintf("%*s", position, "");
+  eprintf("%s", "^ ");
+  evprintf(fmt, ap);
+  eputs();
+  exit(1);
+}
+
+unreturning void error_at(cstr location, cstr fmt, ...) {
+  va_list ap;
+  va_start(ap);
+  verror_at(location, fmt, ap);
+}
+
+unreturning void error_tok(Token* token, cstr fmt, ...) {
+  va_list ap;
+  va_start(ap);
+  verror_at(token->pos.itr, fmt, ap);
+}
 
 static bool equals(cstr itr, cstr ref) {
   return strncmp(itr, ref, strlen(ref)) == 0;
@@ -80,6 +131,7 @@ static bool is_charnum(cstr ref) {
 
 TokenVector* lex_string(const StrView view) {
   TokenVector* tokens = Token_vector_make(0);
+  current_input = view;
 
   cstr itr = view.itr;
   for (; itr != view.sen; ++itr) {
@@ -129,14 +181,14 @@ TokenVector* lex_string(const StrView view) {
       for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
         if (equals(itr, kwrd_table[i])) {
           if (itr[strlen(kwrd_table[i])] == ' ') {
-          Token_vector_push(
-            &tokens, (Token){ .kind = TK_Keyword,
-                              .info = kwrd_info_table[i],
-                              .pos = { itr, itr + strlen(kwrd_table[i]) } }
-          );
+            Token_vector_push(
+              &tokens, (Token){ .kind = TK_Keyword,
+                                .info = kwrd_info_table[i],
+                                .pos = { itr, itr + strlen(kwrd_table[i]) } }
+            );
             itr += strlen(kwrd_table[i]);
             kw = true;
-          break;
+            break;
           }
         }
       }
@@ -167,11 +219,7 @@ TokenVector* lex_string(const StrView view) {
         }
       }
     } else {
-      eputs("Error: Invalid token at: ");
-      while (*itr != '\n') {
-        eputc(*itr++);
-      }
-      exit(1);
+      error_at(itr, "invalid token");
     }
   }
 
