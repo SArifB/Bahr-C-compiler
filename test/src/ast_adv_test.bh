@@ -1,10 +1,12 @@
 {
   if 4 >= 5 {
     ifval = 2 + 3;
+  } else if 2 < 8 {
+    ifval = 23;
   } else {
     ifval = 2 + 7;
     ifval = 2 + 7;
-  }
+  } 
   
   return ifval;
 }

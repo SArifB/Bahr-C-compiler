@@ -44,7 +44,6 @@ enum UnaryKind {
   UN_Negation,
   UN_ExprStmt,
   UN_Return,
-  UN_Block,
 };
 
 struct UnaryNode {
@@ -79,6 +78,7 @@ enum NodeKind {
   ND_Unary,
   ND_Value,
   ND_Variable,
+  ND_Block,
   ND_If,
 };
 
@@ -90,6 +90,7 @@ struct Node {
     UnaryNode unary;
     ValueNode value;
     Object* variable;
+    Node* block;
     IfNode ifblock;
   };
 };
