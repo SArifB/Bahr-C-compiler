@@ -188,6 +188,7 @@ static Node* unary(Token** rest, Token* token);
 static Node* primary(Token** rest, Token* token);
 
 // stmt = "return" expr ";"
+//      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "{" compound-stmt
 //      | expr-stmt
 static Node* stmt(Token** rest, Token* token) {
@@ -195,6 +196,18 @@ static Node* stmt(Token** rest, Token* token) {
     Node* node = make_unary(UN_Return, expr(&token, token + 1));
     *rest = expect(token, PK_SemiCol);
     return node;
+
+  } else if (token->info == KW_If) {
+    Node* cond = expr(&token, token + 1);
+    Node* then = stmt(&token, token);
+    Node* elseb = nullptr;
+    if (token->info == KW_Else) {
+      elseb = stmt(&token, token + 1);
+    }
+    Node* node = make_if_node(cond, then, elseb);
+    *rest = token;
+    return node;
+
   } else if (token->info == PK_LeftBracket) {
     return compound_stmt(rest, token + 1);
   }
@@ -344,46 +357,28 @@ static Node* primary(Token** rest, Token* token) {
 
 // program = stmt*
 Function* parse_lexer(TokenVector* tokens) {
-  Token* tok_cur = tokens->buffer;
-  Token* token = expect(tok_cur, PK_LeftBracket);
+  Token* token = tokens->buffer;
+  token = expect(token, PK_LeftBracket);
   return make_function(compound_stmt(&token, token));
 }
 
-static void print_branch(Node* node) {
-  static i32 indent = 0;
-  indent += 1;
+static i32 indent = 0;
+static void print_indent() {
   for (i32 i = 0; i < indent; ++i) {
     eputc('|');
     eputc(' ');
   }
+  indent += 1;
+}
+
+static void print_branch(Node* node) {
+  print_indent();
 
   if (node->kind == ND_None) {
     eputs("ND_None");
 
-  } else if (node->kind == ND_Variable) {
-    eprintf("ND_Variable: %s\n", node->variable->name.arr);
-
-  } else if (node->kind == ND_Unary) {
-    // clang-format off
-    switch (node->unary.kind) {
-      case UN_Negation: eputs("ND_Unary: UN_Negation"); break;
-      case UN_ExprStmt: eputs("ND_Unary: UN_ExprStmt"); break;
-      case UN_Return:   eputs("ND_Unary: UN_Return");   break;
-    // clang-format on
-    case UN_Block:
-      eputs("ND_Unary: UN_Block");
-      for (Node* branch = node->unary.next; branch != nullptr;
-           branch = branch->next) {
-        print_branch(branch);
-      }
-      indent -= 1;
-      return;
-    }
-    print_branch(node->unary.next);
-
   } else if (node->kind == ND_Operation) {
-    // clang-format off
-    switch (node->operation.kind) {
+    switch (node->operation.kind) { // clang-format off
       case OP_Add:  eputs("ND_Operation: OP_Add");  break;
       case OP_Sub:  eputs("ND_Operation: OP_Sub");  break;
       case OP_Mul:  eputs("ND_Operation: OP_Mul");  break;
@@ -399,11 +394,45 @@ static void print_branch(Node* node) {
     print_branch(node->operation.lhs);
     print_branch(node->operation.rhs);
 
+  } else if (node->kind == ND_Unary) {
+    switch (node->unary.kind) { // clang-format off
+      case UN_Negation: eputs("ND_Unary: UN_Negation"); break;
+      case UN_ExprStmt: eputs("ND_Unary: UN_ExprStmt"); break;
+      case UN_Return:   eputs("ND_Unary: UN_Return");   break;
+    case UN_Block: // clang-format on
+      eputs("ND_Unary: UN_Block");
+      for (Node* branch = node->unary.next; branch != nullptr;
+           branch = branch->next) {
+        print_branch(branch);
+      }
+      indent -= 1;
+      return;
+    }
+    print_branch(node->unary.next);
+
+  } else if (node->kind == ND_Variable) {
+    eprintf("ND_Variable: %s\n", node->variable->name.arr);
+
   } else if (node->kind == ND_Value) {
     if (node->value.kind == TP_Int) {
       eprintf("ND_Value: TP_Int = %li\n", node->value.i_num);
     } else {
       eputs("unimplemented");
+    }
+  } else if (node->kind == ND_If) {
+    eputs("ND_If: Cond");
+    print_branch(node->ifblock.cond);
+
+    indent -= 1;
+    print_indent();
+    eputs("ND_If: Then");
+    print_branch(node->ifblock.then);
+
+    if (node->ifblock.elseb) {
+      indent -= 1;
+      print_indent();
+      eputs("ND_If: Else");
+      print_branch(node->ifblock.elseb);
     }
   }
   indent -= 1;
