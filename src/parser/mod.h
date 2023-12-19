@@ -3,16 +3,22 @@
 #include <utility/mod.h>
 
 typedef enum OperKind OperKind;
+typedef enum UnaryKind UnaryKind;
 typedef enum TypeKind TypeKind;
 typedef enum NodeKind NodeKind;
-typedef enum UnaryKind UnaryKind;
-typedef struct Node Node;
-typedef struct OperNode OperNode;
 typedef struct VarCharArr VarCharArr;
-typedef struct ValueNode ValueNode;
+typedef struct OperNode OperNode;
 typedef struct UnaryNode UnaryNode;
+typedef struct ValueNode ValueNode;
+typedef struct IfNode IfNode;
+typedef struct Node Node;
 typedef struct Object Object;
 typedef struct Function Function;
+
+struct VarCharArr {
+  usize size;
+  char arr[];
+};
 
 enum OperKind {
   OP_Add,
@@ -34,9 +40,16 @@ struct OperNode {
   Node* rhs;
 };
 
-struct VarCharArr {
-  usize size;
-  char arr[];
+enum UnaryKind {
+  UN_Negation,
+  UN_ExprStmt,
+  UN_Return,
+  UN_Block,
+};
+
+struct UnaryNode {
+  UnaryKind kind;
+  Node* next;
 };
 
 enum TypeKind {
@@ -54,24 +67,19 @@ struct ValueNode {
   };
 };
 
-enum UnaryKind {
-  UN_Negation,
-  UN_ExprStmt,
-  UN_Return,
-  UN_Block,
-};
-
-struct UnaryNode {
-  UnaryKind kind;
-  Node* next;
+struct IfNode {
+  Node* cond;
+  Node* then;
+  Node* elseb;
 };
 
 enum NodeKind {
   ND_None,
   ND_Operation,
-  ND_Value,
   ND_Unary,
+  ND_Value,
   ND_Variable,
+  ND_If,
 };
 
 struct Node {
@@ -79,9 +87,10 @@ struct Node {
   Node* next;
   union {
     OperNode operation;
-    ValueNode value;
     UnaryNode unary;
+    ValueNode value;
     Object* variable;
+    IfNode ifblock;
   };
 };
 

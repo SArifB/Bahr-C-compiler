@@ -6,18 +6,174 @@
 #include <string.h>
 #include <utility/mod.h>
 
-static Token* expect(Token* token, AddInfo info);
-static Object* find_var(Token* token);
-static i32 get_tok_precedence(Token* token);
-static __attribute((noreturn)) void print_expr_err(cstr itr);
-static Node* make_oper(OperKind oper, Node* lhs, Node* rhs);
-static Node* make_unary(UnaryKind kind, Node* value);
-static Node* make_number(StrView view);
-static Node* make_float(StrView view);
-static Node* make_string(StrView view);
-static Node* make_variable(Object* obj);
-static Object* make_object(StrView view);
-static Function* make_function(Node* node);
+static Arena PARSER_ARENA = {};
+#define parser_alloc(size) arena_alloc(&PARSER_ARENA, size)
+
+void free_ast() {
+  arena_free(&PARSER_ARENA);
+}
+
+static Object* cur_locals = nullptr;
+
+// Find a local variable by name.
+static Object* find_var(Token* token) {
+  for (Object* obj = cur_locals; obj; obj = obj->next) {
+    if (strncmp(token->pos.itr, obj->name.arr, token->pos.sen - token->pos.itr) == 0) {
+      return obj;
+    }
+  }
+  return nullptr;
+}
+
+unused static i32 get_tok_precedence(Token* token) {
+  if (token->info == PK_Mul || token->info == PK_Div) {
+    return 5;
+  } else if (token->info == PK_Add || token->info == PK_Sub) {
+    return 4;
+  } else if (token->info == PK_Eq) {
+    return 3;
+  } else if (token->info == PK_Lte || token->info == PK_Gte) {
+    return 2;
+  } else if (token->info == PK_Gt || token->info == PK_Lt) {
+    return 1;
+  }
+  return 0;
+}
+
+static __attribute__((noreturn)) void print_expr_err(cstr itr) {
+  eputs("Error: Invalid expression at: ");
+  while (*itr != '\n') {
+    eputc(*itr++);
+  }
+  exit(-2);
+}
+
+static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
+  Node* node = parser_alloc(sizeof(Node));
+  *node = (Node){
+    .kind = ND_Operation,
+    .operation =
+      (OperNode){
+        .kind = oper,
+        .lhs = lhs,
+        .rhs = rhs,
+      },
+  };
+  return node;
+}
+
+static Node* make_unary(UnaryKind kind, Node* value) {
+  Node* node = parser_alloc(sizeof(Node));
+  *node = (Node){
+    .kind = ND_Unary,
+    .unary =
+      (UnaryNode){
+        .kind = kind,
+        .next = value,
+      },
+  };
+  return node;
+}
+
+static Node* make_number(StrView view) {
+  Node* node = parser_alloc(sizeof(Node));
+  *node = (Node){
+    .kind = ND_Value,
+    .value =
+      (ValueNode){
+        .kind = TP_Int,
+        .i_num = strtol(view.itr, nullptr, 10),
+      },
+  };
+  return node;
+}
+
+unused static Node* make_float(StrView view) {
+  Node* node = parser_alloc(sizeof(Node));
+  *node = (Node){
+    .kind = ND_Value,
+    .value =
+      (ValueNode){
+        .kind = TP_Flt,
+        .f_num = strtod(view.itr, nullptr),
+      },
+  };
+  return node;
+}
+
+unused static Node* make_string(StrView view) {
+  usize size = view.sen - view.itr;
+  Node* node = parser_alloc(sizeof(Node) + sizeof(char) * (size + 1));
+  *node = (Node){
+    .kind = ND_Value,
+    .value =
+      (ValueNode){
+        .kind = TP_Str,
+        .str_lit =
+          (VarCharArr){
+            .size = size,
+          },
+      },
+  };
+  strncpy(node->value.str_lit.arr, view.itr, size);
+  node->value.str_lit.arr[size] = 0;
+  return node;
+}
+
+static Node* make_variable(Object* obj) {
+  Node* node = parser_alloc(sizeof(Node));
+  *node = (Node){
+    .kind = ND_Variable,
+    .variable = obj,
+  };
+  return node;
+}
+
+static Node* make_if_node(Node* cond, Node* then, Node* elseb) {
+  Node* node = parser_alloc(sizeof(Node));
+  *node = (Node){
+    .kind = ND_If,
+    .ifblock =
+      (IfNode){
+        .cond = cond,
+        .then = then,
+        .elseb = elseb,
+      },
+  };
+  return node;
+}
+
+static Object* make_object(StrView view) {
+  usize size = view.sen - view.itr;
+  Object* obj = parser_alloc(sizeof(Object) + sizeof(char) * (size + 1));
+  *obj = (Object){
+    .next = cur_locals,
+    .name =
+      (VarCharArr){
+        .size = size,
+      },
+  };
+  strncpy(obj->name.arr, view.itr, size);
+  obj->name.arr[size] = 0;
+  cur_locals = obj;
+  return obj;
+}
+
+static Function* make_function(Node* node) {
+  Function* func = parser_alloc(sizeof(Function));
+  *func = (Function){
+    .body = node,
+    .locals = cur_locals,
+  };
+  return func;
+}
+
+static Token* expect(Token* token, AddInfo info) {
+  if (token->info != info) {
+    print_expr_err(token->pos.itr);
+  }
+  return token + 1;
+}
 
 static Node* stmt(Token** rest, Token* token);
 static Node* compound_stmt(Token** rest, Token* tok);
@@ -191,161 +347,6 @@ Function* parse_lexer(TokenVector* tokens) {
   Token* tok_cur = tokens->buffer;
   Token* token = expect(tok_cur, PK_LeftBracket);
   return make_function(compound_stmt(&token, token));
-}
-
-static Arena PARSER_ARENA = {};
-#define parser_alloc(size) arena_alloc(&PARSER_ARENA, size)
-
-void free_ast() {
-  arena_free(&PARSER_ARENA);
-}
-
-static Object* cur_locals = nullptr;
-
-// Find a local variable by name.
-static Object* find_var(Token* token) {
-  for (Object* obj = cur_locals; obj; obj = obj->next) {
-    if (strncmp(token->pos.itr, obj->name.arr, token->pos.sen - token->pos.itr) == 0) {
-      return obj;
-    }
-  }
-  return nullptr;
-}
-
-unused static i32 get_tok_precedence(Token* token) {
-  if (token->info == PK_Mul || token->info == PK_Div) {
-    return 5;
-  } else if (token->info == PK_Add || token->info == PK_Sub) {
-    return 4;
-  } else if (token->info == PK_Eq) {
-    return 3;
-  } else if (token->info == PK_Lte || token->info == PK_Gte) {
-    return 2;
-  } else if (token->info == PK_Gt || token->info == PK_Lt) {
-    return 1;
-  }
-  return 0;
-}
-
-static void print_expr_err(cstr itr) {
-  eputs("Error: Invalid expression at: ");
-  while (*itr != '\n') {
-    eputc(*itr++);
-  }
-  exit(-2);
-}
-
-static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
-  Node* node = parser_alloc(sizeof(Node));
-  *node = (Node){
-    .kind = ND_Operation,
-    .operation =
-      (OperNode){
-        .kind = oper,
-        .lhs = lhs,
-        .rhs = rhs,
-      },
-  };
-  return node;
-}
-
-static Node* make_unary(UnaryKind kind, Node* value) {
-  Node* node = parser_alloc(sizeof(Node));
-  *node = (Node){
-    .kind = ND_Unary,
-    .unary =
-      (UnaryNode){
-        .kind = kind,
-        .next = value,
-      },
-  };
-  return node;
-}
-
-static Node* make_number(StrView view) {
-  Node* node = parser_alloc(sizeof(Node));
-  *node = (Node){
-    .kind = ND_Value,
-    .value =
-      (ValueNode){
-        .kind = TP_Int,
-        .i_num = strtol(view.itr, nullptr, 10),
-      },
-  };
-  return node;
-}
-
-unused static Node* make_float(StrView view) {
-  Node* node = parser_alloc(sizeof(Node));
-  *node = (Node){
-    .kind = ND_Value,
-    .value =
-      (ValueNode){
-        .kind = TP_Flt,
-        .f_num = strtod(view.itr, nullptr),
-      },
-  };
-  return node;
-}
-
-unused static Node* make_string(StrView view) {
-  usize size = view.sen - view.itr;
-  Node* node = parser_alloc(sizeof(Node) + sizeof(char) * (size + 1));
-  *node = (Node){
-    .kind = ND_Value,
-    .value =
-      (ValueNode){
-        .kind = TP_Str,
-        .str_lit =
-          (VarCharArr){
-            .size = size,
-          },
-      },
-  };
-  strncpy(node->value.str_lit.arr, view.itr, size);
-  node->value.str_lit.arr[size] = 0;
-  return node;
-}
-
-static Node* make_variable(Object* obj) {
-  Node* node = parser_alloc(sizeof(Node));
-  *node = (Node){
-    .kind = ND_Variable,
-    .variable = obj,
-  };
-  return node;
-}
-
-static Object* make_object(StrView view) {
-  usize size = view.sen - view.itr;
-  Object* obj = parser_alloc(sizeof(Object) + sizeof(char) * (size + 1));
-  *obj = (Object){
-    .next = cur_locals,
-    .name =
-      (VarCharArr){
-        .size = size,
-      },
-  };
-  strncpy(obj->name.arr, view.itr, size);
-  obj->name.arr[size] = 0;
-  cur_locals = obj;
-  return obj;
-}
-
-static Function* make_function(Node* node) {
-  Function* func = parser_alloc(sizeof(Function));
-  *func = (Function){
-    .body = node,
-    .locals = cur_locals,
-  };
-  return func;
-}
-
-static Token* expect(Token* token, AddInfo info) {
-  if (token->info != info) {
-    print_expr_err(token->pos.itr);
-  }
-  return token + 1;
 }
 
 static void print_branch(Node* node) {
