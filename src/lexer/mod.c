@@ -125,16 +125,23 @@ TokenVector* lex_string(const StrView view) {
 
       /// Keyword
     } else if (is_ident(itr) == true) {
+      bool kw = false;
       for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
         if (equals(itr, kwrd_table[i])) {
+          if (itr[strlen(kwrd_table[i])] == ' ') {
           Token_vector_push(
             &tokens, (Token){ .kind = TK_Keyword,
                               .info = kwrd_info_table[i],
                               .pos = { itr, itr + strlen(kwrd_table[i]) } }
           );
-          itr += strlen(kwrd_table[i]) + 1;
+            itr += strlen(kwrd_table[i]);
+            kw = true;
           break;
+          }
         }
+      }
+      if (kw == true) {
+        continue;
       }
       /// Ident
       cstr tmp_sen = itr + 1;
