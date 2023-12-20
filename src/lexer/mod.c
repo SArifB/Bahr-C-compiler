@@ -183,14 +183,18 @@ TokenVector* lex_string(const StrView view) {
 
       /// Char
     } else if (char_equals(itr, "\'")) {
-      i32 len = 1;
-      if (itr[-1] == '\\') {
-        len = 2;
+      cstr tmp_sen = itr + 1;
+      while (*tmp_sen != '\'') {
+        tmp_sen += 1;
       }
       Token_vector_push(
-        &tokens, (Token){ .kind = TK_NumLiteral, .pos = { itr, itr + len } }
+        &tokens,
+        (Token){
+          .kind = TK_CharLiteral,
+          .pos = { itr + 1, tmp_sen },
+        }
       );
-      itr += len;
+      itr = tmp_sen;
 
       /// Keyword
     } else if (is_ident(itr) == true) {

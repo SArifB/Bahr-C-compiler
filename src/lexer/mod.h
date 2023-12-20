@@ -12,6 +12,7 @@ enum TokenKind {
   TK_Ident,
   TK_NumLiteral,
   TK_StrLiteral,
+  TK_CharLiteral,
   TK_Keyword,
   TK_Punct,
 
