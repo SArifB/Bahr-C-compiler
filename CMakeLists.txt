@@ -65,66 +65,6 @@ if(NOT CMKR_VS_STARTUP_PROJECT)
 	set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bin)
 endif()
 
-# Target: codegen
-set(codegen_SOURCES
-	"./src/codegen/mod.c"
-	cmake.toml
-)
-
-add_library(codegen STATIC)
-
-target_sources(codegen PRIVATE ${codegen_SOURCES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${codegen_SOURCES})
-
-target_compile_options(codegen PUBLIC
-	-Wall
-	-Werror
-	-Wextra
-	-std=c2x
-)
-
-target_include_directories(codegen PUBLIC
-	src
-)
-
-target_link_libraries(codegen PUBLIC
-	utility
-)
-
-target_link_libraries(codegen PUBLIC
-	LLVM
-)
-
-# Target: engine
-set(engine_SOURCES
-	"./src/engine/mod.c"
-	cmake.toml
-)
-
-add_library(engine STATIC)
-
-target_sources(engine PRIVATE ${engine_SOURCES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${engine_SOURCES})
-
-target_compile_options(engine PUBLIC
-	-Wall
-	-Werror
-	-Wextra
-	-std=c2x
-)
-
-target_include_directories(engine PUBLIC
-	src
-)
-
-target_link_libraries(engine PUBLIC
-	utility
-)
-
-target_link_libraries(engine PUBLIC
-	LLVM
-)
-
 # Target: lexer
 set(lexer_SOURCES
 	"./src/lexer/mod.c"

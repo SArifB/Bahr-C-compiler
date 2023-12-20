@@ -10,15 +10,15 @@ sources = ["./src/bin/*.c"]
 # link-libraries = ["lexer", "parser", "codegen", "engine"]
 link-libraries = ["lexer", "parser"]
 
-[target.codegen]
-type = "my_library"
-sources = ["./src/codegen/*.c"]
-link-libraries = ["LLVM"]
+# [target.codegen]
+# type = "my_library"
+# sources = ["./src/codegen/*.c"]
+# link-libraries = ["LLVM"]
 
-[target.engine]
-type = "my_library"
-sources = ["./src/engine/*.c"]
-link-libraries = ["LLVM"]
+# [target.engine]
+# type = "my_library"
+# sources = ["./src/engine/*.c"]
+# link-libraries = ["LLVM"]
 
 [target.lexer]
 type = "my_library"
