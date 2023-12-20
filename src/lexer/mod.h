@@ -14,6 +14,14 @@ enum TokenKind {
   TK_StrLiteral,
   TK_Keyword,
   TK_Punct,
+
+  // EOL
+  TK_EOLIdent,
+  TK_EOLNumLiteral,
+  TK_EOLStrLiteral,
+  TK_EOLCharLiteral,
+  TK_EOLKeyword,
+  TK_EOLPunct,
 };
 
 enum AddInfo {

@@ -137,6 +137,23 @@ TokenVector* lex_string(const StrView view) {
   for (; itr != view.sen; ++itr) {
     if (skippable(itr)) {
 
+      // End of line
+    } else if (char_equals(itr, "\n")) {
+      TokenKind tk = tokens->buffer[tokens->length - 1].kind;
+      if (tk == TK_Ident) {
+        tokens->buffer[tokens->length - 1].kind = TK_EOLIdent;
+      } else if (tk == TK_NumLiteral) {
+        tokens->buffer[tokens->length - 1].kind = TK_EOLNumLiteral;
+      } else if (tk == TK_StrLiteral) {
+        tokens->buffer[tokens->length - 1].kind = TK_EOLStrLiteral;
+      } else if (tk == TK_CharLiteral) {
+        tokens->buffer[tokens->length - 1].kind = TK_EOLCharLiteral;
+      } else if (tk == TK_Keyword) {
+        tokens->buffer[tokens->length - 1].kind = TK_EOLKeyword;
+      } else if (tk == TK_Punct) {
+        tokens->buffer[tokens->length - 1].kind = TK_EOLPunct;
+      }
+      // Comment
     } else if (equals(itr, "//")) {
       while (*itr != '\n') {
         itr += 1;
