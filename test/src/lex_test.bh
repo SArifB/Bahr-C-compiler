@@ -1,18 +1,19 @@
 // test for the lexer
-extern fn puts(str: s) -> isize ;
+extern fn puts(str: s) -> isize
 
-fn main() -> i32 {
-  let x = 2.3 + 332_000 + .4;
-  x += 32543234.233232;
+fn 
+main() -> i32 {
+  let letx = 2.3 + 332_000 + .4
+  x += 32543234.233232// Some comment 
 
   // Some comment // Some comment 
-  let y = "Some text";
-  // Some comment
-  let z = 's';
+  let y = "Some text"
+  let z = 'sss'// Some comment
+  let v = "vvv"
   23
 }
 
 extern fn puts(str:s)->isize;fn main()->i32{let x=2.3+332_000+.4;x+=32543234.233232;
-  //Some comment        
-  x===++=21+42-23;let y="Some text";// Some comment
-  let z='s';23}
+x===++=21+42-23;let y="Some text";//Some comment
+//Some comment        
+let z='s';23}
