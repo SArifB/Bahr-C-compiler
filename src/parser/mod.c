@@ -26,7 +26,7 @@ static Object* find_var(Token* token) {
 }
 
 static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
-  Node* node = parser_alloc(sizeof(Node));
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(OperNode));
   *node = (Node){
     .kind = ND_Operation,
     .operation =
@@ -40,7 +40,7 @@ static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
 }
 
 static Node* make_unary(UnaryKind kind, Node* value) {
-  Node* node = parser_alloc(sizeof(Node));
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(UnaryNode));
   *node = (Node){
     .kind = ND_Unary,
     .unary =
@@ -53,7 +53,7 @@ static Node* make_unary(UnaryKind kind, Node* value) {
 }
 
 static Node* make_number(StrView view) {
-  Node* node = parser_alloc(sizeof(Node));
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
   *node = (Node){
     .kind = ND_Value,
     .value =
@@ -66,7 +66,7 @@ static Node* make_number(StrView view) {
 }
 
 unused static Node* make_float(StrView view) {
-  Node* node = parser_alloc(sizeof(Node));
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
   *node = (Node){
     .kind = ND_Value,
     .value =
@@ -80,7 +80,9 @@ unused static Node* make_float(StrView view) {
 
 unused static Node* make_string(StrView view) {
   usize size = view.sen - view.itr;
-  Node* node = parser_alloc(sizeof(Node) + sizeof(char) * (size + 1));
+  Node* node = parser_alloc(
+    sizeof(NodeBase) + sizeof(TypeKind) + sizeof(char) * (size + 1)
+  );
   *node = (Node){
     .kind = ND_Value,
     .value =
@@ -98,7 +100,7 @@ unused static Node* make_string(StrView view) {
 }
 
 static Node* make_variable(Object* obj) {
-  Node* node = parser_alloc(sizeof(Node));
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(Object*));
   *node = (Node){
     .kind = ND_Variable,
     .variable = obj,
@@ -107,7 +109,7 @@ static Node* make_variable(Object* obj) {
 }
 
 static Node* make_block(Node* block) {
-  Node* node = parser_alloc(sizeof(Node));
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(Node*));
   *node = (Node){
     .kind = ND_Block,
     .block = block,
@@ -116,7 +118,7 @@ static Node* make_block(Node* block) {
 }
 
 static Node* make_if_node(Node* cond, Node* then, Node* elseb) {
-  Node* node = parser_alloc(sizeof(Node));
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(IfNode));
   *node = (Node){
     .kind = ND_If,
     .ifblock =

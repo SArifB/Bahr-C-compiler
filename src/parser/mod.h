@@ -11,6 +11,7 @@ typedef struct OperNode OperNode;
 typedef struct UnaryNode UnaryNode;
 typedef struct ValueNode ValueNode;
 typedef struct IfNode IfNode;
+typedef struct NodeBase NodeBase;
 typedef struct Node Node;
 typedef struct Object Object;
 typedef struct Function Function;
@@ -82,9 +83,19 @@ enum NodeKind {
   ND_If,
 };
 
-struct Node {
+struct NodeBase {
   NodeKind kind;
   Node* next;
+};
+
+struct Node {
+  union {
+    struct {
+      NodeKind kind;
+      Node* next;
+    };
+    NodeBase base;
+  };
   union {
     OperNode operation;
     UnaryNode unary;
