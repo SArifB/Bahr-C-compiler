@@ -85,25 +85,23 @@ static bool is_ident(cstr ref) {
 }
 
 static const char pnct_table[][4] = {
-  "(",  ")", "{", "}",  "[",  "]",  "+=", "-=", "*=", "/=", "->", "=>", "&&",
-  "||", "!", "?", "<<", ">>", "==", "!=", "<=", ">=", "<",  ">",  "&",  "|",
-  "~",  "=", "+", "-",  "*",  "/",  ",",  ";",  ".",  ":",  "#",  "%",  "@",
+  "(",  ")",  "{",  "}",  "[",  "]", "+=", "-=", "*=", "/=",
+  "->", "=>", ":=", "&&", "||", "!", "?",  "<<", ">>", "==",
+  "!=", "<=", ">=", "<",  ">",  "&", "|",  "~",  "=",  "+",
+  "-",  "*",  "/",  ",",  ";",  ".", ":",  "#",  "%",  "@",
 };
 
 static const AddInfo pnct_info_table[] = {
-  PK_LeftParen,    PK_RightParen,   PK_LeftBracket,
-  PK_RightBracket, PK_LeftSqrBrack, PK_RightSqrBrack,
-  PK_AddAssign,    PK_SubAssign,    PK_MulAssign,
-  PK_DivAssign,    PK_RightArrow,   PK_FatRightArrow,
-  PK_And,          PK_Or,           PK_Neg,
-  PK_Question,     PK_ShiftLeft,    PK_ShiftRight,
-  PK_Eq,           PK_NEq,          PK_Lte,
-  PK_Gte,          PK_Lt,           PK_Gt,
-  PK_BitAnd,       PK_BitOr,        PK_BitNeg,
-  PK_Assign,       PK_Add,          PK_Sub,
-  PK_Mul,          PK_Div,          PK_Colon,
-  PK_SemiCol,      PK_Dot,          PK_DoubleDot,
-  PK_Hash,         PK_Percent,      PK_AddrOf,
+  PK_LeftParen,    PK_RightParen,    PK_LeftBracket, PK_RightBracket,
+  PK_LeftSqrBrack, PK_RightSqrBrack, PK_AddAssign,   PK_SubAssign,
+  PK_MulAssign,    PK_DivAssign,     PK_RightArrow,  PK_FatRightArrow,
+  PK_Declare,      PK_And,           PK_Or,          PK_Neg,
+  PK_Question,     PK_ShiftLeft,     PK_ShiftRight,  PK_Eq,
+  PK_NEq,          PK_Lte,           PK_Gte,         PK_Lt,
+  PK_Gt,           PK_BitAnd,        PK_BitOr,       PK_BitNeg,
+  PK_Assign,       PK_Add,           PK_Sub,         PK_Mul,
+  PK_Div,          PK_Colon,         PK_SemiCol,     PK_Dot,
+  PK_DoubleDot,    PK_Hash,          PK_Percent,     PK_AddrOf,
 };
 
 static const char kwrd_table[][8] = {

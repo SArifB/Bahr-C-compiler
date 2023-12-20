@@ -26,7 +26,7 @@ enum TokenKind {
 };
 
 enum AddInfo {
-  PK_None,
+  AD_None,
 
   // Punct
   PK_LeftParen,
@@ -41,6 +41,7 @@ enum AddInfo {
   PK_DivAssign,
   PK_RightArrow,
   PK_FatRightArrow,
+  PK_Declare,
   PK_And,
   PK_Or,
   PK_Neg,
