@@ -131,6 +131,19 @@ static Node* make_if_node(Node* cond, Node* then, Node* elseb) {
   return node;
 }
 
+static Node* make_while_node(Node* cond, Node* then) {
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(WhileNode));
+  *node = (Node){
+    .kind = ND_While,
+    .whileblock =
+      (WhileNode){
+        .cond = cond,
+        .then = then,
+      },
+  };
+  return node;
+}
+
 static Object* make_object(StrView view) {
   usize size = view.sen - view.itr;
   Object* obj = parser_alloc(sizeof(Object) + sizeof(char) * (size + 1));
@@ -176,7 +189,8 @@ static Node* unary(Token** rest, Token* token);
 static Node* primary(Token** rest, Token* token);
 
 // stmt = "return" expr ";"
-//      | "if" "(" expr ")" stmt ("else" stmt)?
+//      | "if" expr stmt ("else" stmt)?
+//      | "while" expr stmt
 //      | "{" compound-stmt
 //      | expr-stmt
 static Node* stmt(Token** rest, Token* token) {
@@ -194,6 +208,12 @@ static Node* stmt(Token** rest, Token* token) {
     }
     Node* node = make_if_node(cond, then, elseb);
     *rest = token;
+    return node;
+
+  } else if (token->info == KW_While) {
+    Node* cond = expr(&token, token + 1);
+    Node* then = stmt(rest, token);
+    Node* node = make_while_node(cond, then);
     return node;
 
   } else if (token->info == PK_LeftBracket) {
@@ -419,6 +439,14 @@ static void print_branch(Node* node) {
       eputs("ND_If: Else");
       print_branch(node->ifblock.elseb);
     }
+  } else if (node->kind == ND_While) {
+    eputs("ND_While: Cond");
+    print_branch(node->whileblock.cond);
+
+    indent -= 1;
+    print_indent();
+    eputs("ND_While: Then");
+    print_branch(node->whileblock.then);
   }
   indent -= 1;
 }

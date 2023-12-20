@@ -7,6 +7,11 @@
     ifval = 2 + 7;
     ifval = 2 + 7;
   } 
-  
+
+  letval = 0;
+  while letval < 4 {
+    letval = letval + 1;
+  }
+
   return ifval;
 }

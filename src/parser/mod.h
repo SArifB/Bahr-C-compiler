@@ -11,6 +11,7 @@ typedef struct OperNode OperNode;
 typedef struct UnaryNode UnaryNode;
 typedef struct ValueNode ValueNode;
 typedef struct IfNode IfNode;
+typedef struct WhileNode WhileNode;
 typedef struct NodeBase NodeBase;
 typedef struct Node Node;
 typedef struct Object Object;
@@ -73,6 +74,11 @@ struct IfNode {
   Node* elseb;
 };
 
+struct WhileNode {
+  Node* cond;
+  Node* then;
+};
+
 enum NodeKind {
   ND_None,
   ND_Operation,
@@ -81,6 +87,7 @@ enum NodeKind {
   ND_Variable,
   ND_Block,
   ND_If,
+  ND_While,
 };
 
 struct NodeBase {
@@ -103,6 +110,7 @@ struct Node {
     Object* variable;
     Node* block;
     IfNode ifblock;
+    WhileNode whileblock;
   };
 };
 
