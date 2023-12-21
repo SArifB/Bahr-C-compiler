@@ -62,7 +62,7 @@ enum AddInfo {
   PK_Sub,
   PK_Mul,
   PK_Div,
-  PK_Colon,
+  PK_Comma,
   PK_SemiCol,
   PK_Dot,
   PK_DoubleDot,
