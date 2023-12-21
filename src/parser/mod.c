@@ -158,6 +158,24 @@ static Node* make_while_node(Node* cond, Node* then) {
   return node;
 }
 
+static Node* make_call_node(StrView view, Node* args) {
+  usize size = view.sen - view.itr;
+  Node* node = parser_alloc(
+    sizeof(NodeBase) + sizeof(CallNode) + sizeof(char) * (size + 1)
+  );
+  *node = (Node){
+    .kind = ND_Call,
+    .call_node =
+      (CallNode){
+        .args = args,
+        .name.size = size,
+      },
+  };
+  strncpy(node->call_node.name.array, view.itr, size);
+  node->call_node.name.array[size] = 0;
+  return node;
+}
+
 static Object* make_object(StrView view) {
   usize size = view.sen - view.itr;
   Object* obj = parser_alloc(sizeof(Object) + sizeof(char) * (size + 1));
@@ -354,7 +372,26 @@ static Node* unary(Token** rest, Token* token) {
   return primary(rest, token);
 }
 
-// primary = "(" expr ")" | ident | num
+// funcall = ident "(" (assign ("," assign)*)? ")"
+static Node* funcall(Token** rest, Token* token) {
+  Token* start = token;
+  token = token + 2;
+
+  Node handle = {};
+  Node* node_cursor = &handle;
+  while (token->info != PK_RightParen) {
+    if (node_cursor != &handle) {
+      token = expect(token, PK_Comma);
+    }
+    node_cursor->next = assign(&token, token);
+    node_cursor = node_cursor->next;
+  }
+  Node* node = make_call_node(start->pos, handle.next);
+  *rest = expect(token, PK_RightParen);
+  return node;
+}
+
+// primary = "(" expr ")" | ident func-args? | num
 static Node* primary(Token** rest, Token* token) {
   if (token->info == PK_LeftParen) {
     Node* node = expr(&token, token + 1);
@@ -362,6 +399,9 @@ static Node* primary(Token** rest, Token* token) {
     return node;
 
   } else if (token->kind == TK_Ident) {
+    if ((token + 1)->info == PK_LeftParen) {
+      return funcall(rest, token);
+    }
     Object* obj = find_var(token);
     if (obj == nullptr) {
       obj = make_object(token->pos);
@@ -460,7 +500,12 @@ static void print_branch(Node* node) {
     indent -= 1;
     print_indent();
     eputs("ND_While: Then");
-    print_branch(node->whileblock.then);
+  } else if (node->kind == ND_Call) {
+    eprintf("ND_Call: %s\n", node->call_node.name.array);
+    for (Node* branch = node->call_node.args; branch != nullptr;
+         branch = branch->next) {
+      print_branch(branch);
+    }
   }
   indent -= 1;
 }

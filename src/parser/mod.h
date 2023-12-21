@@ -12,6 +12,7 @@ typedef struct UnaryNode UnaryNode;
 typedef struct ValueNode ValueNode;
 typedef struct IfNode IfNode;
 typedef struct WhileNode WhileNode;
+typedef struct CallNode CallNode;
 typedef struct NodeBase NodeBase;
 typedef struct Node Node;
 typedef struct Object Object;
@@ -68,6 +69,11 @@ struct WhileNode {
   Node* then;
 };
 
+struct CallNode {
+  Node* args;
+  VarCharArr name;
+};
+
 enum NodeKind {
   ND_None,
   ND_Operation,
@@ -79,6 +85,7 @@ enum NodeKind {
   ND_Block,
   ND_If,
   ND_While,
+  ND_Call,
 };
 
 struct NodeBase {
@@ -102,8 +109,7 @@ struct Node {
     ValueNode value;
     Object* variable;
     Node* block;
-    IfNode ifblock;
-    WhileNode whileblock;
+    CallNode call_node;
   };
 };
 
