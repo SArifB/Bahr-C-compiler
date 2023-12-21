@@ -8,7 +8,6 @@ typedef enum TypeKind TypeKind;
 typedef enum NodeKind NodeKind;
 typedef struct VarCharArr VarCharArr;
 typedef struct OperNode OperNode;
-typedef struct UnaryNode UnaryNode;
 typedef struct ValueNode ValueNode;
 typedef struct IfNode IfNode;
 typedef struct WhileNode WhileNode;
@@ -20,7 +19,7 @@ typedef struct Function Function;
 
 struct VarCharArr {
   usize size;
-  char arr[];
+  char array[];
 };
 
 enum OperKind {
@@ -109,6 +108,8 @@ struct Node {
     ValueNode value;
     Object* variable;
     Node* block;
+    IfNode if_node;
+    WhileNode while_node;
     CallNode call_node;
   };
 };

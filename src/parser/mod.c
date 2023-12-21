@@ -18,7 +18,7 @@ static Object* current_locals = nullptr;
 
 static Object* find_var(Token* token) {
   for (Object* obj = current_locals; obj; obj = obj->next) {
-    if (strncmp(token->pos.itr, obj->name.arr, token->pos.sen - token->pos.itr) == 0) {
+    if (strncmp(token->pos.itr, obj->name.array, token->pos.sen - token->pos.itr) == 0) {
       return obj;
     }
   }
@@ -95,21 +95,18 @@ unused static Node* make_float(StrView view) {
 unused static Node* make_string(StrView view) {
   usize size = view.sen - view.itr;
   Node* node = parser_alloc(
-    sizeof(NodeBase) + sizeof(TypeKind) + sizeof(char) * (size + 1)
+    sizeof(NodeBase) + sizeof(ValueNode) + sizeof(char) * (size + 1)
   );
   *node = (Node){
     .kind = ND_Value,
     .value =
       (ValueNode){
         .kind = TP_Str,
-        .str_lit =
-          (VarCharArr){
-            .size = size,
-          },
+        .str_lit.size = size,
       },
   };
-  strncpy(node->value.str_lit.arr, view.itr, size);
-  node->value.str_lit.arr[size] = 0;
+  strncpy(node->value.str_lit.array, view.itr, size);
+  node->value.str_lit.array[size] = 0;
   return node;
 }
 
@@ -135,7 +132,7 @@ static Node* make_if_node(Node* cond, Node* then, Node* elseb) {
   Node* node = parser_alloc(sizeof(NodeBase) + sizeof(IfNode));
   *node = (Node){
     .kind = ND_If,
-    .ifblock =
+    .if_node =
       (IfNode){
         .cond = cond,
         .then = then,
@@ -149,7 +146,7 @@ static Node* make_while_node(Node* cond, Node* then) {
   Node* node = parser_alloc(sizeof(NodeBase) + sizeof(WhileNode));
   *node = (Node){
     .kind = ND_While,
-    .whileblock =
+    .while_node =
       (WhileNode){
         .cond = cond,
         .then = then,
@@ -181,13 +178,10 @@ static Object* make_object(StrView view) {
   Object* obj = parser_alloc(sizeof(Object) + sizeof(char) * (size + 1));
   *obj = (Object){
     .next = current_locals,
-    .name =
-      (VarCharArr){
-        .size = size,
-      },
+    .name.size = size,
   };
-  strncpy(obj->name.arr, view.itr, size);
-  obj->name.arr[size] = 0;
+  strncpy(obj->name.array, view.itr, size);
+  obj->name.array[size] = 0;
   current_locals = obj;
   return obj;
 }
@@ -227,7 +221,7 @@ static Node* primary(Token** rest, Token* token);
 //      | expr-stmt
 static Node* stmt(Token** rest, Token* token) {
   if (token->info == KW_Return) {
-    Node* node = make_unary(UN_Return, expr(&token, token + 1));
+    Node* node = make_return_node(expr(&token, token + 1));
     *rest = expect(token, PK_SemiCol);
     return node;
 
@@ -257,10 +251,10 @@ static Node* stmt(Token** rest, Token* token) {
 // compound-stmt = stmt* "}"
 static Node* compound_stmt(Token** rest, Token* token) {
   Node handle = {};
-  Node* node_cur = &handle;
+  Node* node_cursor = &handle;
   while (token->info != PK_RightBracket) {
-    node_cur->next = stmt(&token, token);
-    node_cur = node_cur->next;
+    node_cursor->next = stmt(&token, token);
+    node_cursor = node_cursor->next;
   }
   Node* node = make_block(handle.next);
   *rest = token + 1;
@@ -273,7 +267,7 @@ static Node* expr_stmt(Token** rest, Token* token) {
     *rest = token + 1;
     return make_block(nullptr);
   }
-  Node* node = make_unary(UN_ExprStmt, expr(&token, token));
+  Node* node = make_expr_stmt(expr(&token, token));
   *rest = expect(token, PK_SemiCol);
   return node;
 }
@@ -367,7 +361,7 @@ static Node* unary(Token** rest, Token* token) {
   if (token->info == PK_Add) {
     return unary(rest, token + 1);
   } else if (token->info == PK_Sub) {
-    return make_unary(UN_Negation, unary(rest, token + 1));
+    return make_negation(unary(rest, token + 1));
   }
   return primary(rest, token);
 }
@@ -456,16 +450,20 @@ static void print_branch(Node* node) {
     print_branch(node->operation.lhs);
     print_branch(node->operation.rhs);
 
-  } else if (node->kind == ND_Unary) {
-    switch (node->unary.kind) { // clang-format off
-      case UN_Negation: eputs("ND_Unary: UN_Negation"); break;
-      case UN_ExprStmt: eputs("ND_Unary: UN_ExprStmt"); break;
-      case UN_Return:   eputs("ND_Unary: UN_Return");   break;
-    } // clang-format on
-    print_branch(node->unary.next);
+  } else if (node->kind == ND_Negation) {
+    eputs("ND_Negation");
+    print_branch(node->unary);
+
+  } else if (node->kind == ND_ExprStmt) {
+    eputs("ND_ExprStmt");
+    print_branch(node->expr_stmt);
+
+  } else if (node->kind == ND_Return) {
+    eputs("ND_Return");
+    print_branch(node->return_node);
 
   } else if (node->kind == ND_Variable) {
-    eprintf("ND_Variable: %s\n", node->variable->name.arr);
+    eprintf("ND_Variable: %s\n", node->variable->name.array);
 
   } else if (node->kind == ND_Value) {
     if (node->value.kind == TP_Int) {
@@ -480,26 +478,28 @@ static void print_branch(Node* node) {
     }
   } else if (node->kind == ND_If) {
     eputs("ND_If: Cond");
-    print_branch(node->ifblock.cond);
+    print_branch(node->if_node.cond);
 
     indent -= 1;
     print_indent();
     eputs("ND_If: Then");
-    print_branch(node->ifblock.then);
+    print_branch(node->if_node.then);
 
-    if (node->ifblock.elseb) {
+    if (node->if_node.elseb) {
       indent -= 1;
       print_indent();
       eputs("ND_If: Else");
-      print_branch(node->ifblock.elseb);
+      print_branch(node->if_node.elseb);
     }
   } else if (node->kind == ND_While) {
     eputs("ND_While: Cond");
-    print_branch(node->whileblock.cond);
+    print_branch(node->while_node.cond);
 
     indent -= 1;
     print_indent();
     eputs("ND_While: Then");
+    print_branch(node->while_node.then);
+
   } else if (node->kind == ND_Call) {
     eprintf("ND_Call: %s\n", node->call_node.name.array);
     for (Node* branch = node->call_node.args; branch != nullptr;
