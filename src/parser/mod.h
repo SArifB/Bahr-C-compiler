@@ -42,17 +42,6 @@ struct OperNode {
   Node* rhs;
 };
 
-enum UnaryKind {
-  UN_Negation,
-  UN_ExprStmt,
-  UN_Return,
-};
-
-struct UnaryNode {
-  UnaryKind kind;
-  Node* next;
-};
-
 enum TypeKind {
   TP_Int,
   TP_Flt,
@@ -82,7 +71,9 @@ struct WhileNode {
 enum NodeKind {
   ND_None,
   ND_Operation,
-  ND_Unary,
+  ND_Negation,
+  ND_ExprStmt,
+  ND_Return,
   ND_Value,
   ND_Variable,
   ND_Block,
@@ -105,7 +96,9 @@ struct Node {
   };
   union {
     OperNode operation;
-    UnaryNode unary;
+    Node* unary;
+    Node* expr_stmt;
+    Node* return_node;
     ValueNode value;
     Object* variable;
     Node* block;

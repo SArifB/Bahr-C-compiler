@@ -39,15 +39,29 @@ static Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   return node;
 }
 
-static Node* make_unary(UnaryKind kind, Node* value) {
-  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(UnaryNode));
+static Node* make_negation(Node* value) {
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(Node*));
   *node = (Node){
-    .kind = ND_Unary,
-    .unary =
-      (UnaryNode){
-        .kind = kind,
-        .next = value,
-      },
+    .kind = ND_Negation,
+    .unary = value,
+  };
+  return node;
+}
+
+static Node* make_expr_stmt(Node* value) {
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(Node*));
+  *node = (Node){
+    .kind = ND_ExprStmt,
+    .expr_stmt = value,
+  };
+  return node;
+}
+
+static Node* make_return_node(Node* value) {
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(Node*));
+  *node = (Node){
+    .kind = ND_Return,
+    .return_node = value,
   };
   return node;
 }
