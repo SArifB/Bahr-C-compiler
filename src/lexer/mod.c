@@ -126,6 +126,8 @@ static bool is_charnum(cstr ref) {
          (*ref >= '0' && *ref <= '9') || *ref == '_';
 }
 
+#define tokens_push(...) Token_vector_push(&tokens, ((Token){ __VA_ARGS__ }))
+
 TokenVector* lex_string(const StrView view) {
   TokenVector* tokens = Token_vector_make(0);
   current_input = view;
@@ -161,13 +163,7 @@ TokenVector* lex_string(const StrView view) {
       while (is_numliteral(tmp_sen) == true) {
         tmp_sen += 1;
       }
-      Token_vector_push(
-        &tokens,
-        (Token){
-          .kind = TK_NumLiteral,
-          .pos = { itr, tmp_sen },
-        }
-      );
+      tokens_push(.kind = TK_NumLiteral, .pos = { itr, tmp_sen }, );
       itr = tmp_sen - 1;
 
       /// String
@@ -176,13 +172,7 @@ TokenVector* lex_string(const StrView view) {
       while (is_str_lit_char(tmp_sen) == false) {
         tmp_sen += 1;
       }
-      Token_vector_push(
-        &tokens,
-        (Token){
-          .kind = TK_StrLiteral,
-          .pos = { itr + 1, tmp_sen },
-        }
-      );
+      tokens_push(.kind = TK_StrLiteral, .pos = { itr + 1, tmp_sen }, );
       itr = tmp_sen;
 
       /// Char
@@ -191,13 +181,7 @@ TokenVector* lex_string(const StrView view) {
       while (*tmp_sen != '\'') {
         tmp_sen += 1;
       }
-      Token_vector_push(
-        &tokens,
-        (Token){
-          .kind = TK_CharLiteral,
-          .pos = { itr + 1, tmp_sen },
-        }
-      );
+      tokens_push(.kind = TK_CharLiteral, .pos = { itr + 1, tmp_sen }, );
       itr = tmp_sen;
 
       /// Keyword
@@ -205,13 +189,9 @@ TokenVector* lex_string(const StrView view) {
       bool kw = false;
       for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
         if (equals(itr, kwrd_table[i]) && itr[strlen(kwrd_table[i])] == ' ') {
-          Token_vector_push(
-            &tokens,
-            (Token){
-              .kind = TK_Keyword,
-              .info = kwrd_info_table[i],
+          tokens_push(
+              .kind = TK_Keyword, .info = kwrd_info_table[i],
               .pos = { itr, itr + strlen(kwrd_table[i]) },
-            }
           );
           itr += strlen(kwrd_table[i]);
           kw = true;
@@ -226,26 +206,16 @@ TokenVector* lex_string(const StrView view) {
       while (is_charnum(tmp_sen) == true) {
         tmp_sen += 1;
       }
-      Token_vector_push(
-        &tokens,
-        (Token){
-          .kind = TK_Ident,
-          .pos = { itr, tmp_sen },
-        }
-      );
+      tokens_push(.kind = TK_Ident, .pos = { itr, tmp_sen }, );
       itr = tmp_sen - 1;
 
       /// Punct
     } else if (is_punct(itr) == true) {
       for (usize i = 0; i < sizeof_arr(pnct_table); ++i) {
         if (equals(itr, pnct_table[i])) {
-          Token_vector_push(
-            &tokens,
-            (Token){
-              .kind = TK_Punct,
-              .info = pnct_info_table[i],
+          tokens_push(
+              .kind = TK_Punct, .info = pnct_info_table[i],
               .pos = { itr, itr + strlen(pnct_table[i]) },
-            }
           );
           itr += strlen(pnct_table[i]) - 1;
           break;
@@ -256,13 +226,7 @@ TokenVector* lex_string(const StrView view) {
     }
   }
 
-  Token_vector_push(
-    &tokens,
-    (Token){
-      .kind = TK_EOF,
-      .pos = { itr, itr },
-    }
-  );
+  tokens_push(.kind = TK_EOF, .pos = { itr, itr }, );
   return tokens;
 }
 
