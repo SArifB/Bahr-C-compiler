@@ -90,6 +90,7 @@ enum NodeKind {
 struct NodeBase {
   NodeKind kind;
   Node* next;
+  Type* type;
 };
 
 struct Node {
@@ -97,14 +98,13 @@ struct Node {
     struct {
       NodeKind kind;
       Node* next;
+      Type* type;
     };
     NodeBase base;
   };
   union {
     OperNode operation;
     Node* unary;
-    Node* expr_stmt;
-    Node* return_node;
     ValueNode value;
     Object* variable;
     Node* block;
@@ -116,12 +116,16 @@ struct Node {
 
 struct Object {
   Object* next;
+  Type* type;
   VarCharArr name;
 };
 
 struct Function {
+  Function* next;
+  Object* args;
   Node* body;
   Object* locals;
+  VarCharArr name;
 };
 
 extern Function* parse_lexer(TokenVector* tokens);
