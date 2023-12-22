@@ -131,3 +131,7 @@ struct Function {
 extern Function* parse_lexer(TokenVector* tokens);
 extern void print_ast(Function* prog);
 extern void free_ast();
+
+typedef struct Arena Arena;
+extern Arena PARSER_ARENA;
+extern any parser_alloc(usize size);

@@ -1,20 +1,26 @@
 #include <arena/mod.h>
 #include <lexer/errors.h>
 #include <lexer/mod.h>
+#include <parser/ctors.h>
 #include <parser/mod.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <parser/types.h>
 #include <string.h>
 #include <utility/mod.h>
 
-static Arena PARSER_ARENA = {};
-#define parser_alloc(size) arena_alloc(&PARSER_ARENA, size)
+Arena PARSER_ARENA = {};
 
 void free_ast() {
   arena_free(&PARSER_ARENA);
 }
 
-static Object* current_locals = nullptr;
+any parser_alloc(usize size) {
+  return arena_alloc(&PARSER_ARENA, size);
+}
+
+#define view_from(var_arr)                                                     \
+  ((StrView){ ((var_arr)->array), ((var_arr)->array + (var_arr)->size) })
+
+Object* current_locals = nullptr;
 
 static Object* find_var(Token* token) {
   for (Object* obj = current_locals; obj; obj = obj->next) {
