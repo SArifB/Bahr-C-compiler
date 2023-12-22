@@ -93,7 +93,10 @@ target_link_libraries(lexer PUBLIC
 
 # Target: parser
 set(parser_SOURCES
+	"./src/parser/ctors.c"
 	"./src/parser/mod.c"
+	"./src/parser/print.c"
+	"./src/parser/types.c"
 	cmake.toml
 )
 
