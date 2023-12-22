@@ -67,10 +67,13 @@ static Type* declspec(Token** rest, Token* token) {
   error_tok(token - 1, "Invalid expression");
 }
 
+static Type* type_suffix(Token** rest, Token* token, Type* type);
+static Type* declarator(Token** rest, Token* token, Type* type);
+static Node* declaration(Token** rest, Token* token);
 static Node* stmt(Token** rest, Token* token);
-static Node* compound_stmt(Token** rest, Token* tok);
+static Node* compound_stmt(Token** rest, Token* token);
 static Node* expr_stmt(Token** rest, Token* token);
-static Node* assign(Token** rest, Token* tok);
+static Node* assign(Token** rest, Token* token);
 static Node* expr(Token** rest, Token* token);
 static Node* equality(Token** rest, Token* token);
 static Node* relational(Token** rest, Token* token);
@@ -78,6 +81,8 @@ static Node* add(Token** rest, Token* token);
 static Node* mul(Token** rest, Token* token);
 static Node* unary(Token** rest, Token* token);
 static Node* primary(Token** rest, Token* token);
+static Function* function(Token** rest, Token* token);
+
 // type-suffix = ("(" func-params)?
 static Type* type_suffix(Token** rest, Token* token, Type* type) {
   if (token->info != PK_LeftParen) {
@@ -100,6 +105,49 @@ static Type* type_suffix(Token** rest, Token* token, Type* type) {
   return type;
 }
 
+// declarator = "*"* ident type-suffix
+static Type* declarator(Token** rest, Token* token, Type* type) {
+  while (consume(&token, token, PK_Mul)) {
+    type = make_ptr_type(type);
+  }
+  if (token->kind != TK_Ident) {
+    error_tok(token, "Expected a variable name");
+  }
+  type = type_suffix(rest, token + 1, type);
+  // type->name = token; 
+  return type;
+}
+
+// declaration = declspec (declarator ("=" expr)?
+//               ("," declarator ("=" expr)?)*)? ";"
+static Node* declaration(Token** rest, Token* token) {
+  Type* basety = declspec(&token, token);
+
+  Node head = {};
+  Node* cur = &head;
+  bool first = true;
+  while (token->info != PK_SemiCol) {
+    if (first == false) {
+      token = expect(token, PK_Comma);
+    }
+    first = false;
+    Type* type = declarator(&token, token, basety);
+    Object* var = make_object(view_from(type->name), type);
+
+    if (token->info != PK_Assign) {
+      continue;
+    }
+    Node* lhs = make_variable(var);
+    Node* rhs = assign(&token, token + 1);
+    Node* node = make_oper(OP_Asg, lhs, rhs);
+    cur = cur->next = make_unary(ND_ExprStmt, node);
+  }
+
+  Node* node = make_unary(ND_Block, head.next);
+  *rest = token + 1;
+  return node;
+}
+
 // stmt = "return" expr ";"
 //      | "if" expr stmt ("else" stmt)?
 //      | "while" expr stmt
@@ -107,7 +155,7 @@ static Type* type_suffix(Token** rest, Token* token, Type* type) {
 //      | expr-stmt
 static Node* stmt(Token** rest, Token* token) {
   if (token->info == KW_Return) {
-    Node* node = make_return_node(expr(&token, token + 1));
+    Node* node = make_unary(ND_Return, expr(&token, token + 1));
     *rest = expect(token, PK_SemiCol);
     return node;
 
@@ -139,10 +187,16 @@ static Node* compound_stmt(Token** rest, Token* token) {
   Node handle = {};
   Node* node_cursor = &handle;
   while (token->info != PK_RightBracket) {
-    node_cursor->next = stmt(&token, token);
-    node_cursor = node_cursor->next;
+    if (strncmp(token->pos.itr, "int", 3) == 0) {
+      node_cursor->next = declaration(&token, token);
+      node_cursor = node_cursor->next;
+    } else {
+      node_cursor->next = stmt(&token, token);
+      node_cursor = node_cursor->next;
+    }
+    add_type(node_cursor);
   }
-  Node* node = make_block(handle.next);
+  Node* node = make_unary(ND_Block, handle.next);
   *rest = token + 1;
   return node;
 }
@@ -151,9 +205,9 @@ static Node* compound_stmt(Token** rest, Token* token) {
 static Node* expr_stmt(Token** rest, Token* token) {
   if (token->info == PK_SemiCol) {
     *rest = token + 1;
-    return make_block(nullptr);
+    return make_unary(ND_Block, nullptr);
   }
-  Node* node = make_expr_stmt(expr(&token, token));
+  Node* node = make_unary(ND_ExprStmt, expr(&token, token));
   *rest = expect(token, PK_SemiCol);
   return node;
 }
@@ -215,9 +269,9 @@ static Node* add(Token** rest, Token* token) {
 
   while (true) {
     if (token->info == PK_Add) {
-      node = make_oper(OP_Add, node, mul(&token, token + 1));
+      node = make_add(node, mul(&token, token + 1), token);
     } else if (token->info == PK_Sub) {
-      node = make_oper(OP_Sub, node, mul(&token, token + 1));
+      node = make_sub(node, mul(&token, token + 1), token);
     } else {
       *rest = token;
       return node;
@@ -241,19 +295,23 @@ static Node* mul(Token** rest, Token* token) {
   }
 }
 
-// unary = ("+" | "-") unary
+// unary = ("+" | "-" | "*" | "&") unary
 //       | primary
 static Node* unary(Token** rest, Token* token) {
   if (token->info == PK_Add) {
     return unary(rest, token + 1);
   } else if (token->info == PK_Sub) {
-    return make_negation(unary(rest, token + 1));
+    return make_unary(ND_Negation, unary(rest, token + 1));
+  } else if (token->info == PK_Ampersand) {
+    return make_unary(ND_Addr, unary(rest, token + 1));
+  } else if (token->info == PK_Mul) {
+    return make_unary(ND_Deref, unary(rest, token + 1));
   }
   return primary(rest, token);
 }
 
 // funcall = ident "(" (assign ("," assign)*)? ")"
-static Node* funcall(Token** rest, Token* token) {
+static Node* fn_call(Token** rest, Token* token) {
   Token* start = token;
   token = token + 2;
 
@@ -280,11 +338,11 @@ static Node* primary(Token** rest, Token* token) {
 
   } else if (token->kind == TK_Ident) {
     if ((token + 1)->info == PK_LeftParen) {
-      return funcall(rest, token);
+      return fn_call(rest, token);
     }
     Object* obj = find_var(token);
     if (obj == nullptr) {
-      obj = make_object(token->pos);
+      obj = make_object(token->pos, nullptr);
     }
     *rest = token + 1;
     return make_variable(obj);
@@ -297,9 +355,40 @@ static Node* primary(Token** rest, Token* token) {
   error_tok(token, "Expected an expression");
 }
 
+static void create_param_lvars(Type* arg) {
+  if (arg) {
+    create_param_lvars(arg->next);
+    make_object(view_from(arg->name), arg);
+  }
+}
+
+// program = stmt*
+static Function* function(Token** rest, Token* token) {
+  Type* type = declspec(&token, token);
+  type = declarator(&token, token, type);
+
+  current_locals = nullptr;
+
+  Function* func =
+    make_function(view_from(type->name), nullptr, current_locals);
+  create_param_lvars(type->fn_type.args);
+
+  token = expect(token, PK_LeftBracket);
+  func->body = compound_stmt(rest, token);
+  func->locals = current_locals;
+  return func;
+  // Token* token = tokens->buffer;
+  // token = expect(token, PK_LeftBracket);
+  // return make_function( compound_stmt(&token, token));
+}
+
 // program = stmt*
 Function* parse_lexer(TokenVector* tokens) {
-  Token* token = tokens->buffer;
-  token = expect(token, PK_LeftBracket);
-  // );
+  Token* tok = tokens->buffer;
+
+  Function head = {};
+  Function* cur = &head;
+  while (tok->kind != TK_EOF)
+    cur = cur->next = function(&tok, tok);
+  return head.next;
 }
