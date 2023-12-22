@@ -97,7 +97,7 @@ static const AddInfo pnct_info_table[] = {
   PK_Declare,      PK_And,           PK_Or,          PK_Neg,
   PK_Question,     PK_ShiftLeft,     PK_ShiftRight,  PK_Eq,
   PK_NEq,          PK_Lte,           PK_Gte,         PK_Lt,
-  PK_Gt,           PK_BitAnd,        PK_BitOr,       PK_BitNeg,
+  PK_Gt,           PK_Ampersand,     PK_Pipe,        PK_BitNeg,
   PK_Assign,       PK_Add,           PK_Sub,         PK_Mul,
   PK_Div,          PK_Comma,         PK_SemiCol,     PK_Dot,
   PK_DoubleDot,    PK_Hash,          PK_Percent,     PK_AddrOf,
