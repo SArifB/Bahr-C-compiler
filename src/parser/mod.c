@@ -31,15 +31,40 @@ static Object* find_var(Token* token) {
   return nullptr;
 }
 
+static bool consume(Token** rest, Token* token, AddInfo info) {
+  if (token->info != info) {
     *rest = token;
     return false;
+  }
+  *rest = token + 1;
+  return true;
 }
 
 static Token* expect(Token* token, AddInfo info) {
   if (token->info != info) {
-    error_tok(token - 1, "Invalid expression");
+    error_tok(token, "Invalid expression");
   }
   return token + 1;
+}
+
+unused static StrView expect_ident(Token* token) {
+  if (token->kind != TK_Ident) {
+    error_tok(token, "Expected an identifier");
+  }
+  return token->pos;
+}
+
+// declspec = "int"
+static Type* declspec(Token** rest, Token* token) {
+  if (strncmp(token->pos.itr, "int", 3) == 0) {
+    *rest = token + 1;
+    Type* type = make_decl_type(TP_Int);
+    type->name = parser_alloc(
+      sizeof(VarCharArr) + sizeof(char) * (token->pos.sen - token->pos.itr + 1)
+    );
+    return type;
+  }
+  error_tok(token - 1, "Invalid expression");
 }
 
 static Node* stmt(Token** rest, Token* token);
@@ -53,6 +78,27 @@ static Node* add(Token** rest, Token* token);
 static Node* mul(Token** rest, Token* token);
 static Node* unary(Token** rest, Token* token);
 static Node* primary(Token** rest, Token* token);
+// type-suffix = ("(" func-params)?
+static Type* type_suffix(Token** rest, Token* token, Type* type) {
+  if (token->info != PK_LeftParen) {
+    token = token + 1;
+    Type head = {};
+    Type* cur = &head;
+    while (token->info != PK_RightParen) {
+      if (cur != &head)
+        token = expect(token, PK_Comma);
+      Type* basety = declspec(&token, token);
+      Type* ty = declarator(&token, token, basety);
+      cur->next = copy_type(ty);
+      cur = cur->next;
+    }
+    type = make_fn_type(head.next, type);
+    *rest = token + 1;
+    return type;
+  }
+  *rest = token;
+  return type;
+}
 
 // stmt = "return" expr ";"
 //      | "if" expr stmt ("else" stmt)?
