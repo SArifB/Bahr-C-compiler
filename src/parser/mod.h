@@ -3,10 +3,13 @@
 #include <utility/mod.h>
 
 typedef enum OperKind OperKind;
-typedef enum UnaryKind UnaryKind;
 typedef enum TypeKind TypeKind;
 typedef enum NodeKind NodeKind;
 typedef struct VarCharArr VarCharArr;
+typedef struct PtrType PtrType;
+typedef struct FnType FnType;
+typedef struct TypeBase TypeBase;
+typedef struct Type Type;
 typedef struct OperNode OperNode;
 typedef struct ValueNode ValueNode;
 typedef struct IfNode IfNode;
@@ -20,6 +23,44 @@ typedef struct Function Function;
 struct VarCharArr {
   usize size;
   char array[];
+};
+
+enum TypeKind {
+  TP_Int,
+  // TP_Flt,
+  // TP_Str,
+  TP_Ptr,
+  TP_Fn,
+};
+
+struct PtrType {
+  Type* base;
+};
+
+struct FnType {
+  Type* args;
+  Type* ret;
+};
+
+struct TypeBase {
+  TypeKind kind;
+  Type* next;
+  VarCharArr* name;
+};
+
+struct Type {
+  union {
+    struct {
+      TypeKind kind;
+      Type* next;
+      VarCharArr* name;
+    };
+    TypeBase base;
+  };
+  union {
+    PtrType ptr_type;
+    FnType fn_type;
+  };
 };
 
 enum OperKind {
@@ -42,19 +83,13 @@ struct OperNode {
   Node* rhs;
 };
 
-enum TypeKind {
-  TP_Int,
-  TP_Flt,
-  TP_Str,
-};
-
 struct ValueNode {
   TypeKind kind;
-  union {
-    i64 i_num;
-    f64 f_num;
-    VarCharArr str_lit;
-  };
+  // union {
+  i64 i_num;
+  //   f64 f_num;
+  //   VarCharArr str_lit;
+  // };
 };
 
 struct IfNode {
@@ -79,9 +114,11 @@ enum NodeKind {
   ND_Negation,
   ND_ExprStmt,
   ND_Return,
+  ND_Block,
+  ND_Addr,
+  ND_Deref,
   ND_Value,
   ND_Variable,
-  ND_Block,
   ND_If,
   ND_While,
   ND_Call,
@@ -107,7 +144,6 @@ struct Node {
     Node* unary;
     ValueNode value;
     Object* variable;
-    Node* block;
     IfNode if_node;
     WhileNode while_node;
     CallNode call_node;
