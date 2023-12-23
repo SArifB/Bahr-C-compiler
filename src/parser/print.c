@@ -1,6 +1,6 @@
 #include <parser/mod.h>
-#include <utility/mod.h>
 #include <stdio.h>
+#include <utility/mod.h>
 
 static i32 indent = 0;
 static void print_indent() {
@@ -55,11 +55,12 @@ static void print_branch(Node* node) {
     eprintf("ND_Variable: %s\n", node->variable->name.array);
 
   } else if (node->kind == ND_Value) {
-    if (node->value.kind == TP_Int) {
-      eprintf("ND_Value: TP_Int = %li\n", node->value.i_num);
-    } else {
-      eputs("unimplemented");
-    }
+    eprintf("ND_Value: TP_Int = %li\n", node->value.i_num);
+    // if (node->value.kind == TP_Int) {
+    //   eprintf("ND_Value: TP_Int = %li\n", node->value.i_num);
+    // } else {
+    //   eputs("unimplemented");
+    // }
   } else if (node->kind == ND_If) {
     eputs("ND_If: Cond");
     print_branch(node->if_node.cond);
