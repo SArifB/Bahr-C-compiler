@@ -18,7 +18,7 @@ any parser_alloc(usize size) {
 }
 
 #define view_from(var_arr)                                                     \
-  ((StrView){ ((var_arr)->array), ((var_arr)->array + (var_arr)->size) })
+  ((StrView){ (var_arr)->array, (var_arr)->array + (var_arr)->size })
 
 Object* current_locals = nullptr;
 
@@ -40,31 +40,38 @@ static bool consume(Token** rest, Token* token, AddInfo info) {
   return true;
 }
 
-static Token* expect(Token* token, AddInfo info) {
+static Token* expect_info(Token* token, AddInfo info) {
   if (token->info != info) {
     error_tok(token, "Invalid expression");
   }
   return token + 1;
 }
 
-unused static StrView expect_ident(Token* token) {
+static Token* expect_eol(Token* token) {
+  if (token->is_eol != true) {
+    error_tok(token + 1, "Expected end of the line");
+  }
+  return token + 1;
+}
+
+static Token* expect_ident(Token* token) {
   if (token->kind != TK_Ident) {
     error_tok(token, "Expected an identifier");
   }
-  return token->pos;
+  return token + 1;
 }
 
 // declspec = "int"
 static Type* declspec(Token** rest, Token* token) {
   if (strncmp(token->pos.itr, "int", 3) == 0) {
     *rest = token + 1;
-    Type* type = make_decl_type(TP_Int);
-    type->name = parser_alloc(
-      sizeof(VarCharArr) + sizeof(char) * (token->pos.sen - token->pos.itr + 1)
-    );
-    return type;
+    return nullptr;
+    // Type* type = make_decl_type(TP_Int);
+    // strncpy(type->name.array, "int", 3);
+    // type->name.array[3] = 0;
+    // return type;
   }
-  error_tok(token - 1, "Invalid expression");
+  error_tok(token, "Invalid expression");
 }
 
 static Type* type_suffix(Token** rest, Token* token, Type* type);
@@ -91,7 +98,7 @@ static Type* type_suffix(Token** rest, Token* token, Type* type) {
     Type* cur = &head;
     while (token->info != PK_RightParen) {
       if (cur != &head)
-        token = expect(token, PK_Comma);
+        token = expect_info(token, PK_Comma);
       Type* basety = declspec(&token, token);
       Type* ty = declarator(&token, token, basety);
       cur->next = copy_type(ty);
@@ -319,13 +326,14 @@ static Node* fn_call(Token** rest, Token* token) {
   Node* node_cursor = &handle;
   while (token->info != PK_RightParen) {
     if (node_cursor != &handle) {
-      token = expect(token, PK_Comma);
+      token = expect_info(token, PK_Comma);
     }
     node_cursor->next = assign(&token, token);
     node_cursor = node_cursor->next;
   }
-  Node* node = make_call_node(start->pos, handle.next);
-  *rest = expect(token, PK_RightParen);
+  // Node* node = make_call_node(start->pos, handle.next);
+  Node* node = make_call_node(start->pos);
+  *rest = expect_info(token, PK_RightParen);
   return node;
 }
 
@@ -333,7 +341,7 @@ static Node* fn_call(Token** rest, Token* token) {
 static Node* primary(Token** rest, Token* token) {
   if (token->info == PK_LeftParen) {
     Node* node = expr(&token, token + 1);
-    *rest = expect(token, PK_RightParen);
+    *rest = expect_info(token, PK_RightParen);
     return node;
 
   } else if (token->kind == TK_Ident) {
@@ -342,7 +350,8 @@ static Node* primary(Token** rest, Token* token) {
     }
     Object* obj = find_var(token);
     if (obj == nullptr) {
-      obj = make_object(token->pos, nullptr);
+      // obj = make_object(token->pos, nullptr);
+      obj = make_object(token->pos);
     }
     *rest = token + 1;
     return make_variable(obj);
