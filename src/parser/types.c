@@ -9,7 +9,7 @@ bool is_numeric(Type* type) {
   return type->kind == TP_Int;
 }
 
-void add_type(Node* node) {
+unused void add_type(Node* node) {
   if (node == nullptr || node->type != nullptr) {
     // return;
 
@@ -49,7 +49,8 @@ void add_type(Node* node) {
     if (node->operation.lhs->type->kind != TP_Ptr) {
       error("Invalid pointer dereference");
     } else {
-      node->type = node->operation.lhs->type->ptr_type.base;
+      // node->type = node->operation.lhs->type->ptr_type.base;
+      node->type = node->operation.lhs->type;
     }
   } else {
     for (Node* branch = node->unary; branch != nullptr; branch = branch->next) {
