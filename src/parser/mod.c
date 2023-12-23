@@ -373,31 +373,36 @@ static void create_param_lvars(Type* arg) {
 
 // program = stmt*
 static Function* function(Token** rest, Token* token) {
-  Type* type = declspec(&token, token);
-  type = declarator(&token, token, type);
+  StrView name = token->pos;
+  token = expect_ident(token);
+  token = expect_info(token, PK_LeftParen);
 
-  current_locals = nullptr;
+  Node handle = {};
+  Node* node_cursor = &handle;
+  while (token->info != PK_RightParen) {
+    if (node_cursor != &handle) {
+      token = expect_info(token, PK_Comma);
+    }
+    node_cursor->next = declaration(&token, token);
+    node_cursor = node_cursor->next;
+  }
+  unused Type* ret_tp = declspec(&token, expect_info(token + 1, PK_Colon));
+  unused Node* body = compound_stmt(&token, expect_info(token, PK_LeftBracket));
+  unused Function* func = make_function(name, body);
 
-  Function* func =
-    make_function(view_from(type->name), nullptr, current_locals);
-  create_param_lvars(type->fn_type.args);
-
-  token = expect(token, PK_LeftBracket);
-  func->body = compound_stmt(rest, token);
-  func->locals = current_locals;
+  *rest = token + 1;
   return func;
-  // Token* token = tokens->buffer;
-  // token = expect(token, PK_LeftBracket);
-  // return make_function( compound_stmt(&token, token));
 }
 
-// program = stmt*
+// program = fn*
 Function* parse_lexer(TokenVector* tokens) {
-  Token* tok = tokens->buffer;
+  Token* token = tokens->buffer;
 
-  Function head = {};
-  Function* cur = &head;
-  while (tok->kind != TK_EOF)
-    cur = cur->next = function(&tok, tok);
-  return head.next;
+  Function handle = {};
+  Function* node_cursor = &handle;
+  while (token->kind != TK_EOF) {
+    node_cursor->next = function(&token, expect_info(token, KW_Fn));
+    node_cursor = node_cursor->next;
+  }
+  return handle.next;
 }
