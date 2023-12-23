@@ -121,25 +121,23 @@ static Type* declarator(Token** rest, Token* token, Type* type) {
     error_tok(token, "Expected a variable name");
   }
   type = type_suffix(rest, token + 1, type);
-  // type->name = token; 
+  // type->name = token;
   return type;
 }
 
 // declaration = declspec (declarator ("=" expr)?
 //               ("," declarator ("=" expr)?)*)? ";"
-static Node* declaration(Token** rest, Token* token) {
-  Type* basety = declspec(&token, token);
+unused static Node* og_declaration(Token** rest, Token* token) {
+  Type* base_ty = declspec(&token, token);
 
-  Node head = {};
-  Node* cur = &head;
-  bool first = true;
+  Node handle = {};
+  Node* node_cursor = &handle;
   while (token->info != PK_SemiCol) {
-    if (first == false) {
-      token = expect(token, PK_Comma);
+    if (node_cursor != &handle) {
+      token = expect_info(token, PK_Comma);
     }
-    first = false;
-    Type* type = declarator(&token, token, basety);
-    Object* var = make_object(view_from(type->name), type);
+    Type* type = declarator(&token, token, base_ty);
+    Object* var = make_object(view_from(&type->name));
 
     if (token->info != PK_Assign) {
       continue;
@@ -147,10 +145,10 @@ static Node* declaration(Token** rest, Token* token) {
     Node* lhs = make_variable(var);
     Node* rhs = assign(&token, token + 1);
     Node* node = make_oper(OP_Asg, lhs, rhs);
-    cur = cur->next = make_unary(ND_ExprStmt, node);
+    node_cursor = node_cursor->next = make_unary(ND_ExprStmt, node);
   }
 
-  Node* node = make_unary(ND_Block, head.next);
+  Node* node = make_unary(ND_Block, handle.next);
   *rest = token + 1;
   return node;
 }
@@ -208,14 +206,14 @@ static Node* compound_stmt(Token** rest, Token* token) {
   Node handle = {};
   Node* node_cursor = &handle;
   while (token->info != PK_RightBracket) {
-    if (strncmp(token->pos.itr, "int", 3) == 0) {
-      node_cursor->next = declaration(&token, token);
-      node_cursor = node_cursor->next;
-    } else {
-      node_cursor->next = stmt(&token, token);
-      node_cursor = node_cursor->next;
-    }
-    add_type(node_cursor);
+    // if (strncmp(token->pos.itr, "int", 3) == 0) {
+    //   node_cursor->next = declaration(&token, token);
+    //   node_cursor = node_cursor->next;
+    // } else {
+    node_cursor->next = stmt(&token, token);
+    node_cursor = node_cursor->next;
+    // }
+    // add_type(node_cursor);
   }
   Node* node = make_unary(ND_Block, handle.next);
   *rest = token + 1;
@@ -289,9 +287,11 @@ static Node* add(Token** rest, Token* token) {
 
   while (true) {
     if (token->info == PK_Add) {
-      node = make_add(node, mul(&token, token + 1), token);
+      // node = make_add(node, mul(&token, token + 1), token);
+      node = make_oper(OP_Add, node, mul(&token, token + 1));
     } else if (token->info == PK_Sub) {
-      node = make_sub(node, mul(&token, token + 1), token);
+      // node = make_sub(node, mul(&token, token + 1), token);
+      node = make_oper(OP_Sub, node, mul(&token, token + 1));
     } else {
       *rest = token;
       return node;
@@ -377,10 +377,11 @@ static Node* primary(Token** rest, Token* token) {
   error_tok(token, "Expected an expression");
 }
 
-static void create_param_lvars(Type* arg) {
+unused static void create_param_lvars(Type* arg) {
   if (arg) {
     create_param_lvars(arg->next);
-    make_object(view_from(arg->name), arg);
+    // make_object(view_from(&arg->name), arg);
+    make_object(view_from(&arg->name));
   }
 }
 
