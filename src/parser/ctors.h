@@ -16,5 +16,8 @@ extern Object* make_object(StrView view);
 // extern Function* make_function(StrView view, Node* body, Object* args);
 extern Function* make_function(StrView view, Node* body);
 
+typedef struct Arena Arena;
+extern Arena PARSER_ARENA;
+extern any parser_alloc(usize size);
 
 extern Object* current_locals;
