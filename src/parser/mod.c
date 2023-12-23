@@ -155,9 +155,17 @@ static Node* declaration(Token** rest, Token* token) {
   return node;
 }
 
-// stmt = "return" expr ";"
+static Node* declaration(Token** rest, Token* token) {
+  StrView name = token->pos;
+  token = expect_ident(token);
+  token = expect_info(token, PK_Colon);
+  unused Type* decl_tp = declspec(rest, token);
+  return make_variable(make_object(name));
+}
+
 //      | "if" expr stmt ("else" stmt)?
 //      | "while" expr stmt
+//      | "let" expr stmt
 //      | "{" compound-stmt
 //      | expr-stmt
 static Node* stmt(Token** rest, Token* token) {
@@ -182,6 +190,11 @@ static Node* stmt(Token** rest, Token* token) {
     Node* then = stmt(rest, token);
     Node* node = make_while_node(cond, then);
     return node;
+
+  } else if (token->info == KW_Let) {
+    unused Node* variable = declaration(&token, token + 1);
+    Node* value = stmt(rest, expect_info(token, PK_Assign));
+    return value;
 
   } else if (token->info == PK_LeftBracket) {
     return compound_stmt(rest, token + 1);
