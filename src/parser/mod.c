@@ -163,6 +163,7 @@ static Node* declaration(Token** rest, Token* token) {
   return make_variable(make_object(name));
 }
 
+// stmt = "return" expr
 //      | "if" expr stmt ("else" stmt)?
 //      | "while" expr stmt
 //      | "let" expr stmt
@@ -171,7 +172,7 @@ static Node* declaration(Token** rest, Token* token) {
 static Node* stmt(Token** rest, Token* token) {
   if (token->info == KW_Return) {
     Node* node = make_unary(ND_Return, expr(&token, token + 1));
-    *rest = expect(token, PK_SemiCol);
+    *rest = expect_eol(token - 1);
     return node;
 
   } else if (token->info == KW_If) {
@@ -221,14 +222,13 @@ static Node* compound_stmt(Token** rest, Token* token) {
   return node;
 }
 
-// expr-stmt = expr? ";"
+// expr-stmt = expr?
 static Node* expr_stmt(Token** rest, Token* token) {
   if (token->info == PK_SemiCol) {
-    *rest = token + 1;
-    return make_unary(ND_Block, nullptr);
+    error_tok(token, "Unnecessary semicolon");
   }
   Node* node = make_unary(ND_ExprStmt, expr(&token, token));
-  *rest = expect(token, PK_SemiCol);
+  *rest = expect_eol(token - 1);
   return node;
 }
 
