@@ -85,7 +85,7 @@ struct OperNode {
 };
 
 struct ValueNode {
-  TypeKind kind;
+  // TypeKind kind;
   // union {
   i64 i_num;
   //   f64 f_num;
@@ -161,7 +161,7 @@ struct Function {
   Function* next;
   Object* args;
   Node* body;
-  Object* locals;
+  // Object* locals;
   VarCharArr name;
 };
 

@@ -74,7 +74,7 @@ Node* make_number(StrView view) {
     .kind = ND_Value,
     .value =
       (ValueNode){
-        .kind = TP_Int,
+        // .kind = TP_Int,
         .i_num = strtol(view.itr, nullptr, 10),
       },
   };
@@ -117,7 +117,8 @@ Node* make_while_node(Node* cond, Node* then) {
   return node;
 }
 
-Node* make_call_node(StrView view, Node* args) {
+// Node* make_call_node(StrView view, Node* args) {
+Node* make_call_node(StrView view) {
   usize size = view.sen - view.itr;
   Node* node = parser_alloc(
     sizeof(NodeBase) + sizeof(CallNode) + sizeof(char) * (size + 1)
@@ -126,7 +127,7 @@ Node* make_call_node(StrView view, Node* args) {
     .kind = ND_Call,
     .call_node =
       (CallNode){
-        .args = args,
+        // .args = args,
         .name.size = size,
       },
   };
@@ -135,12 +136,13 @@ Node* make_call_node(StrView view, Node* args) {
   return node;
 }
 
-Object* make_object(StrView view, Type* type) {
+// Object* make_object(StrView view, Type* type) {
+Object* make_object(StrView view) {
   usize size = view.sen - view.itr;
   Object* obj = parser_alloc(sizeof(Object) + sizeof(char) * (size + 1));
   *obj = (Object){
     .next = current_locals,
-    .type = type,
+    // .type = type,
     .name.size = size,
   };
   strncpy(obj->name.array, view.itr, size);
@@ -149,13 +151,14 @@ Object* make_object(StrView view, Type* type) {
   return obj;
 }
 
-Function* make_function(StrView view, Node* body, Object* args) {
+// Function* make_function(StrView view, Node* body, Object* args) {
+Function* make_function(StrView view, Node* body) {
   usize size = view.sen - view.itr;
   Function* func = parser_alloc(sizeof(Function) + sizeof(char) * (size + 1));
   *func = (Function){
     .body = body,
-    .args = args,
-    .locals = current_locals,
+    // .args = args,
+    // .locals = current_locals,
     .name.size = size,
   };
   strncpy(func->name.array, view.itr, size);
