@@ -100,7 +100,7 @@ static const AddInfo pnct_info_table[] = {
   PK_Gt,           PK_Ampersand,     PK_Pipe,        PK_BitNeg,
   PK_Assign,       PK_Add,           PK_Sub,         PK_Mul,
   PK_Div,          PK_Comma,         PK_SemiCol,     PK_Dot,
-  PK_DoubleDot,    PK_Hash,          PK_Percent,     PK_AddrOf,
+  PK_Colon,        PK_Hash,          PK_Percent,     PK_AddrOf,
 };
 
 static const char kwrd_table[][8] = {
@@ -138,20 +138,8 @@ TokenVector* lex_string(const StrView view) {
 
       // End of line
     } else if (char_equals(itr, "\n")) {
-      TokenKind tk = tokens->buffer[tokens->length - 1].kind;
-      if (tk == TK_Ident) {
-        tokens->buffer[tokens->length - 1].kind = TK_EOLIdent;
-      } else if (tk == TK_NumLiteral) {
-        tokens->buffer[tokens->length - 1].kind = TK_EOLNumLiteral;
-      } else if (tk == TK_StrLiteral) {
-        tokens->buffer[tokens->length - 1].kind = TK_EOLStrLiteral;
-      } else if (tk == TK_CharLiteral) {
-        tokens->buffer[tokens->length - 1].kind = TK_EOLCharLiteral;
-      } else if (tk == TK_Keyword) {
-        tokens->buffer[tokens->length - 1].kind = TK_EOLKeyword;
-      } else if (tk == TK_Punct) {
-        tokens->buffer[tokens->length - 1].kind = TK_EOLPunct;
-      }
+      tokens->buffer[tokens->length - 1].is_eol = true;
+
       // Comment
     } else if (equals(itr, "//")) {
       while (*itr != '\n') {
@@ -248,12 +236,6 @@ void lexer_print(TokenVector* tokens) {
       case TK_CharLiteral:    eprintf("TK_CharLiteral:%*s", 4, "");     break;
       case TK_Keyword:        eprintf("TK_Keyword:%*s", 8, "");         break;
       case TK_Punct:          eprintf("TK_Punct:%*s", 10, "");          break;
-      case TK_EOLIdent:       eprintf("TK_EOLIdent:%*s", 7, "");        break;
-      case TK_EOLNumLiteral:  eprintf("TK_EOLNumLiteral:%*s", 2, "");   break;
-      case TK_EOLStrLiteral:  eprintf("TK_EOLStrLiteral:%*s", 2, "");   break;
-      case TK_EOLCharLiteral: eprintf("TK_EOLCharLiteral:%*s", 1, "");  break;
-      case TK_EOLKeyword:     eprintf("TK_EOLKeyword:%*s", 5, "");      break;
-      case TK_EOLPunct:       eprintf("TK_EOLPunct:%*s", 7, "");        break;
       case TK_EOF:            eprintf("%s","TK_EOF");                   break;
     } // clang-format on
     print_str_view(itr->pos);

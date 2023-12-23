@@ -15,14 +15,6 @@ enum TokenKind {
   TK_CharLiteral,
   TK_Keyword,
   TK_Punct,
-
-  // EOL
-  TK_EOLIdent,
-  TK_EOLNumLiteral,
-  TK_EOLStrLiteral,
-  TK_EOLCharLiteral,
-  TK_EOLKeyword,
-  TK_EOLPunct,
 };
 
 enum AddInfo {
@@ -65,7 +57,7 @@ enum AddInfo {
   PK_Comma,
   PK_SemiCol,
   PK_Dot,
-  PK_DoubleDot,
+  PK_Colon,
   PK_Hash,
   PK_Percent,
   PK_AddrOf,
@@ -84,7 +76,8 @@ enum AddInfo {
 };
 
 struct Token {
-  TokenKind kind;
+  TokenKind kind : 16;
+  bool is_eol;
   AddInfo info;
   StrView pos;
 };
