@@ -35,17 +35,18 @@ enum TypeKind {
 
 struct PtrType {
   Type* base;
+  VarCharArr name;
 };
 
 struct FnType {
   Type* args;
   Type* ret;
+  VarCharArr name;
 };
 
 struct TypeBase {
   TypeKind kind;
   Type* next;
-  VarCharArr* name;
 };
 
 struct Type {
@@ -53,13 +54,13 @@ struct Type {
     struct {
       TypeKind kind;
       Type* next;
-      VarCharArr* name;
     };
     TypeBase base;
   };
   union {
     PtrType ptr_type;
     FnType fn_type;
+    VarCharArr name;
   };
 };
 
