@@ -59,52 +59,63 @@ void add_type(Node* node) {
 }
 
 Type* copy_type(Type* type) {
-  Type* tmp;
   if (type->kind == TP_Ptr) {
-    tmp = parser_alloc(sizeof(TypeBase) + sizeof(PtrType));
-    strncpy((str)tmp, (str)type, sizeof(TypeBase) + sizeof(PtrType));
+    usize str_size = sizeof(char) * type->ptr_type.name.size;
+    Type* tmp = parser_alloc(sizeof(TypeBase) + sizeof(PtrType) + str_size);
+    strncpy((str)tmp, (str)type, sizeof(TypeBase) + sizeof(PtrType) + str_size);
+    return tmp;
+
   } else if (type->kind == TP_Fn) {
-    tmp = parser_alloc(sizeof(TypeBase) + sizeof(FnType));
-    strncpy((str)tmp, (str)type, sizeof(TypeBase) + sizeof(FnType));
+    usize str_size = sizeof(char) * type->fn_type.name.size;
+    Type* tmp = parser_alloc(sizeof(TypeBase) + sizeof(FnType) + str_size);
+    strncpy((str)tmp, (str)type, sizeof(TypeBase) + sizeof(FnType) + str_size);
+    return tmp;
+
   } else if (type->kind == TP_Int) {
-    tmp = parser_alloc(sizeof(TypeBase));
-    strncpy((str)tmp, (str)type, sizeof(TypeBase));
-  } else {
-    exit(1);
+    usize str_size = sizeof(char) * type->name.size;
+    Type* tmp = parser_alloc(sizeof(TypeBase) + str_size);
+    strncpy(
+      (str)tmp, (str)type, sizeof(TypeBase) + sizeof(VarCharArr) + str_size
+    );
+    return tmp;
   }
-  return tmp;
+  error("Invalid type found");
 }
 
 Type* make_ptr_type(Type* base) {
-  Type* type = parser_alloc(sizeof(TypeBase) + sizeof(PtrType));
+  Type* type =
+    parser_alloc(sizeof(TypeBase) + sizeof(PtrType) + sizeof(char) * 32);
   *type = (Type){
     .kind = TP_Ptr,
-    .ptr_type.base = base,
+    .ptr_type =
+      (PtrType){
+        .base = base,
+        .name.size = 32,
+      },
   };
   return type;
 }
 
 Type* make_decl_type(TypeKind kind) {
-  // usize size = view.sen - view.itr;
-  // Type* type = parser_alloc(sizeof(TypeKind) + sizeof(char) * (size + 1));
-  Type* type = parser_alloc(sizeof(TypeBase));
+  Type* type =
+    parser_alloc(sizeof(TypeBase) + sizeof(VarCharArr) + sizeof(char) * 32);
   *type = (Type){
     .kind = kind,
-    // .decl_name.size = size,
+    .name.size = 32,
   };
-  // strncpy(type->decl_name.array, view.itr, size);
-  // type->decl_name.array[size] = 0;
   return type;
 }
 
 Type* make_fn_type(Type* args, Type* ret) {
-  Type* type = parser_alloc(sizeof(TypeBase) + sizeof(FnType));
+  Type* type =
+    parser_alloc(sizeof(TypeBase) + sizeof(FnType) + sizeof(char) * 32);
   *type = (Type){
     .kind = TP_Fn,
     .fn_type =
       (FnType){
         .args = args,
         .ret = ret,
+        .name.size = 32,
       },
   };
   return type;
