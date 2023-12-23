@@ -1,17 +1,8 @@
-int main() {
+fn main(a: int, b: int): int {
+  let ifval: int = 4
   if 4 >= 5 {
-    ifval = 2 + 3;
-  } else if 2 < 8 {
-    ifval = 23;
-  } else {
-    ifval = 2 + 7;
-    ifval = 2 + 7;
-  } 
-
-  letval = func(1, 2, 3);
-  while letval < 4 {
-    letval = letval + 1;
+    ifval = 2 + 3
   }
-
-  return ifval;
+  while 5 < 4 {}
+  return ifval
 }
