@@ -60,14 +60,8 @@ static bool equals(cstr itr, cstr ref) {
   return strncmp(itr, ref, strlen(ref)) == 0;
 }
 
-static bool char_equals(cstr itr, cstr ref) {
-  // return strncmp(itr, ref, 1) == 0;
-  return *itr == *ref;
-}
-
 static bool skippable(cstr itr) {
-  return char_equals(itr, " ") || char_equals(itr, "\t") ||
-         char_equals(itr, "\r") || char_equals(itr, "\f");
+  return *itr == ' ' || *itr == '\t' || *itr == '\r' || *itr == '\f';
 }
 
 static bool is_numliteral(cstr ref) {
@@ -137,8 +131,10 @@ TokenVector* lex_string(const StrView view) {
     if (skippable(itr)) {
 
       // End of line
-    } else if (char_equals(itr, "\n")) {
+    } else if (*itr == '\n') {
+      if (tokens->length != 0) {
       tokens->buffer[tokens->length - 1].is_eol = true;
+      }
 
       // Comment
     } else if (equals(itr, "//")) {
@@ -155,7 +151,7 @@ TokenVector* lex_string(const StrView view) {
       itr = tmp_sen - 1;
 
       /// String
-    } else if (char_equals(itr, "\"")) {
+    } else if (*itr == '\"') {
       cstr tmp_sen = itr + 1;
       while (is_str_lit_char(tmp_sen) == false) {
         tmp_sen += 1;
@@ -164,7 +160,7 @@ TokenVector* lex_string(const StrView view) {
       itr = tmp_sen;
 
       /// Char
-    } else if (char_equals(itr, "\'")) {
+    } else if (*itr == '\'') {
       cstr tmp_sen = itr + 1;
       while (*tmp_sen != '\'') {
         tmp_sen += 1;
