@@ -133,7 +133,7 @@ TokenVector* lex_string(const StrView view) {
       // End of line
     } else if (*itr == '\n') {
       if (tokens->length != 0) {
-      tokens->buffer[tokens->length - 1].is_eol = true;
+        tokens->buffer[tokens->length - 1].is_eol = true;
       }
 
       // Comment
