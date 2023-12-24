@@ -160,9 +160,9 @@ struct Object {
 
 struct Function {
   Function* next;
-  Object* args;
+  Node* args;
   Node* body;
-  // Object* locals;
+  Object* locals;
   VarCharArr name;
 };
 

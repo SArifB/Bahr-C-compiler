@@ -333,7 +333,7 @@ static Node* unary(Token** rest, Token* token) {
 
 // funcall = ident "(" (assign ("," assign)*)? ")"
 static Node* fn_call(Token** rest, Token* token) {
-  Token* start = token;
+  StrView name = token->pos;
   token = token + 2;
 
   Node handle = {};
@@ -342,11 +342,13 @@ static Node* fn_call(Token** rest, Token* token) {
     if (node_cursor != &handle) {
       token = expect_info(token, PK_Comma);
     }
+    if (token->info == PK_RightParen) {
+      break;
+    }
     node_cursor->next = assign(&token, token);
     node_cursor = node_cursor->next;
   }
-  // Node* node = make_call_node(start->pos, handle.next);
-  Node* node = make_call_node(start->pos);
+  Node* node = make_call_node(name, handle.next);
   *rest = expect_info(token, PK_RightParen);
   return node;
 }
@@ -391,33 +393,35 @@ static Function* function(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
   token = expect_info(token, PK_LeftParen);
+  current_locals = nullptr;
 
   Node handle = {};
-  Node* node_cursor = &handle;
+  Node* cursor = &handle;
   while (token->info != PK_RightParen) {
-    if (node_cursor != &handle) {
+    if (cursor != &handle) {
       token = expect_info(token, PK_Comma);
     }
-    node_cursor->next = declaration(&token, token);
-    node_cursor = node_cursor->next;
+    if (token->info == PK_RightParen) {
+      break;
   }
+    cursor->next = declaration(&token, token);
+    cursor = cursor->next;
+  };
   unused Type* ret_tp = declspec(&token, expect_info(token + 1, PK_Colon));
-  unused Node* body = compound_stmt(&token, expect_info(token, PK_LeftBracket));
-  unused Function* func = make_function(name, body);
-
-  *rest = token + 1;
+  Node* body = compound_stmt(rest, expect_info(token, PK_LeftBracket));
+  Function* func = make_function(name, body, handle.next);
   return func;
 }
 
-// program = fn*
+// program = function*
 Function* parse_lexer(TokenVector* tokens) {
   Token* token = tokens->buffer;
 
   Function handle = {};
-  Function* node_cursor = &handle;
+  Function* cursor = &handle;
   while (token->kind != TK_EOF) {
-    node_cursor->next = function(&token, expect_info(token, KW_Fn));
-    node_cursor = node_cursor->next;
+    cursor->next = function(&token, expect_info(token, KW_Fn));
+    cursor = cursor->next;
   }
   return handle.next;
 }
