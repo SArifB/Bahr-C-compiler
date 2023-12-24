@@ -96,5 +96,7 @@ static void print_branch(Node* node) {
 }
 
 void print_ast(Function* prog) {
-  print_branch(prog->body);
+  for (Function* branch = prog; branch != nullptr; branch = branch->next) {
+    print_branch(branch->body);
+  }
 }
