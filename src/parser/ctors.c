@@ -117,8 +117,7 @@ Node* make_while_node(Node* cond, Node* then) {
   return node;
 }
 
-// Node* make_call_node(StrView view, Node* args) {
-Node* make_call_node(StrView view) {
+Node* make_call_node(StrView view, Node* args) {
   usize size = view.sen - view.itr;
   Node* node = parser_alloc(
     sizeof(NodeBase) + sizeof(CallNode) + sizeof(char) * (size + 1)
@@ -127,7 +126,7 @@ Node* make_call_node(StrView view) {
     .kind = ND_Call,
     .call_node =
       (CallNode){
-        // .args = args,
+        .args = args,
         .name.size = size,
       },
   };
@@ -151,14 +150,13 @@ Object* make_object(StrView view) {
   return obj;
 }
 
-// Function* make_function(StrView view, Node* body, Object* args) {
-Function* make_function(StrView view, Node* body) {
+Function* make_function(StrView view, Node* body, Node* args) {
   usize size = view.sen - view.itr;
   Function* func = parser_alloc(sizeof(Function) + sizeof(char) * (size + 1));
   *func = (Function){
     .body = body,
-    // .args = args,
-    // .locals = current_locals,
+    .args = args,
+    .locals = current_locals,
     .name.size = size,
   };
   strncpy(func->name.array, view.itr, size);

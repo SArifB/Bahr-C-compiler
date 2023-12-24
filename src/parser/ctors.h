@@ -9,12 +9,10 @@ extern Node* make_number(StrView view);
 extern Node* make_variable(Object* obj);
 extern Node* make_if_node(Node* cond, Node* then, Node* elseb);
 extern Node* make_while_node(Node* cond, Node* then);
-// extern Node* make_call_node(StrView view, Node* args);
-extern Node* make_call_node(StrView view);
+extern Node* make_call_node(StrView view, Node* args);
 // extern Object* make_object(StrView view, Type* type);
 extern Object* make_object(StrView view);
-// extern Function* make_function(StrView view, Node* body, Object* args);
-extern Function* make_function(StrView view, Node* body);
+extern Function* make_function(StrView view, Node* body, Node* args);
 
 typedef struct Arena Arena;
 extern Arena PARSER_ARENA;
