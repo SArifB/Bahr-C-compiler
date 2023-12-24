@@ -1,8 +1,9 @@
+// Test main function
 fn main(a: int, b: int): int {
   let ifval: int = 4
-  if 4 >= 5 {
-    ifval = 2 + 3
-  }
-  while 5 < 4 {}
-  return ifval
+  // if 4 >= 5 {
+  //   ifval = 2 + 3
+  // }
+  // while 5 < 4 {}
+  ret ifval
 }
