@@ -76,6 +76,7 @@ enum OperKind {
   OP_Gte,
   OP_Gt,
   OP_Asg,
+  OP_Decl,
 };
 
 struct OperNode {

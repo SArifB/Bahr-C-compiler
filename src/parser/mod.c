@@ -164,7 +164,7 @@ static Node* declaration(Token** rest, Token* token) {
 // stmt = "return" expr
 //      | "if" expr stmt ("else" stmt)?
 //      | "while" expr stmt
-//      | "let" expr stmt
+//      | "let" decl "=" expr
 //      | "{" compound-stmt
 //      | expr-stmt
 static Node* stmt(Token** rest, Token* token) {
@@ -191,14 +191,15 @@ static Node* stmt(Token** rest, Token* token) {
     return node;
 
   } else if (token->info == KW_Let) {
-    unused Node* variable = declaration(&token, token + 1);
-    Node* value = stmt(rest, expect_info(token, PK_Assign));
-    return value;
+    Node* variable = declaration(&token, token + 1);
+    Node* value = expr(rest, expect_info(token, PK_Assign));
+    Node* ret = make_oper(OP_Decl, variable, value);
+    return ret;
 
   } else if (token->info == PK_LeftBracket) {
     return compound_stmt(rest, token + 1);
   }
-  return expr_stmt(rest, token);
+  return expr(rest, token);
 }
 
 // compound-stmt = stmt* "}"
