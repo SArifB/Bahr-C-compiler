@@ -207,14 +207,9 @@ static Node* compound_stmt(Token** rest, Token* token) {
   Node handle = {};
   Node* node_cursor = &handle;
   while (token->info != PK_RightBracket) {
-    // if (strncmp(token->pos.itr, "int", 3) == 0) {
-    //   node_cursor->next = declaration(&token, token);
-    //   node_cursor = node_cursor->next;
-    // } else {
+    token = expect_eol(token - 1);
     node_cursor->next = stmt(&token, token);
     node_cursor = node_cursor->next;
-    // }
-    // add_type(node_cursor);
   }
   Node* node = make_unary(ND_Block, handle.next);
   *rest = token + 1;
@@ -222,7 +217,7 @@ static Node* compound_stmt(Token** rest, Token* token) {
 }
 
 // expr-stmt = expr?
-static Node* expr_stmt(Token** rest, Token* token) {
+unused static Node* expr_stmt(Token** rest, Token* token) {
   if (token->info == PK_SemiCol) {
     error_tok(token, "Unnecessary semicolon");
   }
@@ -403,7 +398,7 @@ static Function* function(Token** rest, Token* token) {
     }
     if (token->info == PK_RightParen) {
       break;
-  }
+    }
     cursor->next = declaration(&token, token);
     cursor = cursor->next;
   };
