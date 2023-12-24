@@ -98,7 +98,7 @@ static const AddInfo pnct_info_table[] = {
 };
 
 static const char kwrd_table[][8] = {
-  "pub", "let", "fn", "use", "if", "else", "for", "while", "match", "return",
+  "pub", "let", "fn", "use", "if", "else", "for", "while", "match", "ret",
 };
 
 static const AddInfo kwrd_info_table[] = {
