@@ -11,6 +11,16 @@ static void print_indent() {
   indent += 1;
 }
 
+static void print_type(TypeKind type) {
+  print_indent();
+  switch (type) { // clang-format off
+    case TP_Void: eputs("Type: Void");  break;
+    case TP_Int:  eputs("Type: Int");   break;
+    case TP_Ptr:  eputs("Type: Ptr");   break;
+  } // clang-format on
+  indent -= 1;
+}
+
 static void print_branch(Node* node) {
   print_indent();
 
@@ -39,10 +49,6 @@ static void print_branch(Node* node) {
     eputs("Negation");
     print_branch(node->unary);
 
-  } else if (node->kind == ND_ExprStmt) {
-    eputs("ExprStmt");
-    print_branch(node->unary);
-
   } else if (node->kind == ND_Return) {
     eputs("Return");
     print_branch(node->unary);
@@ -53,20 +59,33 @@ static void print_branch(Node* node) {
       print_branch(branch);
     }
   } else if (node->kind == ND_Variable) {
-    eprintf("Variable = %s\n", node->variable->name.array);
-
+    eprintf("Variable = %s\n", node->variable.name.array);
+    if (node->variable.value != nullptr) {
+      print_branch(node->variable.value);
+    } else {
+      print_indent();
+      eputs("Value = Undefined");
+      indent -= 1;
+    }
+    print_type(node->variable.type);
   } else if (node->kind == ND_Value) {
-    eprintf("Value = %li\n", node->value.i_num);
-    // if (node->value.kind == TP_Int) {
-    //   eprintf("Value: TP_Int = %li\n", node->value.i_num);
-    // } else {
-    //   eputs("unimplemented");
-    // }
+    switch (node->value.type) {
+    case TP_Void:
+      eputs("Value = Void");
+      break;
+    case TP_Int:
+      eprintf("Value = %s\n", node->value.basic.array);
+      break;
+    case TP_Ptr:
+      print_branch(node->value.ptr_base);
+      break;
+    }
+    print_type(node->value.type);
   } else if (node->kind == ND_If) {
     eputs("If:");
     print_branch(node->if_node.cond);
     print_branch(node->if_node.then);
-    if (node->if_node.elseb) {
+    if (node->if_node.elseb != nullptr) {
       print_branch(node->if_node.elseb);
     }
   } else if (node->kind == ND_While) {
@@ -84,17 +103,18 @@ static void print_branch(Node* node) {
   indent -= 1;
 }
 
-void print_ast(Function* prog) {
-  for (Function* branch = prog; branch != nullptr; branch = branch->next) {
+void print_ast(Node* prog) {
+  for (Node* branch = prog; branch != nullptr; branch = branch->next) {
     if (branch != prog) {
       eputs("--------------------------------------");
     }
+    eprintf("Function = %s\n", branch->function.name.array);
+    print_type(branch->function.ret_type);
     indent += 1;
-    eprintf("Function = %s\n", branch->name.array);
-    for (Node* arg = branch->args; arg != nullptr; arg = arg->next) {
+    for (Node* arg = branch->function.args; arg != nullptr; arg = arg->next) {
       print_branch(arg);
     }
     indent -= 1;
-    print_branch(branch->body);
+    print_branch(branch->function.body);
   }
 }
