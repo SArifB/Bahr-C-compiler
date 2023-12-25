@@ -1,54 +1,57 @@
 #include <lexer/errors.h>
 #include <parser/ctors.h>
 #include <parser/mod.h>
-#include <parser/types.h>
 #include <string.h>
 
-Node* make_add(Node* lhs, Node* rhs, Token* token) {
-  add_type(lhs);
-  add_type(rhs);
-
-  if (is_numeric(lhs->type) && is_numeric(rhs->type)) {
-    return make_oper(OP_Add, lhs, rhs);
-
-  } else if (lhs->type->kind == TP_Ptr && rhs->type->kind == TP_Ptr) {
-    error_tok(token, "invalid operands");
-
-  } else if (lhs->type->kind != TP_Ptr && rhs->type->kind == TP_Ptr) {
-    Node* tmp = lhs;
-    lhs = rhs;
-    rhs = tmp;
-  }
-  rhs = make_oper(OP_Mul, rhs, make_number(token->pos));
-  return make_oper(OP_Add, lhs, rhs);
+void free_none(any) {
 }
+DEFINE_VECTOR(NodeRef, parser_alloc, free_none);
 
-Node* make_sub(Node* lhs, Node* rhs, Token* token) {
-  add_type(lhs);
-  add_type(rhs);
+// Node* make_add(Node* lhs, Node* rhs, Token* token) {
+//   add_type(lhs);
+//   add_type(rhs);
 
-  if (is_numeric(lhs->type) && is_numeric(rhs->type)) {
-    return make_oper(OP_Sub, lhs, rhs);
+//   if (is_numeric(lhs->type) && is_numeric(rhs->type)) {
+//     return make_oper(OP_Add, lhs, rhs);
 
-  } else if (lhs->type->kind == TP_Ptr && is_numeric(rhs->type)) {
-    rhs = make_oper(OP_Mul, rhs, make_number(token->pos));
-    add_type(rhs);
-    Node* node = make_oper(OP_Sub, lhs, rhs);
-    node->type = lhs->type;
-    return node;
+//   } else if (lhs->type->kind == TP_Ptr && rhs->type->kind == TP_Ptr) {
+//     error_tok(token, "invalid operands");
 
-  } else if (lhs->type->kind == TP_Ptr && lhs->type->kind == TP_Ptr) {
-    Node* node = make_oper(OP_Sub, lhs, rhs);
-    node->type = make_decl_type(TP_Int);
-    return make_oper(OP_Div, node, make_number(token->pos));
-  }
-  error_tok(token, "Invalid operands");
-}
+//   } else if (lhs->type->kind != TP_Ptr && rhs->type->kind == TP_Ptr) {
+//     Node* tmp = lhs;
+//     lhs = rhs;
+//     rhs = tmp;
+//   }
+//   rhs = make_oper(OP_Mul, rhs, make_number(token->pos));
+//   return make_oper(OP_Add, lhs, rhs);
+// }
+
+// Node* make_sub(Node* lhs, Node* rhs, Token* token) {
+//   add_type(lhs);
+//   add_type(rhs);
+
+//   if (is_numeric(lhs->type) && is_numeric(rhs->type)) {
+//     return make_oper(OP_Sub, lhs, rhs);
+
+//   } else if (lhs->type->kind == TP_Ptr && is_numeric(rhs->type)) {
+//     rhs = make_oper(OP_Mul, rhs, make_number(token->pos));
+//     add_type(rhs);
+//     Node* node = make_oper(OP_Sub, lhs, rhs);
+//     node->type = lhs->type;
+//     return node;
+
+//   } else if (lhs->type->kind == TP_Ptr && lhs->type->kind == TP_Ptr) {
+//     Node* node = make_oper(OP_Sub, lhs, rhs);
+//     node->type = make_decl_type(TP_Int);
+//     return make_oper(OP_Div, node, make_number(token->pos));
+//   }
+//   error_tok(token, "Invalid operands");
+// }
 
 Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   Node* node = parser_alloc(sizeof(NodeBase) + sizeof(OperNode));
   *node = (Node){
-    .kind = ND_Operation,
+    .base.kind = ND_Operation,
     .operation =
       (OperNode){
         .kind = oper,
@@ -62,38 +65,74 @@ Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
 Node* make_unary(NodeKind kind, Node* value) {
   Node* node = parser_alloc(sizeof(NodeBase) + sizeof(Node*));
   *node = (Node){
-    .kind = kind,
+    .base.kind = kind,
     .unary = value,
   };
   return node;
 }
 
-Node* make_number(StrView view) {
-  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
+Node* make_basic_value(TypeKind type, StrView view) {
+  usize size = view.sen - view.itr;
+  Node* node = parser_alloc(
+    sizeof(NodeBase) + sizeof(ValueNode) + sizeof(char) * (size + 1)
+  );
   *node = (Node){
-    .kind = ND_Value,
+    .base.kind = ND_Value,
     .value =
       (ValueNode){
-        // .kind = TP_Int,
-        .i_num = strtol(view.itr, nullptr, 10),
+        .type = type,
+        .basic.size = size,
       },
   };
+  strncpy(node->value.basic.array, view.itr, size);
+  node->value.basic.array[size] = 0;
   return node;
 }
 
-Node* make_variable(Object* obj) {
-  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(Object*));
+Node* make_variable(StrView view) {
+  if (current_locals == nullptr) {
+    current_locals = NodeRef_vector_make(8);
+  }
+  usize size = view.sen - view.itr;
+  Node* node = parser_alloc(
+    sizeof(NodeBase) + sizeof(VarNode) + sizeof(char) * (size + 1)
+  );
   *node = (Node){
-    .kind = ND_Variable,
-    .variable = obj,
+    .base.kind = ND_Variable,
+    .variable =
+      (VarNode){
+        .name.size = size,
+      },
   };
+  strncpy(node->variable.name.array, view.itr, size);
+  node->variable.name.array[size] = 0;
+  NodeRef_vector_push(&current_locals, node);
+  return node;
+}
+
+Node* make_function(StrView view, Node* body, Node* args) {
+  usize size = view.sen - view.itr;
+  Node* node =
+    parser_alloc(sizeof(NodeBase) + sizeof(FnNode) + sizeof(char) * (size + 1));
+  *node = (Node){
+    .base.kind = ND_Function,
+    .function =
+      (FnNode){
+        .body = body,
+        .args = args,
+        .locals = current_locals,
+        .name.size = size,
+      },
+  };
+  strncpy(node->function.name.array, view.itr, size);
+  node->function.name.array[size] = 0;
   return node;
 }
 
 Node* make_if_node(Node* cond, Node* then, Node* elseb) {
   Node* node = parser_alloc(sizeof(NodeBase) + sizeof(IfNode));
   *node = (Node){
-    .kind = ND_If,
+    .base.kind = ND_If,
     .if_node =
       (IfNode){
         .cond = cond,
@@ -107,7 +146,7 @@ Node* make_if_node(Node* cond, Node* then, Node* elseb) {
 Node* make_while_node(Node* cond, Node* then) {
   Node* node = parser_alloc(sizeof(NodeBase) + sizeof(WhileNode));
   *node = (Node){
-    .kind = ND_While,
+    .base.kind = ND_While,
     .while_node =
       (WhileNode){
         .cond = cond,
@@ -123,7 +162,7 @@ Node* make_call_node(StrView view, Node* args) {
     sizeof(NodeBase) + sizeof(CallNode) + sizeof(char) * (size + 1)
   );
   *node = (Node){
-    .kind = ND_Call,
+    .base.kind = ND_Call,
     .call_node =
       (CallNode){
         .args = args,
@@ -133,33 +172,4 @@ Node* make_call_node(StrView view, Node* args) {
   strncpy(node->call_node.name.array, view.itr, size);
   node->call_node.name.array[size] = 0;
   return node;
-}
-
-// Object* make_object(StrView view, Type* type) {
-Object* make_object(StrView view) {
-  usize size = view.sen - view.itr;
-  Object* obj = parser_alloc(sizeof(Object) + sizeof(char) * (size + 1));
-  *obj = (Object){
-    .next = current_locals,
-    // .type = type,
-    .name.size = size,
-  };
-  strncpy(obj->name.array, view.itr, size);
-  obj->name.array[size] = 0;
-  current_locals = obj;
-  return obj;
-}
-
-Function* make_function(StrView view, Node* body, Node* args) {
-  usize size = view.sen - view.itr;
-  Function* func = parser_alloc(sizeof(Function) + sizeof(char) * (size + 1));
-  *func = (Function){
-    .body = body,
-    .args = args,
-    .locals = current_locals,
-    .name.size = size,
-  };
-  strncpy(func->name.array, view.itr, size);
-  func->name.array[size] = 0;
-  return func;
 }

@@ -40,7 +40,7 @@ i32 main(i32 argc, cstr argv[]) {
   // eputs("\n-----------------------------------------------");
 
   // Parse lexer
-  Function* prog = parse_lexer(tokens);
+  Node* prog = parse_lexer(tokens);
   free(tokens);
   free(ref_str);
   print_ast(prog);

@@ -3,7 +3,6 @@
 #include <lexer/mod.h>
 #include <parser/ctors.h>
 #include <parser/mod.h>
-#include <parser/types.h>
 #include <string.h>
 #include <utility/mod.h>
 
@@ -20,18 +19,21 @@ any parser_alloc(usize size) {
 #define view_from(var_arr)                                                     \
   ((StrView){ (var_arr)->array, (var_arr)->array + (var_arr)->size })
 
-Object* current_locals = nullptr;
+NodeRefVector* current_locals = nullptr;
 
-static Object* find_var(Token* token) {
-  for (Object* obj = current_locals; obj; obj = obj->next) {
-    if (strncmp(token->pos.itr, obj->name.array, token->pos.sen - token->pos.itr) == 0) {
-      return obj;
+static Node* find_var(Token* token) {
+  Node** itr = current_locals->buffer;
+  Node** sen = current_locals->buffer + current_locals->length;
+  usize size = token->pos.sen - token->pos.itr;
+  for (; itr != sen; ++itr) {
+    if (strncmp(token->pos.itr, (*itr)->variable.name.array, size) == 0) {
+      return *itr;
     }
   }
   return nullptr;
 }
 
-static bool consume(Token** rest, Token* token, AddInfo info) {
+unused static bool consume(Token** rest, Token* token, AddInfo info) {
   if (token->info != info) {
     *rest = token;
     return false;
@@ -62,24 +64,17 @@ static Token* expect_ident(Token* token) {
 }
 
 // declspec = "int"
-static Type* declspec(Token** rest, Token* token) {
+static TypeKind declspec(Token** rest, Token* token) {
   if (strncmp(token->pos.itr, "int", 3) == 0) {
     *rest = token + 1;
-    return nullptr;
-    // Type* type = make_decl_type(TP_Int);
-    // strncpy(type->name.array, "int", 3);
-    // type->name.array[3] = 0;
-    // return type;
+    return TP_Int;
   }
   error_tok(token, "Invalid expression");
 }
 
-static Type* type_suffix(Token** rest, Token* token, Type* type);
-static Type* declarator(Token** rest, Token* token, Type* type);
 static Node* declaration(Token** rest, Token* token);
 static Node* stmt(Token** rest, Token* token);
 static Node* compound_stmt(Token** rest, Token* token);
-static Node* expr_stmt(Token** rest, Token* token);
 static Node* assign(Token** rest, Token* token);
 static Node* expr(Token** rest, Token* token);
 static Node* equality(Token** rest, Token* token);
@@ -88,77 +83,16 @@ static Node* add(Token** rest, Token* token);
 static Node* mul(Token** rest, Token* token);
 static Node* unary(Token** rest, Token* token);
 static Node* primary(Token** rest, Token* token);
-static Function* function(Token** rest, Token* token);
-
-// type-suffix = ("(" func-params)?
-static Type* type_suffix(Token** rest, Token* token, Type* type) {
-  if (token->info != PK_LeftParen) {
-    token = token + 1;
-    Type head = {};
-    Type* cur = &head;
-    while (token->info != PK_RightParen) {
-      if (cur != &head)
-        token = expect_info(token, PK_Comma);
-      Type* basety = declspec(&token, token);
-      Type* ty = declarator(&token, token, basety);
-      cur->next = copy_type(ty);
-      cur = cur->next;
-    }
-    type = make_fn_type(head.next, type);
-    *rest = token + 1;
-    return type;
-  }
-  *rest = token;
-  return type;
-}
-
-// declarator = "*"* ident type-suffix
-static Type* declarator(Token** rest, Token* token, Type* type) {
-  while (consume(&token, token, PK_Mul)) {
-    type = make_ptr_type(type);
-  }
-  if (token->kind != TK_Ident) {
-    error_tok(token, "Expected a variable name");
-  }
-  type = type_suffix(rest, token + 1, type);
-  // type->name = token;
-  return type;
-}
-
-// declaration = declspec (declarator ("=" expr)?
-//               ("," declarator ("=" expr)?)*)? ";"
-unused static Node* og_declaration(Token** rest, Token* token) {
-  Type* base_ty = declspec(&token, token);
-
-  Node handle = {};
-  Node* node_cursor = &handle;
-  while (token->info != PK_SemiCol) {
-    if (node_cursor != &handle) {
-      token = expect_info(token, PK_Comma);
-    }
-    Type* type = declarator(&token, token, base_ty);
-    Object* var = make_object(view_from(&type->name));
-
-    if (token->info != PK_Assign) {
-      continue;
-    }
-    Node* lhs = make_variable(var);
-    Node* rhs = assign(&token, token + 1);
-    Node* node = make_oper(OP_Asg, lhs, rhs);
-    node_cursor = node_cursor->next = make_unary(ND_ExprStmt, node);
-  }
-
-  Node* node = make_unary(ND_Block, handle.next);
-  *rest = token + 1;
-  return node;
-}
+static Node* function(Token** rest, Token* token);
 
 static Node* declaration(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
   token = expect_info(token, PK_Colon);
-  unused Type* decl_tp = declspec(rest, token);
-  return make_variable(make_object(name));
+  Node* var = make_variable(name);
+  TypeKind decl_tp = declspec(rest, token);
+  var->variable.type = decl_tp;
+  return var;
 }
 
 // stmt = "return" expr
@@ -191,10 +125,10 @@ static Node* stmt(Token** rest, Token* token) {
     return node;
 
   } else if (token->info == KW_Let) {
-    Node* variable = declaration(&token, token + 1);
+    Node* var = declaration(&token, token + 1);
     Node* value = expr(rest, expect_info(token, PK_Assign));
-    Node* ret = make_oper(OP_Decl, variable, value);
-    return ret;
+    var->variable.value = value;
+    return make_oper(OP_Decl, var, value);
 
   } else if (token->info == PK_LeftBracket) {
     return compound_stmt(rest, token + 1);
@@ -213,16 +147,6 @@ static Node* compound_stmt(Token** rest, Token* token) {
   }
   Node* node = make_unary(ND_Block, handle.next);
   *rest = token + 1;
-  return node;
-}
-
-// expr-stmt = expr?
-unused static Node* expr_stmt(Token** rest, Token* token) {
-  if (token->info == PK_SemiCol) {
-    error_tok(token, "Unnecessary semicolon");
-  }
-  Node* node = make_unary(ND_ExprStmt, expr(&token, token));
-  *rest = expect_eol(token - 1);
   return node;
 }
 
@@ -359,32 +283,23 @@ static Node* primary(Token** rest, Token* token) {
     if ((token + 1)->info == PK_LeftParen) {
       return fn_call(rest, token);
     }
-    Object* obj = find_var(token);
-    if (obj == nullptr) {
-      // obj = make_object(token->pos, nullptr);
-      obj = make_object(token->pos);
+    Node* var = find_var(token);
+    if (var == nullptr) {
+      error_tok(token, "Variable not found in scope");
     }
     *rest = token + 1;
-    return make_variable(obj);
+    return var;
 
   } else if (token->kind == TK_NumLiteral) {
-    Node* node = make_number(token->pos);
+    Node* node = make_basic_value(TP_Int, token->pos);
     *rest = token + 1;
     return node;
   }
   error_tok(token, "Expected an expression");
 }
 
-unused static void create_param_lvars(Type* arg) {
-  if (arg) {
-    create_param_lvars(arg->next);
-    // make_object(view_from(&arg->name), arg);
-    make_object(view_from(&arg->name));
-  }
-}
-
 // program = stmt*
-static Function* function(Token** rest, Token* token) {
+static Node* function(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
   token = expect_info(token, PK_LeftParen);
@@ -402,18 +317,19 @@ static Function* function(Token** rest, Token* token) {
     cursor->next = declaration(&token, token);
     cursor = cursor->next;
   };
-  unused Type* ret_tp = declspec(&token, expect_info(token + 1, PK_Colon));
+  TypeKind ret_tp = declspec(&token, expect_info(token + 1, PK_Colon));
   Node* body = compound_stmt(rest, expect_info(token, PK_LeftBracket));
-  Function* func = make_function(name, body, handle.next);
+  Node* func = make_function(name, body, handle.next);
+  func->function.ret_type = ret_tp;
   return func;
 }
 
 // program = function*
-Function* parse_lexer(TokenVector* tokens) {
+Node* parse_lexer(TokenVector* tokens) {
   Token* token = tokens->buffer;
 
-  Function handle = {};
-  Function* cursor = &handle;
+  Node handle = {};
+  Node* cursor = &handle;
   while (token->kind != TK_EOF) {
     cursor->next = function(&token, expect_info(token, KW_Fn));
     cursor = cursor->next;

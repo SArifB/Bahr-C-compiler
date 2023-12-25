@@ -6,62 +6,19 @@ typedef enum OperKind OperKind;
 typedef enum TypeKind TypeKind;
 typedef enum NodeKind NodeKind;
 typedef struct VarCharArr VarCharArr;
-typedef struct PtrType PtrType;
-typedef struct FnType FnType;
-typedef struct TypeBase TypeBase;
-typedef struct Type Type;
 typedef struct OperNode OperNode;
 typedef struct ValueNode ValueNode;
+typedef struct VarNode VarNode;
+typedef struct FnNode FnNode;
 typedef struct IfNode IfNode;
 typedef struct WhileNode WhileNode;
 typedef struct CallNode CallNode;
 typedef struct NodeBase NodeBase;
 typedef struct Node Node;
-typedef struct Object Object;
-typedef struct Function Function;
 
 struct VarCharArr {
   usize size;
   char array[];
-};
-
-enum TypeKind {
-  TP_Int,
-  // TP_Flt,
-  // TP_Str,
-  TP_Ptr,
-  TP_Fn,
-};
-
-struct PtrType {
-  Type* base;
-  VarCharArr name;
-};
-
-struct FnType {
-  Type* args;
-  Type* ret;
-  VarCharArr name;
-};
-
-struct TypeBase {
-  TypeKind kind;
-  Type* next;
-};
-
-struct Type {
-  union {
-    struct {
-      TypeKind kind;
-      Type* next;
-    };
-    TypeBase base;
-  };
-  union {
-    PtrType ptr_type;
-    FnType fn_type;
-    VarCharArr name;
-  };
 };
 
 enum OperKind {
@@ -85,13 +42,35 @@ struct OperNode {
   Node* rhs;
 };
 
+enum TypeKind {
+  TP_Void,
+  TP_Int,
+  // TP_Flt,
+  // TP_Str,
+  TP_Ptr,
+};
+
 struct ValueNode {
-  // TypeKind kind;
-  // union {
-  i64 i_num;
-  //   f64 f_num;
-  //   VarCharArr str_lit;
-  // };
+  TypeKind type;
+  union {
+    VarCharArr basic;
+    Node* ptr_base;
+  };
+};
+
+struct VarNode {
+  TypeKind type;
+  Node* value;
+  VarCharArr name;
+};
+
+typedef struct NodeRefVector NodeRefVector;
+struct FnNode {
+  Node* args;
+  Node* body;
+  NodeRefVector* locals;
+  TypeKind ret_type;
+  VarCharArr name;
 };
 
 struct IfNode {
@@ -114,13 +93,13 @@ enum NodeKind {
   ND_None,
   ND_Operation,
   ND_Negation,
-  ND_ExprStmt,
   ND_Return,
   ND_Block,
   ND_Addr,
   ND_Deref,
   ND_Value,
   ND_Variable,
+  ND_Function,
   ND_If,
   ND_While,
   ND_Call,
@@ -129,7 +108,6 @@ enum NodeKind {
 struct NodeBase {
   NodeKind kind;
   Node* next;
-  Type* type;
 };
 
 struct Node {
@@ -137,7 +115,6 @@ struct Node {
     struct {
       NodeKind kind;
       Node* next;
-      Type* type;
     };
     NodeBase base;
   };
@@ -145,27 +122,14 @@ struct Node {
     OperNode operation;
     Node* unary;
     ValueNode value;
-    Object* variable;
+    VarNode variable;
+    FnNode function;
     IfNode if_node;
     WhileNode while_node;
     CallNode call_node;
   };
 };
 
-struct Object {
-  Object* next;
-  Type* type;
-  VarCharArr name;
-};
-
-struct Function {
-  Function* next;
-  Node* args;
-  Node* body;
-  Object* locals;
-  VarCharArr name;
-};
-
-extern Function* parse_lexer(TokenVector* tokens);
-extern void print_ast(Function* prog);
+extern Node* parse_lexer(TokenVector* tokens);
+extern void print_ast(Node* prog);
 extern void free_ast();
