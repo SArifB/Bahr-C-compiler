@@ -1,16 +1,9 @@
 // Test main function
-fn main(
-  a: int, 
-  b: int, 
-): int {
-  let ifval: int = callfunc(
-    1, 5, 9, 4, 
-  )
-  // if 4 >= 5 {
-  //   ifval = 2 + 3
-  // } 
-  while 5 < 4 {}
-  ret ifval
+fn main( a: int, b: int, ): int {
+  let val: int = 23 
+  let val2: int = 45
+  let val3: int = 67 
+  ret val
 }
 
 // Test side function
