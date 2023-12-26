@@ -12,6 +12,5 @@ struct Codegen {
 };
 
 extern Codegen* codegen_make(cstr name);
-extern LLVMValueRef codegen_generate(Codegen* cdgn, Node* node);
+extern LLVMValueRef codegen_generate(Codegen* cdgn, Node* prog);
 extern void codegen_dispose(Codegen* cdgn);
-extern void codegen_build_function(Codegen* cdgn, Node* node);
