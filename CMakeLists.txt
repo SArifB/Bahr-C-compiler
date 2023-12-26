@@ -58,12 +58,43 @@ target_link_libraries(bin PRIVATE
 target_link_libraries(bin PRIVATE
 	lexer
 	parser
+	codegen
 )
 
 get_directory_property(CMKR_VS_STARTUP_PROJECT DIRECTORY ${PROJECT_SOURCE_DIR} DEFINITION VS_STARTUP_PROJECT)
 if(NOT CMKR_VS_STARTUP_PROJECT)
 	set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bin)
 endif()
+
+# Target: codegen
+set(codegen_SOURCES
+	"./src/codegen/mod.c"
+	cmake.toml
+)
+
+add_library(codegen STATIC)
+
+target_sources(codegen PRIVATE ${codegen_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${codegen_SOURCES})
+
+target_compile_options(codegen PUBLIC
+	-Wall
+	-Werror
+	-Wextra
+	-std=c2x
+)
+
+target_include_directories(codegen PUBLIC
+	src
+)
+
+target_link_libraries(codegen PUBLIC
+	utility
+)
+
+target_link_libraries(codegen PUBLIC
+	LLVM
+)
 
 # Target: lexer
 set(lexer_SOURCES
