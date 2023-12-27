@@ -1,10 +1,8 @@
 // Basic test
-fn main(): int {
+fn test(): int {
   ret 2 + 3 + ( 4 + 5 ) + 6
 }
 
-fn test(): int {
-  let x: int = 23
-  x = 3
-  ret x
+fn square(arg: int): int {
+  ret a * a
 }

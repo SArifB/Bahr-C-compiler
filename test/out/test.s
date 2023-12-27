@@ -1,16 +1,29 @@
 	.text
 	.file	"some_code"
-	.globl	add_test                        # -- Begin function add_test
+	.globl	test                            # -- Begin function test
 	.p2align	4, 0x90
-	.type	add_test,@function
-add_test:                               # @add_test
+	.type	test,@function
+test:                                   # @test
 	.cfi_startproc
 # %bb.0:                                # %entry
-                                        # kill: def $edi killed $edi def $rdi
-	leal	20(%rdi), %eax
+	movl	$20, %eax
 	retq
 .Lfunc_end0:
-	.size	add_test, .Lfunc_end0-add_test
+	.size	test, .Lfunc_end0-test
+	.cfi_endproc
+                                        # -- End function
+	.globl	square                          # -- Begin function square
+	.p2align	4, 0x90
+	.type	square,@function
+square:                                 # @square
+	.cfi_startproc
+# %bb.0:                                # %entry
+	movl	%edi, %eax
+	movl	%edi, -4(%rsp)
+	imull	%edi, %eax
+	retq
+.Lfunc_end1:
+	.size	square, .Lfunc_end1-square
 	.cfi_endproc
                                         # -- End function
 	.section	".note.GNU-stack","",@progbits
