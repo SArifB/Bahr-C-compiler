@@ -21,13 +21,13 @@ any parser_alloc(usize size) {
 
 NodeRefVector* current_locals = nullptr;
 
-static Node* find_var(Token* token) {
+static Node* find_variable(Token* token) {
   Node** itr = current_locals->buffer;
   Node** sen = current_locals->buffer + current_locals->length;
   usize size = token->pos.sen - token->pos.itr;
   for (; itr != sen; ++itr) {
-    if (strncmp(token->pos.itr, (*itr)->variable.name.array, size) == 0) {
-      return *itr;
+    if (strncmp(token->pos.itr, (*itr)->declaration.name.array, size) == 0) {
+      return make_unary(ND_Variable, (*itr));
     }
   }
   return nullptr;
@@ -88,10 +88,9 @@ static Node* function(Token** rest, Token* token);
 static Node* declaration(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
-  token = expect_info(token, PK_Colon);
-  Node* var = make_variable(name);
-  TypeKind decl_tp = declspec(rest, token);
-  var->variable.type = decl_tp;
+  TypeKind decl_type = declspec(&token, expect_info(token, PK_Colon));
+  Node* value = expr(rest, expect_info(token, PK_Assign));
+  Node* var = make_declaration(decl_type, name, value);
   return var;
 }
 
@@ -125,10 +124,8 @@ static Node* stmt(Token** rest, Token* token) {
     return node;
 
   } else if (token->info == KW_Let) {
-    Node* var = declaration(&token, token + 1);
-    Node* value = expr(rest, expect_info(token, PK_Assign));
-    var->variable.value = value;
-    return make_oper(OP_Decl, var, value);
+    Node* decl = declaration(rest, token + 1);
+    return decl;
 
   } else if (token->info == PK_LeftBracket) {
     return compound_stmt(rest, token + 1);
@@ -283,7 +280,7 @@ static Node* primary(Token** rest, Token* token) {
     if ((token + 1)->info == PK_LeftParen) {
       return fn_call(rest, token);
     }
-    Node* var = find_var(token);
+    Node* var = find_variable(token);
     if (var == nullptr) {
       error_tok(token, "Variable not found in scope");
     }
@@ -296,6 +293,15 @@ static Node* primary(Token** rest, Token* token) {
     return node;
   }
   error_tok(token, "Expected an expression");
+}
+
+// argument = indent ":" type
+static Node* argument(Token** rest, Token* token) {
+  StrView name = token->pos;
+  token = expect_ident(token);
+  TypeKind decl_type = declspec(rest, expect_info(token, PK_Colon));
+  Node* var = make_declaration(decl_type, name, nullptr);
+  return var;
 }
 
 // program = stmt*
@@ -314,7 +320,7 @@ static Node* function(Token** rest, Token* token) {
     if (token->info == PK_RightParen) {
       break;
     }
-    cursor->next = declaration(&token, token);
+    cursor->next = argument(&token, token);
     cursor = cursor->next;
   };
   TypeKind ret_tp = declspec(&token, expect_info(token + 1, PK_Colon));

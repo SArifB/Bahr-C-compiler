@@ -89,23 +89,25 @@ Node* make_basic_value(TypeKind type, StrView view) {
   return node;
 }
 
-Node* make_variable(StrView view) {
+Node* make_declaration(TypeKind type, StrView view, Node* value) {
   if (current_locals == nullptr) {
     current_locals = NodeRef_vector_make(8);
   }
   usize size = view.sen - view.itr;
   Node* node = parser_alloc(
-    sizeof(NodeBase) + sizeof(VarNode) + sizeof(char) * (size + 1)
+    sizeof(NodeBase) + sizeof(DeclNode) + sizeof(char) * (size + 1)
   );
   *node = (Node){
-    .base.kind = ND_Variable,
-    .variable =
-      (VarNode){
+    .base.kind = ND_Decl,
+    .declaration =
+      (DeclNode){
+        .type = type,
+        .value = value,
         .name.size = size,
       },
   };
-  strncpy(node->variable.name.array, view.itr, size);
-  node->variable.name.array[size] = 0;
+  strncpy(node->declaration.name.array, view.itr, size);
+  node->declaration.name.array[size] = 0;
   NodeRef_vector_push(&current_locals, node);
   return node;
 }

@@ -40,7 +40,6 @@ static void print_branch(Node* node) {
       case OP_Gte:  eputs("Operation: Gte");  break;
       case OP_Gt:   eputs("Operation: Gt");   break;
       case OP_Asg:  eputs("Operation: Asg");  break;
-      case OP_Decl: eputs("Operation: Decl"); break;
     } // clang-format on
     print_branch(node->operation.lhs);
     print_branch(node->operation.rhs);
@@ -58,16 +57,16 @@ static void print_branch(Node* node) {
     for (Node* branch = node->unary; branch != nullptr; branch = branch->next) {
       print_branch(branch);
     }
-  } else if (node->kind == ND_Variable) {
-    eprintf("Variable = %s\n", node->variable.name.array);
-    if (node->variable.value != nullptr) {
-      print_branch(node->variable.value);
+  } else if (node->kind == ND_Decl) {
+    eprintf("Declaration = %s\n", node->declaration.name.array);
+    print_type(node->declaration.type);
+    if (node->declaration.value != nullptr) {
+      print_branch(node->declaration.value);
     } else {
       print_indent();
       eputs("Value = Undefined");
       indent -= 1;
     }
-    print_type(node->variable.type);
   } else if (node->kind == ND_Value) {
     switch (node->value.type) {
     case TP_Void:
@@ -80,7 +79,12 @@ static void print_branch(Node* node) {
       print_branch(node->value.ptr_base);
       break;
     }
-    print_type(node->value.type);
+
+  } else if (node->kind == ND_Variable) {
+    eprintf("Variable = %s\n", node->unary->declaration.name.array);
+    print_type(node->unary->declaration.type);
+    // print_branch(node->unary->declaration.value);
+
   } else if (node->kind == ND_If) {
     eputs("If:");
     print_branch(node->if_node.cond);

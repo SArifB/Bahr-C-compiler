@@ -8,7 +8,7 @@ typedef enum NodeKind NodeKind;
 typedef struct VarCharArr VarCharArr;
 typedef struct OperNode OperNode;
 typedef struct ValueNode ValueNode;
-typedef struct VarNode VarNode;
+typedef struct DeclNode DeclNode;
 typedef struct FnNode FnNode;
 typedef struct IfNode IfNode;
 typedef struct WhileNode WhileNode;
@@ -33,7 +33,6 @@ enum OperKind {
   OP_Gte,
   OP_Gt,
   OP_Asg,
-  OP_Decl,
 };
 
 struct OperNode {
@@ -58,7 +57,7 @@ struct ValueNode {
   };
 };
 
-struct VarNode {
+struct DeclNode {
   TypeKind type;
   Node* value;
   VarCharArr name;
@@ -97,6 +96,7 @@ enum NodeKind {
   ND_Block,
   ND_Addr,
   ND_Deref,
+  ND_Decl,
   ND_Value,
   ND_Variable,
   ND_Function,
@@ -122,7 +122,7 @@ struct Node {
     OperNode operation;
     Node* unary;
     ValueNode value;
-    VarNode variable;
+    DeclNode declaration;
     FnNode function;
     IfNode if_node;
     WhileNode while_node;
