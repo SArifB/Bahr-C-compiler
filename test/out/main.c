@@ -1,7 +1,7 @@
 #include <stdio.h>
-extern int add_test(int);
+extern int square(int);
 
 int main() {
-  printf("%d\n", add_test(26));
+  printf("%d\n", square(4));
   return 0;
 }
