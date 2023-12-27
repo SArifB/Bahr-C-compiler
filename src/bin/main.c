@@ -36,20 +36,21 @@ i32 main(i32 argc, cstr argv[]) {
     ref_str,
     ref_str + strlen(ref_str),
   });
-  // lexer_print(tokens);
-  // eputs("\n-----------------------------------------------");
+  lexer_print(tokens);
+  eputs("\n-----------------------------------------------");
 
   // Parse lexer
   Node* prog = parse_lexer(tokens);
   free(tokens);
   free(ref_str);
-  // print_ast(prog);
-  // eputs("\n-----------------------------------------------");
+  print_ast(prog);
+  eputs("\n-----------------------------------------------");
 
   // Generate code
   Codegen* cdgn = codegen_make("some_code");
   codegen_generate(cdgn, prog);
   free_ast();
   codegen_dispose(cdgn);
+  eputs("\n-----------------------------------------------");
   return 0;
 }
