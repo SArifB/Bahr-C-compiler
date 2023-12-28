@@ -99,6 +99,7 @@ enum NodeKind {
   ND_Decl,
   ND_Value,
   ND_Variable,
+  ND_ArgVar,
   ND_Function,
   ND_If,
   ND_While,
@@ -133,3 +134,6 @@ struct Node {
 extern Node* parse_lexer(TokenVector* tokens);
 extern void print_ast(Node* prog);
 extern void free_ast();
+
+#define view_from(var_arr)                                                     \
+  ((StrView){ (var_arr).array, (var_arr).array + (var_arr).size })

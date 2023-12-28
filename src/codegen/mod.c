@@ -59,6 +59,7 @@ unreturning static void print_cdgn_err(NodeKind kind) {
     case ND_Decl:       eputs("Error: Invalid nodekind: ND_Decl");      break;
     case ND_Value:      eputs("Error: Invalid nodekind: ND_Value");     break;
     case ND_Variable:   eputs("Error: Invalid nodekind: ND_Variable");  break;
+    case ND_ArgVar:     eputs("Error: Invalid nodekind: ND_ArgVar");    break;
     case ND_Function:   eputs("Error: Invalid nodekind: ND_Function");  break;
     case ND_If:         eputs("Error: Invalid nodekind: ND_If");        break;
     case ND_While:      eputs("Error: Invalid nodekind: ND_While");     break;
@@ -69,9 +70,12 @@ unreturning static void print_cdgn_err(NodeKind kind) {
 
 static DeclVarVector* decl_vars = nullptr;
 
-static DeclVar* get_declvar(cstr name) {
+static DeclVar* get_declvar(StrView name) {
+  usize size = name.sen - name.itr;
   for (usize i = 0; i < decl_vars->length; ++i) {
-    if (strncmp(name, decl_vars->buffer[i].name, strlen(name)) == 0) {
+    if (
+      strncmp(name.itr, decl_vars->buffer[i].name, size) == 0
+      && decl_vars->buffer[i].name[size] == '\0') {
       return &decl_vars->buffer[i];
     }
   }
@@ -112,7 +116,7 @@ LLVMValueRef codegen_generate(Codegen* cdgn, Node* prog) {
     eputs("failed to create string representation of module");
     exit(1);
   }
-  eprintf("%s\n", str_mod);
+  eprintf("%s", str_mod);
   LLVMDisposeMessage(str_mod);
 
   str error = nullptr;
@@ -206,7 +210,7 @@ codegen_parse(Codegen* cdgn, Node* node, LLVMValueRef function) {
 
   } else if (node->kind == ND_Variable) {
     LLVMTypeRef type = get_type(cdgn->ctx, node->unary->declaration.type);
-    DeclVar* decl_var = get_declvar(node->unary->declaration.name.array);
+    DeclVar* decl_var = get_declvar(view_from(node->unary->declaration.name));
     if (decl_var == nullptr) {
       eputs("ND_Variable not found");
       exit(1);
@@ -216,6 +220,14 @@ codegen_parse(Codegen* cdgn, Node* node, LLVMValueRef function) {
     // }
     LLVMValueRef var = LLVMBuildLoad2(cdgn->bldr, type, decl_var->variable, "");
     return var;
+
+  } else if (node->kind == ND_ArgVar) {
+    DeclVar* decl_var = get_declvar(view_from(node->declaration.name));
+    if (decl_var == nullptr) {
+      eputs("ND_Variable not found");
+      exit(1);
+    }
+    return decl_var->variable;
 
   } else if (node->kind == ND_Block) {
     eputs("Raw ND_Block unimplemented");

@@ -16,9 +16,6 @@ any parser_alloc(usize size) {
   return arena_alloc(&PARSER_ARENA, size);
 }
 
-#define view_from(var_arr)                                                     \
-  ((StrView){ (var_arr)->array, (var_arr)->array + (var_arr)->size })
-
 NodeRefVector* current_locals = nullptr;
 
 static Node* find_variable(Token* token) {
@@ -26,7 +23,9 @@ static Node* find_variable(Token* token) {
   Node** sen = current_locals->buffer + current_locals->length;
   usize size = token->pos.sen - token->pos.itr;
   for (; itr != sen; ++itr) {
-    if (strncmp(token->pos.itr, (*itr)->declaration.name.array, size) == 0) {
+    if (
+      strncmp(token->pos.itr, (*itr)->declaration.name.array, size) == 0
+      && (*itr)->declaration.name.array[size] =='\0') {
       return make_unary(ND_Variable, (*itr));
     }
   }
@@ -97,7 +96,7 @@ static Node* declaration(Token** rest, Token* token) {
 // stmt = "return" expr
 //      | "if" expr stmt ("else" stmt)?
 //      | "while" expr stmt
-//      | "let" decl "=" expr
+//      | "let" decl ":" type "=" expr
 //      | "{" compound-stmt
 //      | expr-stmt
 static Node* stmt(Token** rest, Token* token) {
@@ -300,7 +299,7 @@ static Node* argument(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
   TypeKind decl_type = declspec(rest, expect_info(token, PK_Colon));
-  Node* var = make_declaration(decl_type, name, nullptr);
+  Node* var = make_arg_var(decl_type, name);
   return var;
 }
 

@@ -112,6 +112,28 @@ Node* make_declaration(TypeKind type, StrView view, Node* value) {
   return node;
 }
 
+Node* make_arg_var(TypeKind type, StrView view) {
+  if (current_locals == nullptr) {
+    current_locals = NodeRef_vector_make(8);
+  }
+  usize size = view.sen - view.itr;
+  Node* node = parser_alloc(
+    sizeof(NodeBase) + sizeof(DeclNode) + sizeof(char) * (size + 1)
+  );
+  *node = (Node){
+    .base.kind = ND_ArgVar,
+    .declaration =
+      (DeclNode){
+        .type = type,
+        .name.size = size,
+      },
+  };
+  strncpy(node->declaration.name.array, view.itr, size);
+  node->declaration.name.array[size] = 0;
+  NodeRef_vector_push(&current_locals, node);
+  return node;
+}
+
 Node* make_function(StrView view, Node* body, Node* args) {
   usize size = view.sen - view.itr;
   Node* node =
