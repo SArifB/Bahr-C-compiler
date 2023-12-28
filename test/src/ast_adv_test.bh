@@ -1,12 +1,13 @@
 // Test main function
-fn main( a: int, b: int, ): int {
-  let val: int = 23 
-  let val2: int = 45
-  let val3: int = 67 
-  ret val
+fn main(): int {
+  let i: int = 3
+  ret i * 2
 }
 
 // Test side function
-fn test(): int { 
-  ret 23
+fn test(
+  a: int, 
+  b: int,
+): int { 
+  ret a * a + b
 }

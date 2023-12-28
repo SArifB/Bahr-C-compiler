@@ -9,4 +9,3 @@ cd test/out/
 llc test.ll
 gcc -o test main.c test.s
 ./test
-cd ../../
