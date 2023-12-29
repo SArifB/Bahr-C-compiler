@@ -83,7 +83,10 @@ static void print_branch(Node* node) {
   } else if (node->kind == ND_Variable) {
     eprintf("Variable = %s\n", node->unary->declaration.name.array);
     print_type(node->unary->declaration.type);
-    // print_branch(node->unary->declaration.value);
+
+  } else if (node->kind == ND_ArgVar) {
+    eprintf("Argument = %s\n", node->declaration.name.array);
+    print_type(node->declaration.type);
 
   } else if (node->kind == ND_If) {
     eputs("If:");
