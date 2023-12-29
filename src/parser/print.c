@@ -13,11 +13,11 @@ static void print_indent() {
 
 static void print_type(TypeKind type) {
   print_indent();
-  switch (type) { // clang-format off
+  switch (type) {  // clang-format off
     case TP_Void: eputs("Type: Void");  break;
     case TP_Int:  eputs("Type: Int");   break;
     case TP_Ptr:  eputs("Type: Ptr");   break;
-  } // clang-format on
+  }  // clang-format on
   indent -= 1;
 }
 
@@ -28,7 +28,7 @@ static void print_branch(Node* node) {
     eputs("None");
 
   } else if (node->kind == ND_Operation) {
-    switch (node->operation.kind) { // clang-format off
+    switch (node->operation.kind) {  // clang-format off
       case OP_Add:  eputs("Operation: Add");  break;
       case OP_Sub:  eputs("Operation: Sub");  break;
       case OP_Mul:  eputs("Operation: Mul");  break;
@@ -40,7 +40,7 @@ static void print_branch(Node* node) {
       case OP_Gte:  eputs("Operation: Gte");  break;
       case OP_Gt:   eputs("Operation: Gt");   break;
       case OP_Asg:  eputs("Operation: Asg");  break;
-    } // clang-format on
+    }  // clang-format on
     print_branch(node->operation.lhs);
     print_branch(node->operation.rhs);
 
@@ -69,15 +69,15 @@ static void print_branch(Node* node) {
     }
   } else if (node->kind == ND_Value) {
     switch (node->value.type) {
-    case TP_Void:
-      eputs("Value = Void");
-      break;
-    case TP_Int:
-      eprintf("Value = %s\n", node->value.basic.array);
-      break;
-    case TP_Ptr:
-      print_branch(node->value.ptr_base);
-      break;
+      case TP_Void:
+        eputs("Value = Void");
+        break;
+      case TP_Int:
+        eprintf("Value = %s\n", node->value.basic.array);
+        break;
+      case TP_Ptr:
+        print_branch(node->value.ptr_base);
+        break;
     }
 
   } else if (node->kind == ND_Variable) {
@@ -122,6 +122,8 @@ void print_ast(Node* prog) {
       print_branch(arg);
     }
     indent -= 1;
-    print_branch(branch->function.body);
+    if (branch->function.body != nullptr) {
+      print_branch(branch->function.body);
+    }
   }
 }

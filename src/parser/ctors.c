@@ -134,7 +134,7 @@ Node* make_arg_var(TypeKind type, StrView view) {
   return node;
 }
 
-Node* make_function(StrView view, Node* body, Node* args) {
+Node* make_function(TypeKind ret_type, StrView view, Node* body, Node* args) {
   usize size = view.sen - view.itr;
   Node* node =
     parser_alloc(sizeof(NodeBase) + sizeof(FnNode) + sizeof(char) * (size + 1));
@@ -144,6 +144,7 @@ Node* make_function(StrView view, Node* body, Node* args) {
       (FnNode){
         .body = body,
         .args = args,
+        .ret_type = ret_type,
         .locals = current_locals,
         .name.size = size,
       },

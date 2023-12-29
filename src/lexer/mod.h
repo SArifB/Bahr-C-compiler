@@ -63,6 +63,7 @@ enum AddInfo {
   PK_AddrOf,
 
   // Keyword
+  KW_Ext,
   KW_Pub,
   KW_Let,
   KW_Fn,

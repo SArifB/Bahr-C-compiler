@@ -32,7 +32,7 @@ static Node* find_variable(Token* token) {
   return nullptr;
 }
 
-unused static bool consume(Token** rest, Token* token, AddInfo info) {
+static bool consume(Token** rest, Token* token, AddInfo info) {
   if (token->info != info) {
     *rest = token;
     return false;
@@ -64,13 +64,36 @@ static Token* expect_ident(Token* token) {
 
 // declspec = "int"
 static TypeKind declspec(Token** rest, Token* token) {
-  if (strncmp(token->pos.itr, "int", 3) == 0) {
+  if (strncmp(token->pos.itr, "i32", strlen("i32")) == 0) {
     *rest = token + 1;
     return TP_Int;
   }
   error_tok(token, "Invalid expression");
 }
 
+static Node* parse_list(
+  Token** rest, Token* token, AddInfo breaker,
+  fn(Node*(Token**, Token*)) callable
+) {
+  Node handle = {};
+  Node* cursor = &handle;
+  while (token->info != breaker) {
+    if (cursor != &handle) {
+      token = expect_info(token, PK_Comma);
+    }
+    if (token->info == breaker) {
+      break;
+    }
+    cursor->next = callable(&token, token);
+    cursor = cursor->next;
+  };
+  *rest = token;
+  return handle.next;
+}
+
+static Node* function(Token** rest, Token* token);
+static Node* extern_function(Token** rest, Token* token);
+static Node* argument(Token** rest, Token* token);
 static Node* declaration(Token** rest, Token* token);
 static Node* stmt(Token** rest, Token* token);
 static Node* compound_stmt(Token** rest, Token* token);
@@ -82,8 +105,59 @@ static Node* add(Token** rest, Token* token);
 static Node* mul(Token** rest, Token* token);
 static Node* unary(Token** rest, Token* token);
 static Node* primary(Token** rest, Token* token);
-static Node* function(Token** rest, Token* token);
 
+// program = functions*
+Node* parse_lexer(TokenVector* tokens) {
+  Token* token = tokens->buffer;
+
+  Node handle = {};
+  Node* cursor = &handle;
+  while (token->kind != TK_EOF) {
+    if (consume(&token, token, KW_Ext)) {
+      cursor->next = extern_function(&token, expect_info(token, KW_Fn));
+      cursor = cursor->next;
+
+    } else {
+      cursor->next = function(&token, expect_info(token, KW_Fn));
+      cursor = cursor->next;
+    }
+  }
+  return handle.next;
+}
+
+// function = indent "(" args? ")" ":" ret_type "{" body "}"
+static Node* function(Token** rest, Token* token) {
+  StrView name = token->pos;
+  token = expect_ident(token);
+  token = expect_info(token, PK_LeftParen);
+  current_locals = nullptr;
+
+  Node* args = parse_list(&token, token, PK_RightParen, argument);
+  TypeKind ret_type = declspec(&token, expect_info(token + 1, PK_Colon));
+  Node* body = compound_stmt(rest, expect_info(token, PK_LeftBracket));
+  return make_function(ret_type, name, body, args);
+}
+
+// extern_function = indent "(" args? ")" ":" ret_type
+static Node* extern_function(Token** rest, Token* token) {
+  StrView name = token->pos;
+  token = expect_ident(token);
+  token = expect_info(token, PK_LeftParen);
+
+  Node* args = parse_list(&token, token, PK_RightParen, argument);
+  TypeKind ret_type = declspec(rest, expect_info(token + 1, PK_Colon));
+  return make_function(ret_type, name, nullptr, args);
+}
+
+// argument = indent ":" type
+static Node* argument(Token** rest, Token* token) {
+  StrView name = token->pos;
+  token = expect_ident(token);
+  TypeKind decl_type = declspec(rest, expect_info(token, PK_Colon));
+  return make_arg_var(decl_type, name);
+}
+
+// declaration = indent ":" type "=" expr
 static Node* declaration(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
@@ -98,7 +172,7 @@ static Node* declaration(Token** rest, Token* token) {
 //      | "while" expr stmt
 //      | "let" decl ":" type "=" expr
 //      | "{" compound-stmt
-//      | expr-stmt
+//      | expr
 static Node* stmt(Token** rest, Token* token) {
   if (token->info == KW_Return) {
     Node* node = make_unary(ND_Return, expr(&token, token + 1));
@@ -292,52 +366,4 @@ static Node* primary(Token** rest, Token* token) {
     return node;
   }
   error_tok(token, "Expected an expression");
-}
-
-// argument = indent ":" type
-static Node* argument(Token** rest, Token* token) {
-  StrView name = token->pos;
-  token = expect_ident(token);
-  TypeKind decl_type = declspec(rest, expect_info(token, PK_Colon));
-  Node* var = make_arg_var(decl_type, name);
-  return var;
-}
-
-// program = stmt*
-static Node* function(Token** rest, Token* token) {
-  StrView name = token->pos;
-  token = expect_ident(token);
-  token = expect_info(token, PK_LeftParen);
-  current_locals = nullptr;
-
-  Node handle = {};
-  Node* cursor = &handle;
-  while (token->info != PK_RightParen) {
-    if (cursor != &handle) {
-      token = expect_info(token, PK_Comma);
-    }
-    if (token->info == PK_RightParen) {
-      break;
-    }
-    cursor->next = argument(&token, token);
-    cursor = cursor->next;
-  };
-  TypeKind ret_tp = declspec(&token, expect_info(token + 1, PK_Colon));
-  Node* body = compound_stmt(rest, expect_info(token, PK_LeftBracket));
-  Node* func = make_function(name, body, handle.next);
-  func->function.ret_type = ret_tp;
-  return func;
-}
-
-// program = function*
-Node* parse_lexer(TokenVector* tokens) {
-  Token* token = tokens->buffer;
-
-  Node handle = {};
-  Node* cursor = &handle;
-  while (token->kind != TK_EOF) {
-    cursor->next = function(&token, expect_info(token, KW_Fn));
-    cursor = cursor->next;
-  }
-  return handle.next;
 }

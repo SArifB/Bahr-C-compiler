@@ -48,7 +48,7 @@ void codegen_dispose(Codegen* cdgn) {
 }
 
 unreturning static void print_cdgn_err(NodeKind kind) {
-  switch (kind) { // clang-format off
+  switch (kind) {  // clang-format off
     case ND_None:       eputs("Error: Invalid nodekind: ND_None");      break;
     case ND_Operation:  eputs("Error: Invalid nodekind: ND_Operation"); break;
     case ND_Negation:   eputs("Error: Invalid nodekind: ND_Negation");  break;
@@ -64,7 +64,7 @@ unreturning static void print_cdgn_err(NodeKind kind) {
     case ND_If:         eputs("Error: Invalid nodekind: ND_If");        break;
     case ND_While:      eputs("Error: Invalid nodekind: ND_While");     break;
     case ND_Call:       eputs("Error: Invalid nodekind: ND_Call");      break;
-  } // clang-format on
+  }  // clang-format on
   exit(1);
 }
 
@@ -91,7 +91,6 @@ static LLVMTypeRef get_type(LLVMContextRef ctx, TypeKind type) {
   }
 }
 
-// clang-format off
 static LLVMValueRef codegen_parse(
   Codegen* cdgn, Node* node, LLVMValueRef function
 );
@@ -101,10 +100,7 @@ static LLVMBasicBlockRef codegen_parse_block(
 static LLVMValueRef codegen_oper(
   Codegen* cdgn, Node* node, LLVMValueRef function
 );
-static LLVMValueRef codegen_function(
-  Codegen* cdgn, Node* node
-);
-// clang-format on
+static LLVMValueRef codegen_function(Codegen* cdgn, Node* node);
 
 LLVMValueRef codegen_generate(Codegen* cdgn, Node* prog) {
   for (Node* func = prog; func != nullptr; func = func->next) {
@@ -147,6 +143,13 @@ static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
   LLVMValueRef function =
     LLVMAddFunction(cdgn->mod, node->function.name.array, function_type);
 
+  if (node->function.body == nullptr) {
+    free(arg_types);
+    free(arg_names);
+    free(decl_vars);
+    return function;
+  }
+
   LLVMPositionBuilderAtEnd(
     cdgn->bldr, LLVMAppendBasicBlockInContext(cdgn->ctx, function, "entry")
   );
@@ -177,8 +180,9 @@ static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
   return function;
 }
 
-static LLVMValueRef
-codegen_parse(Codegen* cdgn, Node* node, LLVMValueRef function) {
+static LLVMValueRef codegen_parse(
+  Codegen* cdgn, Node* node, LLVMValueRef function
+) {
   if (node->kind == ND_Operation) {
     return codegen_oper(cdgn, node, function);
 
@@ -278,33 +282,34 @@ static LLVMBasicBlockRef codegen_parse_block(
   return entry;
 }
 
-static LLVMValueRef
-codegen_oper(Codegen* cdgn, Node* node, LLVMValueRef function) {
+static LLVMValueRef codegen_oper(
+  Codegen* cdgn, Node* node, LLVMValueRef function
+) {
   LLVMValueRef lhs = codegen_parse(cdgn, node->operation.lhs, function);
   LLVMValueRef rhs = codegen_parse(cdgn, node->operation.rhs, function);
   switch (node->operation.kind) {
-  case OP_Add:
-    return LLVMBuildAdd(cdgn->bldr, lhs, rhs, "add");
-  case OP_Sub:
-    return LLVMBuildSub(cdgn->bldr, lhs, rhs, "sub");
-  case OP_Mul:
-    return LLVMBuildMul(cdgn->bldr, lhs, rhs, "mul");
-  case OP_Div:
-    return LLVMBuildUDiv(cdgn->bldr, lhs, rhs, "div");
-  case OP_Eq:
-    return LLVMBuildICmp(cdgn->bldr, LLVMIntEQ, lhs, rhs, "eq");
-  case OP_NEq:
-    return LLVMBuildICmp(cdgn->bldr, LLVMIntNE, lhs, rhs, "neq");
-  case OP_Lt:
-    return LLVMBuildICmp(cdgn->bldr, LLVMIntSLT, lhs, rhs, "lt");
-  case OP_Lte:
-    return LLVMBuildICmp(cdgn->bldr, LLVMIntSLE, lhs, rhs, "lte");
-  case OP_Gt:
-    return LLVMBuildICmp(cdgn->bldr, LLVMIntSGT, lhs, rhs, "gt");
-  case OP_Gte:
-    return LLVMBuildICmp(cdgn->bldr, LLVMIntSGE, lhs, rhs, "gte");
-  case OP_Asg:
-    return LLVMBuildStore(cdgn->bldr, rhs, lhs);
+    case OP_Add:
+      return LLVMBuildAdd(cdgn->bldr, lhs, rhs, "add");
+    case OP_Sub:
+      return LLVMBuildSub(cdgn->bldr, lhs, rhs, "sub");
+    case OP_Mul:
+      return LLVMBuildMul(cdgn->bldr, lhs, rhs, "mul");
+    case OP_Div:
+      return LLVMBuildUDiv(cdgn->bldr, lhs, rhs, "div");
+    case OP_Eq:
+      return LLVMBuildICmp(cdgn->bldr, LLVMIntEQ, lhs, rhs, "eq");
+    case OP_NEq:
+      return LLVMBuildICmp(cdgn->bldr, LLVMIntNE, lhs, rhs, "neq");
+    case OP_Lt:
+      return LLVMBuildICmp(cdgn->bldr, LLVMIntSLT, lhs, rhs, "lt");
+    case OP_Lte:
+      return LLVMBuildICmp(cdgn->bldr, LLVMIntSLE, lhs, rhs, "lte");
+    case OP_Gt:
+      return LLVMBuildICmp(cdgn->bldr, LLVMIntSGT, lhs, rhs, "gt");
+    case OP_Gte:
+      return LLVMBuildICmp(cdgn->bldr, LLVMIntSGE, lhs, rhs, "gte");
+    case OP_Asg:
+      return LLVMBuildStore(cdgn->bldr, rhs, lhs);
   }
   print_cdgn_err(node->kind);
 }

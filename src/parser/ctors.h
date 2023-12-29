@@ -12,7 +12,9 @@ extern Node* make_arg_var(TypeKind type, StrView view);
 extern Node* make_if_node(Node* cond, Node* then, Node* elseb);
 extern Node* make_while_node(Node* cond, Node* then);
 extern Node* make_call_node(StrView view, Node* args);
-extern Node* make_function(StrView view, Node* body, Node* args);
+extern Node* make_function(
+  TypeKind ret_type, StrView view, Node* body, Node* args
+);
 
 typedef struct Arena Arena;
 extern Arena PARSER_ARENA;
