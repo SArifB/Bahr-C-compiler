@@ -1,16 +1,8 @@
-
-ext fn no_body(x: i32): i32
-
-// Test side function
-fn test(
-  a: i32, 
-  b: i32,
-): i32 { 
-  ret a * a + b
-}
+ext fn puts(x: *i8): i32
 
 // Test main function
 fn main(): i32 {
-  let i: i32 = test(3, 4)
-  ret i * 2
+  let message: *i8 = "hello world"
+  puts(message)
+  ret 0
 }
