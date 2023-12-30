@@ -71,7 +71,7 @@ Node* make_unary(NodeKind kind, Node* value) {
   return node;
 }
 
-Node* make_basic_value(TypeKind type, StrView view) {
+Node* make_basic_value(Node* type, StrView view) {
   usize size = view.sen - view.itr;
   Node* node = parser_alloc(
     sizeof(NodeBase) + sizeof(ValueNode) + sizeof(char) * (size + 1)
@@ -80,6 +80,7 @@ Node* make_basic_value(TypeKind type, StrView view) {
     .base.kind = ND_Value,
     .value =
       (ValueNode){
+        .kind = type->value.kind,
         .type = type,
         .basic.size = size,
       },
@@ -89,7 +90,46 @@ Node* make_basic_value(TypeKind type, StrView view) {
   return node;
 }
 
-Node* make_declaration(TypeKind type, StrView view, Node* value) {
+Node* make_basic_type(TypeKind kind) {
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
+  *node = (Node){
+    .base.kind = ND_Type,
+    .value =
+      (ValueNode){
+        .kind = kind,
+      },
+  };
+  return node;
+}
+
+Node* make_pointer_value(Node* type, Node* value) {
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
+  *node = (Node){
+    .base.kind = ND_Value,
+    .value =
+      (ValueNode){
+        .kind = TP_Ptr,
+        .type = type,
+        .base = value,
+      },
+  };
+  return node;
+}
+
+Node* make_pointer_type(Node* type) {
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
+  *node = (Node){
+    .base.kind = ND_Type,
+    .value =
+      (ValueNode){
+        .kind = TP_Ptr,
+        .type = type,
+      },
+  };
+  return node;
+}
+
+Node* make_declaration(Node* type, StrView view, Node* value) {
   if (current_locals == nullptr) {
     current_locals = NodeRef_vector_make(8);
   }
@@ -112,7 +152,7 @@ Node* make_declaration(TypeKind type, StrView view, Node* value) {
   return node;
 }
 
-Node* make_arg_var(TypeKind type, StrView view) {
+Node* make_arg_var(Node* type, StrView view) {
   if (current_locals == nullptr) {
     current_locals = NodeRef_vector_make(8);
   }
@@ -134,7 +174,7 @@ Node* make_arg_var(TypeKind type, StrView view) {
   return node;
 }
 
-Node* make_function(TypeKind ret_type, StrView view, Node* body, Node* args) {
+Node* make_function(Node* type, StrView view, Node* body, Node* args) {
   usize size = view.sen - view.itr;
   Node* node =
     parser_alloc(sizeof(NodeBase) + sizeof(FnNode) + sizeof(char) * (size + 1));
@@ -144,7 +184,7 @@ Node* make_function(TypeKind ret_type, StrView view, Node* body, Node* args) {
       (FnNode){
         .body = body,
         .args = args,
-        .ret_type = ret_type,
+        .ret_type = type,
         .locals = current_locals,
         .name.size = size,
       },

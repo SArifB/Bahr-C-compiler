@@ -43,32 +43,37 @@ struct OperNode {
 
 enum TypeKind {
   TP_Void,
-  TP_Int,
+  TP_I1,
+  TP_I8,
+  TP_I16,
+  TP_I32,
+  TP_I64,
   // TP_Flt,
-  // TP_Str,
+  TP_Str,
   TP_Ptr,
 };
 
 struct ValueNode {
-  TypeKind type;
+  TypeKind kind;
+  Node* type;
   union {
     VarCharArr basic;
-    Node* ptr_base;
+    Node* base;
   };
 };
 
 struct DeclNode {
-  TypeKind type;
+  Node* type;
   Node* value;
   VarCharArr name;
 };
 
 typedef struct NodeRefVector NodeRefVector;
 struct FnNode {
+  Node* ret_type;
   Node* args;
   Node* body;
   NodeRefVector* locals;
-  TypeKind ret_type;
   VarCharArr name;
 };
 
@@ -96,6 +101,7 @@ enum NodeKind {
   ND_Block,
   ND_Addr,
   ND_Deref,
+  ND_Type,
   ND_Decl,
   ND_Value,
   ND_Variable,
@@ -135,5 +141,5 @@ extern Node* parse_lexer(TokenVector* tokens);
 extern void print_ast(Node* prog);
 extern void free_ast();
 
-#define view_from(var_arr)                                                     \
-  ((StrView){ (var_arr).array, (var_arr).array + (var_arr).size })
+#define view_from(var_arr) \
+  ((StrView){(var_arr).array, (var_arr).array + (var_arr).size})

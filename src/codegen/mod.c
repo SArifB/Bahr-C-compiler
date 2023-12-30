@@ -71,6 +71,7 @@ unreturning static void print_cdgn_err(NodeKind kind) {
     case ND_Block:      eputs("Error: Invalid nodekind: ND_Block");     break;
     case ND_Addr:       eputs("Error: Invalid nodekind: ND_Addr");      break;
     case ND_Deref:      eputs("Error: Invalid nodekind: ND_Deref");     break;
+    case ND_Type:       eputs("Error: Invalid nodekind: ND_Type");      break;
     case ND_Decl:       eputs("Error: Invalid nodekind: ND_Decl");      break;
     case ND_Value:      eputs("Error: Invalid nodekind: ND_Value");     break;
     case ND_Variable:   eputs("Error: Invalid nodekind: ND_Variable");  break;
@@ -109,9 +110,19 @@ static DeclVar* get_decl_var(StrView name) {
   return nullptr;
 }
 
-static LLVMTypeRef get_type(LLVMContextRef ctx, TypeKind type) {
-  if (type == TP_Int) {
+static LLVMTypeRef get_type(LLVMContextRef ctx, Node* type) {
+  if (type->value.kind == TP_I1) {
+    return LLVMInt1TypeInContext(ctx);
+  } else if (type->value.kind == TP_I8) {
+    return LLVMInt8TypeInContext(ctx);
+  } else if (type->value.kind == TP_I16) {
+    return LLVMInt16TypeInContext(ctx);
+  } else if (type->value.kind == TP_I32) {
     return LLVMInt32TypeInContext(ctx);
+  } else if (type->value.kind == TP_I64) {
+    return LLVMInt64TypeInContext(ctx);
+  } else if (type->value.kind == TP_Ptr) {
+    return LLVMPointerType(get_type(ctx, type->value.type), 0);
   } else {
     eputs("ND_Value type unimplemented");
     exit(1);
@@ -142,14 +153,14 @@ LLVMValueRef codegen_generate(Codegen* cdgn, Node* prog) {
     eputs("failed to create string representation of module");
     exit(1);
   }
-  eprintf("%s", str_mod);
+  printf("%s", str_mod);
   LLVMDisposeMessage(str_mod);
 
   str error = nullptr;
   LLVMVerifyModule(cdgn->mod, LLVMAbortProcessAction, &error);
   eprintf("%s", error);
-  LLVMPrintModuleToFile(cdgn->mod, "test/out/test.ll", &error);
-  eprintf("%s", error);
+  // LLVMPrintModuleToFile(cdgn->mod, "test/out/test.ll", &error);
+  // eprintf("%s", error);
   LLVMDisposeMessage(error);
 
   return nullptr;
@@ -157,9 +168,9 @@ LLVMValueRef codegen_generate(Codegen* cdgn, Node* prog) {
 
 static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
   if (decl_fns == nullptr) {
-    decl_fns = DeclFn_vector_make(0);
+    decl_fns = DeclFn_vector_make(2);
   }
-  decl_vars = DeclVar_vector_make(0);
+  decl_vars = DeclVar_vector_make(2);
 
   LLVMTypeRefVector* arg_types = LLVMTypeRef_vector_make(0);
   cstrVector* arg_names = cstr_vector_make(0);
@@ -223,6 +234,12 @@ static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
   return function;
 }
 
+static bool is_integer(Node* node) {
+  return node->kind == ND_Value &&
+         (node->value.kind == TP_I1 || node->value.kind == TP_I8 ||
+          node->value.kind == TP_I16 || node->value.kind == TP_I32 ||
+          node->value.kind == TP_I64);
+}
 static LLVMValueRef codegen_parse(
   Codegen* cdgn, Node* node, LLVMValueRef function
 ) {
@@ -230,7 +247,10 @@ static LLVMValueRef codegen_parse(
     return codegen_oper(cdgn, node, function);
 
   } else if (node->kind == ND_Negation) {
-    return codegen_parse(cdgn, node->unary, function);
+    LLVMValueRef zero =
+      LLVMConstInt(LLVMInt32TypeInContext(cdgn->ctx), 0, false);
+    LLVMValueRef value = codegen_parse(cdgn, node->unary, function);
+    return LLVMBuildSub(cdgn->bldr, zero, value, "neg");
 
   } else if (node->kind == ND_Return) {
     LLVMValueRef val = codegen_parse(cdgn, node->unary, function);
@@ -252,8 +272,23 @@ static LLVMValueRef codegen_parse(
     return decl;
 
   } else if (node->kind == ND_Value) {
+    if (is_integer(node) == true) {
     LLVMTypeRef type = get_type(cdgn->ctx, node->value.type);
     return LLVMConstInt(type, atoi(node->value.basic.array), true);
+    } else if (node->value.kind == TP_Str) {
+      LLVMTypeRef type = LLVMArrayType(
+        LLVMInt8TypeInContext(cdgn->ctx), node->value.basic.size + 1
+      );
+      LLVMValueRef str_val = LLVMConstStringInContext(
+        cdgn->ctx, node->value.basic.array, node->value.basic.size, false
+      );
+      LLVMValueRef global_str = LLVMAddGlobal(cdgn->mod, type, ".str");
+      LLVMSetInitializer(global_str, str_val);
+      LLVMSetLinkage(global_str, LLVMPrivateLinkage);
+      LLVMSetUnnamedAddr(global_str, LLVMGlobalUnnamedAddr);
+      LLVMSetAlignment(global_str, 1);
+      return global_str;
+    }
 
   } else if (node->kind == ND_Variable) {
     LLVMTypeRef type = get_type(cdgn->ctx, node->unary->declaration.type);
@@ -269,12 +304,8 @@ static LLVMValueRef codegen_parse(
     return var;
 
   } else if (node->kind == ND_ArgVar) {
-    DeclVar* decl_var = get_decl_var(view_from(node->declaration.name));
-    if (decl_var == nullptr) {
-      eputs("ND_Variable not found");
+    eputs("Raw ND_ArgVar unimplemented");
       exit(1);
-    }
-    return decl_var->variable;
 
   } else if (node->kind == ND_Block) {
     eputs("Raw ND_Block unimplemented");

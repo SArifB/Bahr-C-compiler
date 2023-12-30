@@ -62,11 +62,29 @@ static Token* expect_ident(Token* token) {
   return token + 1;
 }
 
-// declspec = "int"
-static TypeKind declspec(Token** rest, Token* token) {
-  if (strncmp(token->pos.itr, "i32", strlen("i32")) == 0) {
-    *rest = token + 1;
-    return TP_Int;
+// declspec = "*" | "int"
+static Node* declspec(Token** rest, Token* token) {
+  if (token->kind == TK_Punct) {
+    if (token->info == PK_Mul) {
+      return make_pointer_type(declspec(rest, token + 1));
+    }
+  } else if (token->kind == TK_Ident) {
+    if (strncmp(token->pos.itr, "i8", strlen("i8")) == 0) {
+      *rest = token + 1;
+      return make_basic_type(TP_I8);
+
+    } else if (strncmp(token->pos.itr, "i16", strlen("i16")) == 0) {
+      *rest = token + 1;
+      return make_basic_type(TP_I16);
+
+    } else if (strncmp(token->pos.itr, "i32", strlen("i32")) == 0) {
+      *rest = token + 1;
+      return make_basic_type(TP_I32);
+
+    } else if (strncmp(token->pos.itr, "i64", strlen("i64")) == 0) {
+      *rest = token + 1;
+      return make_basic_type(TP_I64);
+    }
   }
   error_tok(token, "Invalid expression");
 }
@@ -133,9 +151,9 @@ static Node* function(Token** rest, Token* token) {
   current_locals = nullptr;
 
   Node* args = parse_list(&token, token, PK_RightParen, argument);
-  TypeKind ret_type = declspec(&token, expect_info(token + 1, PK_Colon));
+  Node* type = declspec(&token, expect_info(token + 1, PK_Colon));
   Node* body = compound_stmt(rest, expect_info(token, PK_LeftBracket));
-  return make_function(ret_type, name, body, args);
+  return make_function(type, name, body, args);
 }
 
 // extern_function = indent "(" args? ")" ":" ret_type
@@ -145,26 +163,25 @@ static Node* extern_function(Token** rest, Token* token) {
   token = expect_info(token, PK_LeftParen);
 
   Node* args = parse_list(&token, token, PK_RightParen, argument);
-  TypeKind ret_type = declspec(rest, expect_info(token + 1, PK_Colon));
-  return make_function(ret_type, name, nullptr, args);
+  Node* type = declspec(rest, expect_info(token + 1, PK_Colon));
+  return make_function(type, name, nullptr, args);
 }
 
 // argument = indent ":" type
 static Node* argument(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
-  TypeKind decl_type = declspec(rest, expect_info(token, PK_Colon));
-  return make_arg_var(decl_type, name);
+  Node* type = declspec(rest, expect_info(token, PK_Colon));
+  return make_arg_var(type, name);
 }
 
 // declaration = indent ":" type "=" expr
 static Node* declaration(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
-  TypeKind decl_type = declspec(&token, expect_info(token, PK_Colon));
+  Node* type = declspec(&token, expect_info(token, PK_Colon));
   Node* value = expr(rest, expect_info(token, PK_Assign));
-  Node* var = make_declaration(decl_type, name, value);
-  return var;
+  return make_declaration(type, name, value);
 }
 
 // stmt = "return" expr
@@ -323,23 +340,13 @@ static Node* unary(Token** rest, Token* token) {
 // funcall = ident "(" (assign ("," assign)*)? ")"
 static Node* fn_call(Token** rest, Token* token) {
   StrView name = token->pos;
-  token = token + 2;
+  token = expect_ident(token);
+  token = expect_info(token, PK_LeftParen);
 
-  Node handle = {};
-  Node* node_cursor = &handle;
-  while (token->info != PK_RightParen) {
-    if (node_cursor != &handle) {
-      token = expect_info(token, PK_Comma);
-    }
-    if (token->info == PK_RightParen) {
-      break;
-    }
-    node_cursor->next = assign(&token, token);
-    node_cursor = node_cursor->next;
-  }
-  Node* node = make_call_node(name, handle.next);
+  Node* args = parse_list(&token, token, PK_RightParen, equality);
+  Node* call = make_call_node(name, args);
   *rest = expect_info(token, PK_RightParen);
-  return node;
+  return call;
 }
 
 // primary = "(" expr ")" | ident func-args? | num
@@ -361,7 +368,12 @@ static Node* primary(Token** rest, Token* token) {
     return var;
 
   } else if (token->kind == TK_NumLiteral) {
-    Node* node = make_basic_value(TP_Int, token->pos);
+    Node* node = make_basic_value(make_basic_type(TP_I32), token->pos);
+    *rest = token + 1;
+    return node;
+
+  } else if (token->kind == TK_StrLiteral) {
+    Node* node = make_basic_value(make_basic_type(TP_Str), token->pos);
     *rest = token + 1;
     return node;
   }
