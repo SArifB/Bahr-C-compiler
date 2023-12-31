@@ -43,18 +43,17 @@ struct OperNode {
 
 enum TypeKind {
   TP_Void,
-  TP_I1,
-  TP_I8,
-  TP_I16,
-  TP_I32,
-  TP_I64,
+  TP_SInt,
+  TP_UInt,
   // TP_Flt,
   TP_Str,
   TP_Ptr,
 };
 
 struct ValueNode {
-  TypeKind kind;
+  TypeKind kind: 8;
+  bool is_type;
+  u8 integer_width;
   Node* type;
   union {
     VarCharArr basic;

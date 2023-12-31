@@ -69,21 +69,25 @@ static Node* declspec(Token** rest, Token* token) {
       return make_pointer_type(declspec(rest, token + 1));
     }
   } else if (token->kind == TK_Ident) {
-    if (strncmp(token->pos.itr, "i8", strlen("i8")) == 0) {
+    if (token->info == AD_SIntType) {
+      i32 width = atoi(token->pos.itr + 1);
+      if (width > 128) {
+        error_tok(token, "Bit width too wide");
+      }
+      Node* type = make_basic_type(TP_SInt);
+      type->value.integer_width = width;
       *rest = token + 1;
-      return make_basic_type(TP_I8);
+      return type;
 
-    } else if (strncmp(token->pos.itr, "i16", strlen("i16")) == 0) {
+    } else if (token->info == AD_UIntType) {
+      i32 width = atoi(token->pos.itr + 1);
+      if (width > 128) {
+        error_tok(token, "Bit width too wide");
+      }
+      Node* type = make_basic_type(TP_UInt);
+      type->value.integer_width = width;
       *rest = token + 1;
-      return make_basic_type(TP_I16);
-
-    } else if (strncmp(token->pos.itr, "i32", strlen("i32")) == 0) {
-      *rest = token + 1;
-      return make_basic_type(TP_I32);
-
-    } else if (strncmp(token->pos.itr, "i64", strlen("i64")) == 0) {
-      *rest = token + 1;
-      return make_basic_type(TP_I64);
+      return type;
     }
   }
   error_tok(token, "Invalid expression");
@@ -368,7 +372,9 @@ static Node* primary(Token** rest, Token* token) {
     return var;
 
   } else if (token->kind == TK_NumLiteral) {
-    Node* node = make_basic_value(make_basic_type(TP_I32), token->pos);
+    Node* type = make_basic_type(TP_SInt);
+    type->value.integer_width = 32;
+    Node* node = make_basic_value(type, token->pos);
     *rest = token + 1;
     return node;
 

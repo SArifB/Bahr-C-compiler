@@ -61,14 +61,11 @@ static void print_branch(Node* node) {
 
   } else if (node->kind == ND_Type) {
     switch (node->value.kind) {  // clang-format off
-      case TP_Void: eputs("Type: Void");  break;
-      case TP_I1:   eputs("Type: I1");    break;
-      case TP_I8:   eputs("Type: I8");    break;
-      case TP_I16:  eputs("Type: I16");   break;
-      case TP_I32:  eputs("Type: I32");   break;
-      case TP_I64:  eputs("Type: I64");   break;
-      case TP_Ptr:  eputs("Type: Ptr");   break;
-      case TP_Str:  eputs("Type: TP_Str");   break;
+      case TP_Void: eputs("Type: Void");    break;
+      case TP_SInt: eputs("Type: TP_SInt"); break;
+      case TP_UInt: eputs("Type: TP_UInt"); break;
+      case TP_Ptr:  eputs("Type: Ptr");     break;
+      case TP_Str:  eputs("Type: TP_Str");  break;
     }  // clang-format on
     if (node->value.kind == TP_Ptr) {
       print_branch(node->value.type);

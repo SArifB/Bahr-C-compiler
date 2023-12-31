@@ -64,6 +64,10 @@ static bool is_numliteral(cstr ref) {
   return (*ref >= '0' && *ref <= '9') || *ref == '.' || *ref == '_';
 }
 
+static bool is_number(cstr ref) {
+  return *ref >= '0' && *ref <= '9';
+}
+
 static bool is_str_lit_char(cstr ref) {
   return *ref == '\"' || (*ref == '\"' && *(ref - 1) == '\\');
 }
@@ -76,6 +80,12 @@ static bool is_ident(cstr ref) {
 static bool is_charnum(cstr ref) {
   return (*ref >= 'a' && *ref <= 'z') || (*ref >= 'A' && *ref <= 'Z') ||
          (*ref >= '0' && *ref <= '9') || *ref == '_';
+}
+
+static bool is_keyword(cstr itr, cstr ref, usize size) {
+  return strncmp(itr, ref, size) == 0 &&
+         ((itr[size] >= 'a' && itr[size] <= 'z') ||
+          (itr[size] >= 'A' && itr[size] <= 'Z')) == false;
 }
 
 static const char pnct_table[][4] = {
@@ -196,6 +206,30 @@ TokenVector* lex_string(const StrView view) {
       }
       /// Ident
       cstr tmp_sen = itr + 1;
+      /// Signed integer
+      if (*itr == 'i') {
+        while (is_number(tmp_sen)) {
+          tmp_sen += 1;
+        }
+        tokens_push(
+            .kind = TK_Ident, .info = AD_SIntType, .pos = {itr, tmp_sen},
+        );
+        itr = tmp_sen - 1;
+        continue;
+
+        /// Unsigned integer
+      } else if (*itr == 'u') {
+        while (is_number(tmp_sen)) {
+          tmp_sen += 1;
+        }
+        tokens_push(
+            .kind = TK_Ident, .info = AD_UIntType, .pos = {itr, tmp_sen},
+        );
+        itr = tmp_sen - 1;
+        continue;
+      }
+
+      /// Ident
       while (is_charnum(tmp_sen) == true) {
         tmp_sen += 1;
       }

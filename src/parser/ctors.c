@@ -96,6 +96,7 @@ Node* make_basic_type(TypeKind kind) {
     .base.kind = ND_Type,
     .value =
       (ValueNode){
+        .is_type = true,
         .kind = kind,
       },
   };
@@ -122,6 +123,7 @@ Node* make_pointer_type(Node* type) {
     .base.kind = ND_Type,
     .value =
       (ValueNode){
+        .is_type = true,
         .kind = TP_Ptr,
         .type = type,
       },

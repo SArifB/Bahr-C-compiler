@@ -20,6 +20,11 @@ enum TokenKind {
 enum AddInfo {
   AD_None,
 
+  // Integer types
+  AD_SIntType,
+  AD_UIntType,
+
+
   // Punct
   PK_LeftParen,
   PK_RightParen,
