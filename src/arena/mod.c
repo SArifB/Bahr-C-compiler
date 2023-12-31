@@ -10,7 +10,7 @@ Arena* DEFAULT_ARENA = &(Arena){};
 Region* region_alloc(const usize capacity) {
   Region* tmp = malloc(sizeof(Region) + sizeof(usize) * capacity);
   if (tmp != nullptr) {
-    *tmp = (Region){ .capacity = capacity };
+    *tmp = (Region){.capacity = capacity};
   }
   return tmp;
 }
@@ -44,10 +44,8 @@ any arena_realloc(
   if (new_size <= old_size) {
     return old_ptr;
   }
-  str tmp = arena_alloc(arena, new_size);
-  cstr src = old_ptr;
-
-  strcpy(tmp, src);
+  any tmp = arena_alloc(arena, new_size);
+  memcpy(tmp, old_ptr, old_size);
   return tmp;
 }
 
