@@ -8,13 +8,13 @@ typedef enum TokenKind TokenKind;
 typedef enum AddInfo AddInfo;
 
 enum TokenKind {
-  TK_EOF,
-  TK_Ident,
-  TK_NumLiteral,
-  TK_StrLiteral,
-  TK_CharLiteral,
-  TK_Keyword,
-  TK_Punct,
+  TK_EOF = 1 << 0,
+  TK_Ident = 1 << 1,
+  TK_NumLiteral = 1 << 2,
+  TK_StrLiteral = 1 << 3,
+  TK_CharLiteral = 1 << 4,
+  TK_Keyword = 1 << 5,
+  TK_Punct = 1 << 6,
 };
 
 enum AddInfo {
@@ -24,6 +24,12 @@ enum AddInfo {
   AD_SIntType,
   AD_UIntType,
 
+  // Floating point types
+  AD_F16Type,
+  AD_BF16Type,
+  AD_F32Type,
+  AD_F64Type,
+  AD_F128Type,
 
   // Punct
   PK_LeftParen,
@@ -82,7 +88,7 @@ enum AddInfo {
 };
 
 struct Token {
-  TokenKind kind : 16;
+  TokenKind kind : 8;
   bool is_eol;
   AddInfo info;
   StrView pos;

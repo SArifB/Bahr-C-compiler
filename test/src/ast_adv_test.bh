@@ -1,4 +1,5 @@
 ext fn puts(x: *i8): i32
+ext fn weewweew(x: f32): i32
 
 // Test main function
 fn main(): i32 {

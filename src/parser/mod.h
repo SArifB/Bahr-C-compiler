@@ -45,15 +45,15 @@ enum TypeKind {
   TP_Void,
   TP_SInt,
   TP_UInt,
-  // TP_Flt,
+  TP_Flt,
   TP_Str,
   TP_Ptr,
 };
 
 struct ValueNode {
-  TypeKind kind: 8;
+  TypeKind kind : 8;
   bool is_type;
-  u8 integer_width;
+  u8 bit_width;
   Node* type;
   union {
     VarCharArr basic;

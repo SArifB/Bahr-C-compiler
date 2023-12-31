@@ -122,6 +122,18 @@ static const AddInfo kwrd_info_table[sizeof_arr(kwrd_table)] = {
   KW_Else, KW_For, KW_While, KW_Match, KW_Return,
 };
 
+static const char flt_table[][4] = {
+  "f16", "bf16", "f32", "f64", "f128",
+};
+
+static usize flt_sizes[sizeof_arr(flt_table)] = {
+  3, 4, 3, 3, 4,
+};
+
+static const AddInfo flt_info_table[sizeof_arr(flt_table)] = {
+  AD_F16Type, AD_BF16Type, AD_F32Type, AD_F64Type, AD_F128Type,
+};
+
 static bool is_punct(cstr ref) {
   for (usize i = 0; i < sizeof_arr(pnct_table); ++i) {
     if (strncmp(ref, ref, pnct_sizes[i]) == 0) {
@@ -163,10 +175,24 @@ TokenVector* lex_string(const StrView view) {
       /// Number
     } else if (is_numliteral(itr) == true) {
       cstr tmp_sen = itr + 1;
+      bool flt = false;
       while (is_numliteral(tmp_sen) == true) {
+        if (*tmp_sen == '.' && flt == true) {
+          error_at(tmp_sen, "More than one '.' found");
+        } else if (*tmp_sen == '.' && flt == false) {
+          flt = true;
+        }
         tmp_sen += 1;
       }
-      tokens_push(.kind = TK_NumLiteral, .pos = {itr, tmp_sen}, );
+      if (flt == true) {
+        tokens_push(
+            .kind = TK_NumLiteral, .info = AD_F64Type, .pos = {itr, tmp_sen},
+        );
+      } else {
+        tokens_push(
+            .kind = TK_NumLiteral, .info = AD_SIntType, .pos = {itr, tmp_sen},
+        );
+      }
       itr = tmp_sen - 1;
 
       /// String
@@ -191,12 +217,12 @@ TokenVector* lex_string(const StrView view) {
     } else if (is_ident(itr) == true) {
       bool kw = false;
       for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
-        if (strncmp(itr, kwrd_table[i], kwrd_sizes[i]) == 0 && itr[kwrd_sizes[i]] == ' ') {
+        if (is_keyword(itr, kwrd_table[i], kwrd_sizes[i])) {
           tokens_push(
               .kind = TK_Keyword, .info = kwrd_info_table[i],
               .pos = {itr, itr + kwrd_sizes[i]},
           );
-          itr += kwrd_sizes[i];
+          itr += kwrd_sizes[i] - 1;
           kw = true;
           break;
         }
@@ -204,7 +230,25 @@ TokenVector* lex_string(const StrView view) {
       if (kw == true) {
         continue;
       }
-      /// Ident
+
+      /// Floating point
+      bool flt = false;
+      for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
+        if (strncmp(itr, flt_table[i], flt_sizes[i]) == 0 && //
+          is_charnum(itr + flt_sizes[i]) == false) {
+          tokens_push(
+              .kind = TK_Ident, .info = flt_info_table[i],
+              .pos = {itr, itr + flt_sizes[i]},
+          );
+          itr += flt_sizes[i] - 1;
+          flt = true;
+          break;
+        }
+      }
+      if (flt == true) {
+        continue;
+      }
+
       cstr tmp_sen = itr + 1;
       /// Signed integer
       if (*itr == 'i') {
@@ -248,7 +292,7 @@ TokenVector* lex_string(const StrView view) {
           break;
         }
       }
-      
+
     } else {
       error_at(itr, "Invalid token");
     }
@@ -259,10 +303,7 @@ TokenVector* lex_string(const StrView view) {
 }
 
 void print_str_view(StrView view) {
-  for (cstr itr = view.itr; itr != view.sen; ++itr) {
-    eputc(*itr);
-  }
-  eputc('\n');
+  eprintf("%.*s\n", (i32)(view.sen - view.itr), view.itr);
 }
 
 void lexer_print(TokenVector* tokens) {

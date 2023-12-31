@@ -64,10 +64,16 @@ static void print_branch(Node* node) {
       case TP_Void: eputs("Type: Void");    break;
       case TP_SInt: eputs("Type: TP_SInt"); break;
       case TP_UInt: eputs("Type: TP_UInt"); break;
+      case TP_Flt:  eputs("Type: TP_Flt");  break;
       case TP_Ptr:  eputs("Type: Ptr");     break;
       case TP_Str:  eputs("Type: TP_Str");  break;
     }  // clang-format on
-    if (node->value.kind == TP_Ptr) {
+    if (node->value.kind == TP_SInt || node->value.kind == TP_UInt ||
+      node->value.kind == TP_Flt) {
+      print_indent();
+      eprintf("Width: %d\n", node->value.bit_width);
+      indent -= 1;
+    } else if (node->value.kind == TP_Ptr) {
       print_branch(node->value.type);
     }
 

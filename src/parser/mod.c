@@ -74,8 +74,7 @@ static Node* declspec(Token** rest, Token* token) {
       if (width > 128) {
         error_tok(token, "Bit width too wide");
       }
-      Node* type = make_basic_type(TP_SInt);
-      type->value.integer_width = width;
+      Node* type = make_numeric_type(TP_SInt, width);
       *rest = token + 1;
       return type;
 
@@ -84,8 +83,32 @@ static Node* declspec(Token** rest, Token* token) {
       if (width > 128) {
         error_tok(token, "Bit width too wide");
       }
-      Node* type = make_basic_type(TP_UInt);
-      type->value.integer_width = width;
+      Node* type = make_numeric_type(TP_UInt, width);
+      *rest = token + 1;
+      return type;
+
+    } else if (token->info == AD_BF16Type) {
+      Node* type = make_numeric_type(TP_Flt, 15);
+      *rest = token + 1;
+      return type;
+
+    } else if (token->info == AD_F16Type) {
+      Node* type = make_numeric_type(TP_Flt, 16);
+      *rest = token + 1;
+      return type;
+
+    } else if (token->info == AD_F32Type) {
+      Node* type = make_numeric_type(TP_Flt, 32);
+      *rest = token + 1;
+      return type;
+
+    } else if (token->info == AD_F64Type) {
+      Node* type = make_numeric_type(TP_Flt, 64);
+      *rest = token + 1;
+      return type;
+
+    } else if (token->info == AD_F128Type) {
+      Node* type = make_numeric_type(TP_Flt, 128);
       *rest = token + 1;
       return type;
     }
@@ -372,14 +395,23 @@ static Node* primary(Token** rest, Token* token) {
     return var;
 
   } else if (token->kind == TK_NumLiteral) {
-    Node* type = make_basic_type(TP_SInt);
-    type->value.integer_width = 32;
+    if (token->info == AD_SIntType) {
+      Node* type = make_numeric_type(TP_SInt, 32);
     Node* node = make_basic_value(type, token->pos);
     *rest = token + 1;
     return node;
 
+    } else if (token->info == AD_F64Type) {
+      Node* type = make_numeric_type(TP_Flt, 64);
+      Node* node = make_basic_value(type, token->pos);
+      *rest = token + 1;
+      return node;
+    }
+    error_tok(token, "Expected i32 or f64 type literal");
+
   } else if (token->kind == TK_StrLiteral) {
-    Node* node = make_basic_value(make_basic_type(TP_Str), token->pos);
+    Node* type = make_basic_type(TP_Str);
+    Node* node = make_basic_value(type, token->pos);
     *rest = token + 1;
     return node;
   }

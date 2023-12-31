@@ -64,22 +64,22 @@ void codegen_dispose(Codegen* cdgn) {
 
 unreturning static void print_cdgn_err(NodeKind kind) {
   switch (kind) {  // clang-format off
-    case ND_None:       eputs("Error: Invalid nodekind: ND_None");      break;
-    case ND_Operation:  eputs("Error: Invalid nodekind: ND_Operation"); break;
-    case ND_Negation:   eputs("Error: Invalid nodekind: ND_Negation");  break;
-    case ND_Return:     eputs("Error: Invalid nodekind: ND_Return");    break;
-    case ND_Block:      eputs("Error: Invalid nodekind: ND_Block");     break;
-    case ND_Addr:       eputs("Error: Invalid nodekind: ND_Addr");      break;
-    case ND_Deref:      eputs("Error: Invalid nodekind: ND_Deref");     break;
-    case ND_Type:       eputs("Error: Invalid nodekind: ND_Type");      break;
-    case ND_Decl:       eputs("Error: Invalid nodekind: ND_Decl");      break;
-    case ND_Value:      eputs("Error: Invalid nodekind: ND_Value");     break;
-    case ND_Variable:   eputs("Error: Invalid nodekind: ND_Variable");  break;
-    case ND_ArgVar:     eputs("Error: Invalid nodekind: ND_ArgVar");    break;
-    case ND_Function:   eputs("Error: Invalid nodekind: ND_Function");  break;
-    case ND_If:         eputs("Error: Invalid nodekind: ND_If");        break;
-    case ND_While:      eputs("Error: Invalid nodekind: ND_While");     break;
-    case ND_Call:       eputs("Error: Invalid nodekind: ND_Call");      break;
+    case ND_None:       eputs("Invalid nodekind: ND_None");      break;
+    case ND_Operation:  eputs("Invalid nodekind: ND_Operation"); break;
+    case ND_Negation:   eputs("Invalid nodekind: ND_Negation");  break;
+    case ND_Return:     eputs("Invalid nodekind: ND_Return");    break;
+    case ND_Block:      eputs("Invalid nodekind: ND_Block");     break;
+    case ND_Addr:       eputs("Invalid nodekind: ND_Addr");      break;
+    case ND_Deref:      eputs("Invalid nodekind: ND_Deref");     break;
+    case ND_Type:       eputs("Invalid nodekind: ND_Type");      break;
+    case ND_Decl:       eputs("Invalid nodekind: ND_Decl");      break;
+    case ND_Value:      eputs("Invalid nodekind: ND_Value");     break;
+    case ND_Variable:   eputs("Invalid nodekind: ND_Variable");  break;
+    case ND_ArgVar:     eputs("Invalid nodekind: ND_ArgVar");    break;
+    case ND_Function:   eputs("Invalid nodekind: ND_Function");  break;
+    case ND_If:         eputs("Invalid nodekind: ND_If");        break;
+    case ND_While:      eputs("Invalid nodekind: ND_While");     break;
+    case ND_Call:       eputs("Invalid nodekind: ND_Call");      break;
   }  // clang-format on
   exit(1);
 }
@@ -110,23 +110,32 @@ static DeclVar* get_decl_var(StrView name) {
   return nullptr;
 }
 
+static bool is_integer(Node* node) {
+  return node->value.kind == TP_SInt || node->value.kind == TP_UInt;
+}
+
 static LLVMTypeRef get_type(LLVMContextRef ctx, Node* type) {
-  if (type->value.kind == TP_I1) {
-    return LLVMInt1TypeInContext(ctx);
-  } else if (type->value.kind == TP_I8) {
-    return LLVMInt8TypeInContext(ctx);
-  } else if (type->value.kind == TP_I16) {
-    return LLVMInt16TypeInContext(ctx);
-  } else if (type->value.kind == TP_I32) {
-    return LLVMInt32TypeInContext(ctx);
-  } else if (type->value.kind == TP_I64) {
-    return LLVMInt64TypeInContext(ctx);
+  if (is_integer(type)) {
+    return LLVMIntTypeInContext(ctx, type->value.bit_width);
+
+  } else if (type->value.kind == TP_Flt) {
+    if (type->value.bit_width == 15) {
+      return LLVMBFloatTypeInContext(ctx);
+    } else if (type->value.bit_width == 16) {
+      return LLVMHalfTypeInContext(ctx);
+    } else if (type->value.bit_width == 32) {
+      return LLVMFloatTypeInContext(ctx);
+    } else if (type->value.bit_width == 64) {
+      return LLVMDoubleTypeInContext(ctx);
+    } else if (type->value.bit_width == 128) {
+      return LLVMFP128TypeInContext(ctx);
+    }
+
   } else if (type->value.kind == TP_Ptr) {
     return LLVMPointerType(get_type(ctx, type->value.type), 0);
-  } else {
+  }
     eputs("ND_Value type unimplemented");
     exit(1);
-  }
 }
 
 static LLVMValueRef codegen_function(Codegen* cdgn, Node* node);
@@ -234,12 +243,6 @@ static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
   return function;
 }
 
-static bool is_integer(Node* node) {
-  return node->kind == ND_Value &&
-         (node->value.kind == TP_I1 || node->value.kind == TP_I8 ||
-          node->value.kind == TP_I16 || node->value.kind == TP_I32 ||
-          node->value.kind == TP_I64);
-}
 static LLVMValueRef codegen_parse(
   Codegen* cdgn, Node* node, LLVMValueRef function
 ) {

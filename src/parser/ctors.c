@@ -103,6 +103,20 @@ Node* make_basic_type(TypeKind kind) {
   return node;
 }
 
+Node* make_numeric_type(TypeKind kind, i32 width) {
+  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
+  *node = (Node){
+    .base.kind = ND_Type,
+    .value =
+      (ValueNode){
+        .is_type = true,
+        .kind = kind,
+        .bit_width = width,
+      },
+  };
+  return node;
+}
+
 Node* make_pointer_value(Node* type, Node* value) {
   Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
   *node = (Node){
