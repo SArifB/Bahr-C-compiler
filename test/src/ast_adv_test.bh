@@ -1,9 +1,11 @@
 ext fn puts(x: *i8): i32
-ext fn weewweew(x: f32): i32
+ext fn float_fn(x: f32): i32
 
 // Test main function
-fn main(): i32 {
+fn main(argc: i32, argv: **i8): i32 {
+  puts(*argv)
   let message: *i8 = "hello world"
   puts(message)
+  puts("some text")
   ret 0
 }

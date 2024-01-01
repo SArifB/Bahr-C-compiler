@@ -115,7 +115,13 @@ static bool is_integer(Node* node) {
 }
 
 static LLVMTypeRef get_type(LLVMContextRef ctx, Node* type) {
-  if (is_integer(type)) {
+  if (type->kind == ND_Variable) {
+    return get_type(ctx, type->unary);
+
+  } else if (type->kind == ND_ArgVar) {
+    return get_type(ctx, type->declaration.type);
+
+  } else if (is_integer(type)) {
     return LLVMIntTypeInContext(ctx, type->value.bit_width);
 
   } else if (type->value.kind == TP_Flt) {
@@ -319,8 +325,12 @@ static LLVMValueRef codegen_parse(
     exit(1);
 
   } else if (node->kind == ND_Deref) {
-    eputs("ND_Deref unimplemented");
-    exit(1);
+    // ->unary->declaration.type
+    LLVMTypeRef type = get_type(cdgn->ctx, node->unary);
+    LLVMValueRef ptr = codegen_parse(cdgn, node->unary, function);
+    LLVMValueRef load =
+      LLVMBuildLoad2(cdgn->bldr, LLVMPointerType(type, 0), ptr, "");
+    return load;
 
   } else if (node->kind == ND_Function) {
     eputs("Raw ND_Function unimplemented");

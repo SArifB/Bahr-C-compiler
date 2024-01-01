@@ -6,13 +6,19 @@
 main:                                   # @main
 	.cfi_startproc
 # %bb.0:                                # %entry
-	pushq	%rax
-	.cfi_def_cfa_offset 16
+	subq	$24, %rsp
+	.cfi_def_cfa_offset 32
+	movl	%edi, 4(%rsp)
+	movq	%rsi, 16(%rsp)
+	movq	(%rsi), %rdi
+	callq	puts@PLT
 	leaq	.L.str(%rip), %rdi
-	movq	%rdi, (%rsp)
+	movq	%rdi, 8(%rsp)
+	callq	puts@PLT
+	leaq	.L.str.1(%rip), %rdi
 	callq	puts@PLT
 	xorl	%eax, %eax
-	popq	%rcx
+	addq	$24, %rsp
 	.cfi_def_cfa_offset 8
 	retq
 .Lfunc_end0:
@@ -24,5 +30,10 @@ main:                                   # @main
 .L.str:
 	.asciz	"hello world"
 	.size	.L.str, 12
+
+	.type	.L.str.1,@object                # @.str.1
+.L.str.1:
+	.asciz	"dmjedejn"
+	.size	.L.str.1, 9
 
 	.section	".note.GNU-stack","",@progbits
