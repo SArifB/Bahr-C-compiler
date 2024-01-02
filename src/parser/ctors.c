@@ -7,45 +7,41 @@ void free_none(any) {
 }
 DEFINE_VECTOR(NodeRef, parser_alloc, free_none);
 
-// Node* make_add(Node* lhs, Node* rhs, Token* token) {
-//   add_type(lhs);
-//   add_type(rhs);
-
-//   if (is_numeric(lhs->type) && is_numeric(rhs->type)) {
-//     return make_oper(OP_Add, lhs, rhs);
-
-//   } else if (lhs->type->kind == TP_Ptr && rhs->type->kind == TP_Ptr) {
-//     error_tok(token, "invalid operands");
-
-//   } else if (lhs->type->kind != TP_Ptr && rhs->type->kind == TP_Ptr) {
-//     Node* tmp = lhs;
-//     lhs = rhs;
-//     rhs = tmp;
-//   }
-//   rhs = make_oper(OP_Mul, rhs, make_number(token->pos));
-//   return make_oper(OP_Add, lhs, rhs);
+// static bool is_integer(Node* node) {
+//   return node->kind == ND_Value &&
+//          (node->value.kind == TP_SInt || node->value.kind == TP_UInt);
 // }
 
-// Node* make_sub(Node* lhs, Node* rhs, Token* token) {
-//   add_type(lhs);
-//   add_type(rhs);
+// unused static bool is_pointer(Node* node) {
+//   return (node->kind == ND_Value && node->value.kind == TP_Ptr);
+// }
 
-//   if (is_numeric(lhs->type) && is_numeric(rhs->type)) {
-//     return make_oper(OP_Sub, lhs, rhs);
+// unused Node* make_add(Node* lhs, Node* rhs, Token* token) {
+//   if (is_pointer(lhs) == false && is_pointer(rhs) == false) {
+//     if (is_integer(lhs) == true && is_integer(rhs) == true) {
+//       return make_oper(OP_Add, lhs, rhs);
+//     }
+//   } else if (is_pointer(lhs) == true && is_pointer(rhs) == true) {
+//     error_tok(token, "invalid operands, cant add two pointers");
 
-//   } else if (lhs->type->kind == TP_Ptr && is_numeric(rhs->type)) {
-//     rhs = make_oper(OP_Mul, rhs, make_number(token->pos));
-//     add_type(rhs);
-//     Node* node = make_oper(OP_Sub, lhs, rhs);
-//     node->type = lhs->type;
-//     return node;
-
-//   } else if (lhs->type->kind == TP_Ptr && lhs->type->kind == TP_Ptr) {
-//     Node* node = make_oper(OP_Sub, lhs, rhs);
-//     node->type = make_decl_type(TP_Int);
-//     return make_oper(OP_Div, node, make_number(token->pos));
+//   } else if (is_pointer(lhs) == false && is_pointer(rhs) == true) {
+//     return make_oper(OP_PtrAdd, rhs, lhs);
 //   }
-//   error_tok(token, "Invalid operands");
+//   return make_oper(OP_PtrAdd, lhs, rhs);
+// }
+
+// unused Node* make_sub(Node* lhs, Node* rhs, Token* token) {
+//   if (is_pointer(lhs) == false && is_pointer(rhs) == false) {
+//     if (is_integer(lhs) == true && is_integer(rhs) == true) {
+//       return make_oper(OP_Sub, lhs, rhs);
+//     }
+//   } else if (is_pointer(lhs) == true && is_pointer(rhs) == true) {
+//     return make_oper(OP_PtrPtrSub, lhs, rhs);
+
+//   } else if (is_pointer(lhs) == false && is_pointer(rhs) == true) {
+//     error_tok(token, "Invalid operands, cant sub pointer from integer");
+//   }
+//   return make_oper(OP_PtrSub, lhs, rhs);
 // }
 
 Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {

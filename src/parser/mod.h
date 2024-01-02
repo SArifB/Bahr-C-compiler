@@ -23,7 +23,10 @@ struct VarCharArr {
 
 enum OperKind {
   OP_Add,
+  // OP_PtrAdd,
   OP_Sub,
+  // OP_PtrSub,
+  // OP_PtrPtrSub,
   OP_Mul,
   OP_Div,
   OP_Eq,
