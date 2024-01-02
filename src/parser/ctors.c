@@ -87,6 +87,12 @@ Node* make_basic_value(Node* type, StrView view) {
   };
   strncpy(node->value.basic.array, view.itr, size);
   node->value.basic.array[size] = 0;
+  for (usize i = 0; i + 1 != size; ++i) {
+    if (node->value.basic.array[i] == '\\' && node->value.basic.array[i + 1] == 'n') {
+      node->value.basic.array[i] = ' ';
+      node->value.basic.array[i + 1] = '\n';
+    }
+  }
   return node;
 }
 

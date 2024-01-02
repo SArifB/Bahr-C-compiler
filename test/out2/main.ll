@@ -1,12 +1,12 @@
 ; ModuleID = 'some_code'
 source_filename = "some_code"
 
-@.str = private unnamed_addr global [12 x i8] c"hello world\00", align 1
-@.str.1 = private unnamed_addr global [9 x i8] c"dmjedejn\00", align 1
+@.str = private unnamed_addr global [13 x i8] c"hello \0Aworld\00", align 1
+@.str.1 = private unnamed_addr global [10 x i8] c"some text\00", align 1
 
 declare i32 @puts(ptr)
 
-declare i32 @weewweew(float)
+declare i32 @float_fn(float)
 
 define i32 @main(i32 %0, ptr %1) {
 entry:

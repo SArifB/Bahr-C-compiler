@@ -28,12 +28,12 @@ main:                                   # @main
 	.type	.L.str,@object                  # @.str
 	.data
 .L.str:
-	.asciz	"hello world"
-	.size	.L.str, 12
+	.asciz	"hello \nworld"
+	.size	.L.str, 13
 
 	.type	.L.str.1,@object                # @.str.1
 .L.str.1:
-	.asciz	"dmjedejn"
-	.size	.L.str.1, 9
+	.asciz	"some text"
+	.size	.L.str.1, 10
 
 	.section	".note.GNU-stack","",@progbits
