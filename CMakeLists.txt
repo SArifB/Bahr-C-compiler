@@ -31,6 +31,7 @@ project(comp-test3
 
 # Target: bin
 set(bin_SOURCES
+	"./src/bin/input.c"
 	"./src/bin/main.c"
 	cmake.toml
 )

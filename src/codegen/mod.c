@@ -140,8 +140,8 @@ static LLVMTypeRef get_type(LLVMContextRef ctx, Node* type) {
   } else if (type->value.kind == TP_Ptr) {
     return LLVMPointerType(get_type(ctx, type->value.type), 0);
   }
-    eputs("ND_Value type unimplemented");
-    exit(1);
+  eputs("ND_Value type unimplemented");
+  exit(1);
 }
 
 static LLVMValueRef codegen_function(Codegen* cdgn, Node* node);
@@ -282,8 +282,8 @@ static LLVMValueRef codegen_parse(
 
   } else if (node->kind == ND_Value) {
     if (is_integer(node) == true) {
-    LLVMTypeRef type = get_type(cdgn->ctx, node->value.type);
-    return LLVMConstInt(type, atoi(node->value.basic.array), true);
+      LLVMTypeRef type = get_type(cdgn->ctx, node->value.type);
+      return LLVMConstInt(type, atoi(node->value.basic.array), true);
     } else if (node->value.kind == TP_Str) {
       LLVMTypeRef type = LLVMArrayType(
         LLVMInt8TypeInContext(cdgn->ctx), node->value.basic.size + 1
@@ -314,7 +314,7 @@ static LLVMValueRef codegen_parse(
 
   } else if (node->kind == ND_ArgVar) {
     eputs("Raw ND_ArgVar unimplemented");
-      exit(1);
+    exit(1);
 
   } else if (node->kind == ND_Block) {
     eputs("Raw ND_Block unimplemented");

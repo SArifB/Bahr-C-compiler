@@ -1,10 +1,9 @@
+#include <bin/input.h>
 #include <codegen/mod.h>
-// #include <engine/mod.h>
 #include <lexer/mod.h>
 #include <parser/mod.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <utility/mod.h>
 
 i32 main(i32 argc, cstr argv[]) {
@@ -13,36 +12,19 @@ i32 main(i32 argc, cstr argv[]) {
     eprintf("Usage: %s <input file>", argv[0]);
     return 1;
   }
-  FILE* fptr = fopen(argv[1], "r");
-  if (fptr == nullptr) {
-    perror("fopen");
-    return 1;
-  }
-  enum { buf_size = 64 };
-  char buffer[buf_size];
-  str ref_str = calloc((usize)buf_size * 10, sizeof(char));
-  if (ref_str == nullptr) {
-    perror("calloc");
-    return 1;
-  }
-  str curs = buffer;
-  while ((curs = fgets(curs, buf_size, fptr)) != nullptr) {
-    strncat(ref_str, curs, buf_size);
-  }
-  fclose(fptr);
+  StrView content = input_file(argv[1]);
+  eputw(content);
+  eputs("\n-----------------------------------------------");
 
   // Lex String
-  TokenVector* tokens = lex_string((StrView){
-    ref_str,
-    ref_str + strlen(ref_str),
-  });
+  TokenVector* tokens = lex_string(content);
   lexer_print(tokens);
   eputs("\n-----------------------------------------------");
 
   // Parse lexer
   Node* prog = parse_lexer(tokens);
   free(tokens);
-  free(ref_str);
+  input_free(content);
   print_ast(prog);
   eputs("\n-----------------------------------------------");
 
