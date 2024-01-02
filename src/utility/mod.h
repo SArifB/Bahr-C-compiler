@@ -29,6 +29,8 @@ struct StrView {
   cstr sen;
 };
 
+#define view_len(view) ((view).sen - (view).itr)
+
 #define unused [[maybe_unused]]
 #define undiscardable [[nodiscard]]
 #define unreturning [[noreturn]]
@@ -43,7 +45,8 @@ struct StrView {
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define sizeof_arr(arr) (sizeof(arr) / sizeof(*(arr)))
 
-#define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__);
-#define evprintf(fmt, ...) vfprintf(stderr, fmt, __VA_ARGS__);
-#define eputs(string) fputs(string "\n", stderr);
-#define eputc(ch) fputc(ch, stderr);
+#define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
+#define evprintf(fmt, ...) vfprintf(stderr, fmt, __VA_ARGS__)
+#define eputs(string) fputs(string "\n", stderr)
+#define eputw(view) eprintf("%.*s\n", (i32)view_len(view), (view).itr)
+#define eputc(ch) fputc(ch, stderr)
