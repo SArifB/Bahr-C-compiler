@@ -57,7 +57,7 @@ target_link_libraries(bin PRIVATE
 )
 
 target_link_libraries(bin PRIVATE
-	lexer
+	arena
 	parser
 	codegen
 )
@@ -97,35 +97,10 @@ target_link_libraries(codegen PUBLIC
 	LLVM
 )
 
-# Target: lexer
-set(lexer_SOURCES
-	"./src/lexer/mod.c"
-	cmake.toml
-)
-
-add_library(lexer STATIC)
-
-target_sources(lexer PRIVATE ${lexer_SOURCES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${lexer_SOURCES})
-
-target_compile_options(lexer PUBLIC
-	-Wall
-	-Werror
-	-Wextra
-	-std=c2x
-)
-
-target_include_directories(lexer PUBLIC
-	src
-)
-
-target_link_libraries(lexer PUBLIC
-	utility
-)
-
 # Target: parser
 set(parser_SOURCES
 	"./src/parser/ctors.c"
+	"./src/parser/lexer.c"
 	"./src/parser/mod.c"
 	"./src/parser/print.c"
 	cmake.toml
@@ -149,11 +124,6 @@ target_include_directories(parser PUBLIC
 
 target_link_libraries(parser PUBLIC
 	utility
-)
-
-target_link_libraries(parser PUBLIC
-	lexer
-	arena
 )
 
 # Target: arena

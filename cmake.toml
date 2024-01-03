@@ -7,26 +7,16 @@ languages = ["C"]
 [target.bin]
 type = "my_executable"
 sources = ["./src/bin/*.c"]
-link-libraries = ["lexer", "parser", "codegen"]
+link-libraries = ["arena", "parser", "codegen"]
 
 [target.codegen]
 type = "my_library"
 sources = ["./src/codegen/*.c"]
 link-libraries = ["LLVM"]
 
-# [target.engine]
-# type = "my_library"
-# sources = ["./src/engine/*.c"]
-# link-libraries = ["LLVM"]
-
-[target.lexer]
-type = "my_library"
-sources = ["./src/lexer/*.c"]
-
 [target.parser]
 type = "my_library"
 sources = ["./src/parser/*.c"]
-link-libraries = ["lexer", "arena"]
 
 [target.arena]
 type = "my_library"
