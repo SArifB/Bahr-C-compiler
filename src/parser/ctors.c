@@ -83,12 +83,33 @@ Node* make_basic_value(Node* type, StrView view) {
   };
   strncpy(node->value.basic.array, view.itr, size);
   node->value.basic.array[size] = 0;
-  for (usize i = 0; i + 1 != size; ++i) {
-    if (node->value.basic.array[i] == '\\' && node->value.basic.array[i + 1] == 'n') {
-      node->value.basic.array[i] = ' ';
-      node->value.basic.array[i + 1] = '\n';
+
+Node* make_str_value(StrView view) {
+  usize size = view.sen - view.itr;
+  Node* node = parser_alloc(
+    NODE_BASE_SIZE + sizeof(ValueNode) + sizeof(char) * (size + 1)
+  );
+  *node = (Node){
+    .kind = ND_Value,
+    .value =
+      (ValueNode){
+        .kind = TP_Str,
+        .type = make_basic_type(TP_Str),
+      },
+  };
+  cstr restrict src = view.itr;
+  str restrict itr = node->value.basic.array;
+  for (; src != view.sen; ++itr, ++src) {
+    if (*src == '\\' && *(src + 1) == 'n') {
+      *itr = '\n';
+      src += 1;
+      size -= 1;
+    } else {
+      *itr = *src;
     }
   }
+  *itr = 0;
+  node->value.basic.size = size;
   return node;
 }
 

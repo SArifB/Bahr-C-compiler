@@ -28,8 +28,8 @@ main:                                   # @main
 	.type	.L.str,@object                  # @.str
 	.data
 .L.str:
-	.asciz	"hello \nworld"
-	.size	.L.str, 13
+	.asciz	"hello\nworld"
+	.size	.L.str, 12
 
 	.type	.L.str.1,@object                # @.str.1
 .L.str.1:

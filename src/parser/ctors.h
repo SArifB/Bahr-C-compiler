@@ -7,6 +7,7 @@ extern Node* make_sub(Node* lhs, Node* rhs, Token* token);
 extern Node* make_oper(OperKind oper, Node* lhs, Node* rhs);
 extern Node* make_unary(NodeKind kind, Node* value);
 extern Node* make_basic_value(Node* type, StrView view);
+extern Node* make_str_value(StrView view);
 extern Node* make_basic_type(TypeKind kind);
 extern Node* make_numeric_type(TypeKind kind, i32 width);
 extern Node* make_pointer_value(Node* type, Node* value);
