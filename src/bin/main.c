@@ -1,10 +1,24 @@
+#include <arena/mod.h>
 #include <bin/input.h>
 #include <codegen/mod.h>
-#include <lexer/mod.h>
 #include <parser/mod.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <utility/mod.h>
+
+static Arena DEFAULT_ARENA = {};
+
+static inline void* default_alloc(usize size) {
+  return arena_alloc(&DEFAULT_ARENA, size);
+}
+
+static inline void default_dealloc() {
+  arena_free(&DEFAULT_ARENA);
+}
+
+static inline void void_fn(void*) {
+  return;
+}
 
 i32 main(i32 argc, cstr argv[]) {
   // Get String
@@ -16,23 +30,25 @@ i32 main(i32 argc, cstr argv[]) {
   eputw(content);
   eputs("\n-----------------------------------------------");
 
-  // Lex String
-  TokenVector* tokens = lex_string(content);
-  lexer_print(tokens);
-  eputs("\n-----------------------------------------------");
+  // Set memory management
+  parser_set_alloc(default_alloc);
+  parser_set_dealloc(void_fn);
+  codegen_set_alloc(default_alloc);
+  codegen_set_dealloc(void_fn);
 
-  // Parse lexer
-  Node* prog = parse_lexer(tokens);
-  free(tokens);
-  input_free(content);
+  // Parse String
+  Node* prog = parse_string(content);
   print_ast(prog);
   eputs("\n-----------------------------------------------");
 
   // Generate code
   Codegen* cdgn = codegen_make("some_code");
   codegen_generate(cdgn, prog);
-  free_ast();
-  codegen_dispose(cdgn);
   eputs("\n-----------------------------------------------");
+
+  // Cleanup owned memory
+  input_free(content);
+  codegen_dispose(cdgn);
+  default_dealloc();
   return 0;
 }

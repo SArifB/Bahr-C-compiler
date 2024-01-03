@@ -15,7 +15,7 @@ StrView input_file(const char* filename) {
   if (fstat(fd, &sb) == -1) {
     exit(1);
   }
-  char* addr = mmap(nullptr, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  str addr = mmap(nullptr, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
   if (addr == MAP_FAILED) {
     exit(1);
   }
@@ -24,5 +24,7 @@ StrView input_file(const char* filename) {
 }
 
 void input_free(StrView view) {
-  munmap((char*)view.itr, view_len(view));
+  if (munmap((str)view.itr, view_len(view)) == -1) {
+    exit(1);
+  };
 }
