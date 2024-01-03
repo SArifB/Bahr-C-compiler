@@ -9,14 +9,25 @@
 #include <utility/mod.h>
 #include <utility/vec.h>
 
+static fn(void*(usize)) codegen_alloc = nullptr;
+static fn(void(void*)) codegen_dealloc = nullptr;
+
+void codegen_set_alloc(fn(void*(usize)) ctor) {
+  codegen_alloc = ctor;
+}
+
+void codegen_set_dealloc(fn(void(void*)) dtor) {
+  codegen_dealloc = dtor;
+}
+
 DECLARE_VECTOR(LLVMValueRef)
-DEFINE_VECTOR(LLVMValueRef, malloc, free)
+DEFINE_VECTOR(LLVMValueRef, codegen_alloc, codegen_dealloc)
 
 DECLARE_VECTOR(LLVMTypeRef)
-DEFINE_VECTOR(LLVMTypeRef, malloc, free)
+DEFINE_VECTOR(LLVMTypeRef, codegen_alloc, codegen_dealloc)
 
 DECLARE_VECTOR(cstr)
-DEFINE_VECTOR(cstr, malloc, free)
+DEFINE_VECTOR(cstr, codegen_alloc, codegen_dealloc)
 
 typedef struct {
   LLVMValueRef function;
@@ -25,7 +36,7 @@ typedef struct {
 } DeclFn;
 
 DECLARE_VECTOR(DeclFn)
-DEFINE_VECTOR(DeclFn, malloc, free)
+DEFINE_VECTOR(DeclFn, codegen_alloc, codegen_dealloc)
 
 typedef struct {
   LLVMValueRef variable;
@@ -34,13 +45,13 @@ typedef struct {
 } DeclVar;
 
 DECLARE_VECTOR(DeclVar)
-DEFINE_VECTOR(DeclVar, malloc, free)
+DEFINE_VECTOR(DeclVar, codegen_alloc, codegen_dealloc)
 
 Codegen* codegen_make(cstr name) {
-  Codegen* cdgn = malloc(sizeof(Codegen));
+  Codegen* cdgn = codegen_alloc(sizeof(Codegen));
   if (cdgn == nullptr) {
-    perror("malloc");
-    exit(-1);
+    eputs("codegen_alloc failed");
+    exit(1);
   }
   LLVMContextRef ctx = LLVMContextCreate();
   *cdgn = (Codegen){
@@ -54,12 +65,12 @@ Codegen* codegen_make(cstr name) {
 static DeclFnVector* decl_fns = nullptr;
 
 void codegen_dispose(Codegen* cdgn) {
-  free(decl_fns);
+  codegen_dealloc(decl_fns);
   LLVMShutdown();
   LLVMDisposeBuilder(cdgn->bldr);
   LLVMDisposeModule(cdgn->mod);
   LLVMContextDispose(cdgn->ctx);
-  free(cdgn);
+  codegen_dealloc(cdgn);
 }
 
 unreturning static void print_cdgn_err(NodeKind kind) {
@@ -212,9 +223,9 @@ static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
   );
 
   if (node->function.body == nullptr) {
-    free(arg_types);
-    free(arg_names);
-    free(decl_vars);
+    codegen_dealloc(arg_types);
+    codegen_dealloc(arg_names);
+    codegen_dealloc(decl_vars);
     return function;
   }
 
@@ -243,9 +254,9 @@ static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
     unused LLVMValueRef ret = codegen_parse(cdgn, branch, function);
   }
 
-  free(arg_types);
-  free(arg_names);
-  free(decl_vars);
+  codegen_dealloc(arg_types);
+  codegen_dealloc(arg_names);
+  codegen_dealloc(decl_vars);
   return function;
 }
 
@@ -417,6 +428,54 @@ static LLVMValueRef codegen_call(
     cdgn->bldr, decl_fn->type, decl_fn->function, call_args->buffer,
     call_args->length, decl_fn->name
   );
-  free(call_args);
+  codegen_dealloc(call_args);
   return result;
 }
+/*
+LLVMExecutionEngineRef engine_make(Codegen* cdgn);
+void engine_shutdown(LLVMExecutionEngineRef engine);
+
+LLVMExecutionEngineRef engine_make(Codegen* cdgn) {
+  str error = nullptr;
+  LLVMVerifyModule(cdgn->mod, LLVMAbortProcessAction, &error);
+  LLVMDisposeMessage(error);
+  // LLVMDumpModule(cdgn->mod);
+  str str_mod = LLVMPrintModuleToString(cdgn->mod);
+  if (str_mod == nullptr) {
+    eputs("failed to create string reperesentation of module");
+    exit(1);
+  }
+  printf("%s\n", str_mod);
+  LLVMDisposeMessage(str_mod);
+
+  LLVMExecutionEngineRef engine;
+  LLVMLinkInMCJIT();
+  LLVMInitializeNativeTarget();
+  LLVMInitializeNativeAsmPrinter();
+  LLVMInitializeNativeAsmParser();
+
+  error = nullptr;
+  if (LLVMCreateExecutionEngineForModule(&engine, cdgn->mod, &error) != 0) {
+    eputs("failed to create execution engine");
+    exit(1);
+  }
+  if (error) {
+    eprintf("error: %s\n", error);
+    exit(1);
+  }
+  LLVMDisposeMessage(error);
+
+  // isize addr = LLVMGetFunctionAddress(engine, "sum");
+  // fn(int(int, int)) func = (any)addr;
+  // feprintln(stderr, "Sum val: %d\n", func(x, y));
+
+  // LLVMRemoveModule(engine, cdgn->mod, &cdgn->mod, &error);
+  // LLVMDisposeExecutionEngine(engine);
+  return engine;
+}
+
+void engine_shutdown(LLVMExecutionEngineRef engine) {
+  LLVMDisposeExecutionEngine(engine);
+  LLVMShutdown();
+}
+ */

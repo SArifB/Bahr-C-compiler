@@ -14,3 +14,6 @@ struct Codegen {
 extern Codegen* codegen_make(cstr name);
 extern LLVMValueRef codegen_generate(Codegen* cdgn, Node* prog);
 extern void codegen_dispose(Codegen* cdgn);
+
+extern void codegen_set_alloc(fn(void*(usize)) ctor);
+extern void codegen_set_dealloc(fn(void(void*)) dtor);
