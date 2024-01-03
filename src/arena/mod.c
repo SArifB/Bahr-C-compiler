@@ -1,22 +1,25 @@
 #include <arena/mod.h>
 #include <stdlib.h>
-#include <string.h>
+#include <sys/mman.h>
 #include <utility/mod.h>
 
-Arena* DEFAULT_ARENA = &(Arena){};
-
 #define DEF_REG_CAP (usize)(8 * 1024)
+#define ELEM_SIZE(size) (((size) + sizeof(isize) - 1) / sizeof(isize))
 
-Region* region_alloc(const usize capacity) {
-  Region* tmp = malloc(sizeof(Region) + sizeof(usize) * capacity);
-  if (tmp != nullptr) {
-    *tmp = (Region){.capacity = capacity};
+static Region* region_alloc(const usize capacity) {
+  const usize size = sizeof(Region) + sizeof(usize) * capacity;
+  Region* tmp = mmap(
+    nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0
+  );
+  if (tmp == MAP_FAILED) {
+    exit(1);
   }
+  *tmp = (Region){.capacity = DEF_REG_CAP};
   return tmp;
 }
 
-any arena_alloc(Arena arena[static 1], const usize size_in) {
-  const usize size = (size_in + sizeof(isize) - 1) / sizeof(isize);
+void* arena_alloc(Arena arena[static 1], const usize size_in) {
+  const usize size = ELEM_SIZE(size_in);
 
   if (arena->end == nullptr) {
     arena->end = region_alloc(max(DEF_REG_CAP, size));
@@ -33,19 +36,32 @@ any arena_alloc(Arena arena[static 1], const usize size_in) {
     arena->end = arena->end->next;
   }
 
-  any result = &arena->end->data[arena->end->count];
+  void* result = &arena->end->data[arena->end->count];
   arena->end->count += size;
   return result;
 }
 
-any arena_realloc(
-  Arena arena[static 1], any old_ptr, const usize old_size, const usize new_size
+static void memory_copy(
+  usize* const restrict dest, const usize* const restrict src, const usize size
+) {
+  for (usize i = 0; i < size; ++i) {
+    dest[i] = src[i];
+  }
+}
+
+void* arena_realloc(
+  Arena arena[static 1], void* old_ptr, const usize old_size,
+  const usize new_size
 ) {
   if (new_size <= old_size) {
     return old_ptr;
   }
-  any tmp = arena_alloc(arena, new_size);
-  memcpy(tmp, old_ptr, old_size);
+  if (old_ptr == &arena->end->data[arena->end->count - ELEM_SIZE(old_size)]) {
+    arena->end->count += ELEM_SIZE(new_size) - ELEM_SIZE(old_size);
+    return old_ptr;
+  }
+  void* tmp = arena_alloc(arena, new_size);
+  memory_copy(tmp, old_ptr, old_size);
   return tmp;
 }
 
@@ -63,6 +79,8 @@ void arena_free(Arena arena[static 1]) {
   while (region != nullptr) {
     Region* tmp = region;
     region = region->next;
-    free(tmp);
+    if (munmap(tmp, tmp->capacity) == -1) {
+      exit(1);
+    };
   }
 }
