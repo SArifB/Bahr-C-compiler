@@ -1,5 +1,4 @@
 #pragma once
-#include <stddef.h>
 #include <stdint.h>
 
 typedef int8_t i8;
@@ -12,8 +11,8 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-typedef size_t usize;
-typedef ptrdiff_t isize;
+typedef uintptr_t usize;
+typedef intptr_t isize;
 
 typedef float f32;
 typedef double f64;
@@ -21,7 +20,6 @@ typedef long double f128;
 
 typedef const char* cstr;
 typedef char* str;
-typedef void* any;
 
 typedef struct StrView StrView;
 struct StrView {
@@ -30,6 +28,12 @@ struct StrView {
 };
 
 #define view_len(view) ((view).sen - (view).itr)
+
+typedef struct StrSpan StrSpan;
+struct StrSpan {
+  usize size;
+  char array[];
+};
 
 #define unused [[maybe_unused]]
 #define undiscardable [[nodiscard]]

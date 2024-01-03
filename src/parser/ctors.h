@@ -19,13 +19,6 @@ extern Node* make_while_node(Node* cond, Node* then);
 extern Node* make_call_node(StrView view, Node* args);
 extern Node* make_function(Node* type, StrView view, Node* body, Node* args);
 
-typedef struct Arena Arena;
-extern Arena PARSER_ARENA;
-extern any parser_alloc(usize size);
-
-extern void free_none(any);
-
-typedef struct Node* NodeRef;
-DECLARE_VECTOR(NodeRef)
-
+extern fn(void*(usize)) parser_alloc;
+extern fn(void(void*)) parser_dealloc;
 extern NodeRefVector* current_locals;

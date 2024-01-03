@@ -1,19 +1,16 @@
 #include <arena/mod.h>
-#include <lexer/errors.h>
-#include <lexer/mod.h>
 #include <parser/ctors.h>
+#include <parser/lexer.h>
 #include <parser/mod.h>
+#include <stdlib.h>
 #include <string.h>
 #include <utility/mod.h>
 
-Arena PARSER_ARENA = {};
+static Node* parse_lexer(TokenVector* tokens);
 
-void free_ast() {
-  arena_free(&PARSER_ARENA);
-}
-
-any parser_alloc(usize size) {
-  return arena_alloc(&PARSER_ARENA, size);
+Node* parse_string(const StrView view) {
+  TokenVector* tokens = lex_string(view);
+  return parse_lexer(tokens);
 }
 
 NodeRefVector* current_locals = nullptr;
@@ -152,7 +149,7 @@ static Node* unary(Token** rest, Token* token);
 static Node* primary(Token** rest, Token* token);
 
 // program = functions*
-Node* parse_lexer(TokenVector* tokens) {
+static Node* parse_lexer(TokenVector* tokens) {
   Token* token = tokens->buffer;
 
   Node handle = {};
@@ -397,9 +394,9 @@ static Node* primary(Token** rest, Token* token) {
   } else if (token->kind == TK_NumLiteral) {
     if (token->info == AD_SIntType) {
       Node* type = make_numeric_type(TP_SInt, 32);
-    Node* node = make_basic_value(type, token->pos);
-    *rest = token + 1;
-    return node;
+      Node* node = make_basic_value(type, token->pos);
+      *rest = token + 1;
+      return node;
 
     } else if (token->info == AD_F64Type) {
       Node* type = make_numeric_type(TP_Flt, 64);
@@ -410,8 +407,7 @@ static Node* primary(Token** rest, Token* token) {
     error_tok(token, "Expected i32 or f64 type literal");
 
   } else if (token->kind == TK_StrLiteral) {
-    Node* type = make_basic_type(TP_Str);
-    Node* node = make_basic_value(type, token->pos);
+    Node* node = make_str_value(token->pos);
     *rest = token + 1;
     return node;
   }

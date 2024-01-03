@@ -1,11 +1,10 @@
 #pragma once
-#include <lexer/mod.h>
+#include <parser/lexer.h>
 #include <utility/mod.h>
 
 typedef enum OperKind OperKind;
 typedef enum TypeKind TypeKind;
 typedef enum NodeKind NodeKind;
-typedef struct VarCharArr VarCharArr;
 typedef struct OperNode OperNode;
 typedef struct ValueNode ValueNode;
 typedef struct DeclNode DeclNode;
@@ -13,13 +12,8 @@ typedef struct FnNode FnNode;
 typedef struct IfNode IfNode;
 typedef struct WhileNode WhileNode;
 typedef struct CallNode CallNode;
-typedef struct NodeBase NodeBase;
-typedef struct Node Node;
-
-struct VarCharArr {
-  usize size;
-  char array[];
-};
+typedef struct Node Node, *NodeRef;
+DECLARE_VECTOR(NodeRef)
 
 enum OperKind {
   OP_Add,
@@ -59,7 +53,7 @@ struct ValueNode {
   u8 bit_width;
   Node* type;
   union {
-    VarCharArr basic;
+    StrSpan basic;
     Node* base;
   };
 };
@@ -67,7 +61,7 @@ struct ValueNode {
 struct DeclNode {
   Node* type;
   Node* value;
-  VarCharArr name;
+  StrSpan name;
 };
 
 typedef struct NodeRefVector NodeRefVector;
@@ -76,7 +70,7 @@ struct FnNode {
   Node* args;
   Node* body;
   NodeRefVector* locals;
-  VarCharArr name;
+  StrSpan name;
 };
 
 struct IfNode {
@@ -92,7 +86,7 @@ struct WhileNode {
 
 struct CallNode {
   Node* args;
-  VarCharArr name;
+  StrSpan name;
 };
 
 enum NodeKind {
@@ -114,19 +108,11 @@ enum NodeKind {
   ND_Call,
 };
 
-struct NodeBase {
-  NodeKind kind;
-  Node* next;
-};
+#define NODE_BASE_SIZE (sizeof(usize) * 2)
 
 struct Node {
-  union {
-    struct {
-      NodeKind kind;
-      Node* next;
-    };
-    NodeBase base;
-  };
+  NodeKind kind;
+  Node* next;
   union {
     OperNode operation;
     Node* unary;
@@ -139,9 +125,11 @@ struct Node {
   };
 };
 
-extern Node* parse_lexer(TokenVector* tokens);
+extern Node* parse_string(const StrView view);
 extern void print_ast(Node* prog);
-extern void free_ast();
+
+extern void parser_set_alloc(fn(void*(usize)) ctor);
+extern void parser_set_dealloc(fn(void(void*)) dtor);
 
 #define view_from(var_arr) \
   ((StrView){(var_arr).array, (var_arr).array + (var_arr).size})

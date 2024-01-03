@@ -1,11 +1,23 @@
-#include <lexer/errors.h>
 #include <parser/ctors.h>
+#include <parser/lexer.h>
 #include <parser/mod.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <utility/mod.h>
 
-void free_none(any) {
+fn(void*(usize)) parser_alloc = nullptr;
+fn(void(void*)) parser_dealloc = nullptr;
+
+void parser_set_alloc(fn(void*(usize)) ctor) {
+  parser_alloc = ctor;
 }
-DEFINE_VECTOR(NodeRef, parser_alloc, free_none);
+
+void parser_set_dealloc(fn(void(void*)) dtor) {
+  parser_dealloc = dtor;
+}
+
+DEFINE_VECTOR(NodeRef, parser_alloc, parser_dealloc);
 
 // static bool is_integer(Node* node) {
 //   return node->kind == ND_Value &&
@@ -45,9 +57,9 @@ DEFINE_VECTOR(NodeRef, parser_alloc, free_none);
 // }
 
 Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
-  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(OperNode));
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(OperNode));
   *node = (Node){
-    .base.kind = ND_Operation,
+    .kind = ND_Operation,
     .operation =
       (OperNode){
         .kind = oper,
@@ -59,9 +71,9 @@ Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
 }
 
 Node* make_unary(NodeKind kind, Node* value) {
-  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(Node*));
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(Node*));
   *node = (Node){
-    .base.kind = kind,
+    .kind = kind,
     .unary = value,
   };
   return node;
@@ -70,10 +82,10 @@ Node* make_unary(NodeKind kind, Node* value) {
 Node* make_basic_value(Node* type, StrView view) {
   usize size = view.sen - view.itr;
   Node* node = parser_alloc(
-    sizeof(NodeBase) + sizeof(ValueNode) + sizeof(char) * (size + 1)
+    NODE_BASE_SIZE + sizeof(ValueNode) + sizeof(char) * (size + 1)
   );
   *node = (Node){
-    .base.kind = ND_Value,
+    .kind = ND_Value,
     .value =
       (ValueNode){
         .kind = type->value.kind,
@@ -81,8 +93,10 @@ Node* make_basic_value(Node* type, StrView view) {
         .basic.size = size,
       },
   };
-  strncpy(node->value.basic.array, view.itr, size);
+  memcpy(node->value.basic.array, view.itr, size);
   node->value.basic.array[size] = 0;
+  return node;
+}
 
 Node* make_str_value(StrView view) {
   usize size = view.sen - view.itr;
@@ -114,9 +128,9 @@ Node* make_str_value(StrView view) {
 }
 
 Node* make_basic_type(TypeKind kind) {
-  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(ValueNode));
   *node = (Node){
-    .base.kind = ND_Type,
+    .kind = ND_Type,
     .value =
       (ValueNode){
         .is_type = true,
@@ -127,9 +141,9 @@ Node* make_basic_type(TypeKind kind) {
 }
 
 Node* make_numeric_type(TypeKind kind, i32 width) {
-  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(ValueNode));
   *node = (Node){
-    .base.kind = ND_Type,
+    .kind = ND_Type,
     .value =
       (ValueNode){
         .is_type = true,
@@ -141,9 +155,9 @@ Node* make_numeric_type(TypeKind kind, i32 width) {
 }
 
 Node* make_pointer_value(Node* type, Node* value) {
-  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(ValueNode));
   *node = (Node){
-    .base.kind = ND_Value,
+    .kind = ND_Value,
     .value =
       (ValueNode){
         .kind = TP_Ptr,
@@ -155,9 +169,9 @@ Node* make_pointer_value(Node* type, Node* value) {
 }
 
 Node* make_pointer_type(Node* type) {
-  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(ValueNode));
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(ValueNode));
   *node = (Node){
-    .base.kind = ND_Type,
+    .kind = ND_Type,
     .value =
       (ValueNode){
         .is_type = true,
@@ -173,11 +187,10 @@ Node* make_declaration(Node* type, StrView view, Node* value) {
     current_locals = NodeRef_vector_make(8);
   }
   usize size = view.sen - view.itr;
-  Node* node = parser_alloc(
-    sizeof(NodeBase) + sizeof(DeclNode) + sizeof(char) * (size + 1)
-  );
+  Node* node =
+    parser_alloc(NODE_BASE_SIZE + sizeof(DeclNode) + sizeof(char) * (size + 1));
   *node = (Node){
-    .base.kind = ND_Decl,
+    .kind = ND_Decl,
     .declaration =
       (DeclNode){
         .type = type,
@@ -185,7 +198,7 @@ Node* make_declaration(Node* type, StrView view, Node* value) {
         .name.size = size,
       },
   };
-  strncpy(node->declaration.name.array, view.itr, size);
+  memcpy(node->declaration.name.array, view.itr, size);
   node->declaration.name.array[size] = 0;
   NodeRef_vector_push(&current_locals, node);
   return node;
@@ -196,18 +209,17 @@ Node* make_arg_var(Node* type, StrView view) {
     current_locals = NodeRef_vector_make(8);
   }
   usize size = view.sen - view.itr;
-  Node* node = parser_alloc(
-    sizeof(NodeBase) + sizeof(DeclNode) + sizeof(char) * (size + 1)
-  );
+  Node* node =
+    parser_alloc(NODE_BASE_SIZE + sizeof(DeclNode) + sizeof(char) * (size + 1));
   *node = (Node){
-    .base.kind = ND_ArgVar,
+    .kind = ND_ArgVar,
     .declaration =
       (DeclNode){
         .type = type,
         .name.size = size,
       },
   };
-  strncpy(node->declaration.name.array, view.itr, size);
+  memcpy(node->declaration.name.array, view.itr, size);
   node->declaration.name.array[size] = 0;
   NodeRef_vector_push(&current_locals, node);
   return node;
@@ -216,9 +228,9 @@ Node* make_arg_var(Node* type, StrView view) {
 Node* make_function(Node* type, StrView view, Node* body, Node* args) {
   usize size = view.sen - view.itr;
   Node* node =
-    parser_alloc(sizeof(NodeBase) + sizeof(FnNode) + sizeof(char) * (size + 1));
+    parser_alloc(NODE_BASE_SIZE + sizeof(FnNode) + sizeof(char) * (size + 1));
   *node = (Node){
-    .base.kind = ND_Function,
+    .kind = ND_Function,
     .function =
       (FnNode){
         .body = body,
@@ -228,15 +240,15 @@ Node* make_function(Node* type, StrView view, Node* body, Node* args) {
         .name.size = size,
       },
   };
-  strncpy(node->function.name.array, view.itr, size);
+  memcpy(node->function.name.array, view.itr, size);
   node->function.name.array[size] = 0;
   return node;
 }
 
 Node* make_if_node(Node* cond, Node* then, Node* elseb) {
-  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(IfNode));
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(IfNode));
   *node = (Node){
-    .base.kind = ND_If,
+    .kind = ND_If,
     .if_node =
       (IfNode){
         .cond = cond,
@@ -248,9 +260,9 @@ Node* make_if_node(Node* cond, Node* then, Node* elseb) {
 }
 
 Node* make_while_node(Node* cond, Node* then) {
-  Node* node = parser_alloc(sizeof(NodeBase) + sizeof(WhileNode));
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(WhileNode));
   *node = (Node){
-    .base.kind = ND_While,
+    .kind = ND_While,
     .while_node =
       (WhileNode){
         .cond = cond,
@@ -262,18 +274,17 @@ Node* make_while_node(Node* cond, Node* then) {
 
 Node* make_call_node(StrView view, Node* args) {
   usize size = view.sen - view.itr;
-  Node* node = parser_alloc(
-    sizeof(NodeBase) + sizeof(CallNode) + sizeof(char) * (size + 1)
-  );
+  Node* node =
+    parser_alloc(NODE_BASE_SIZE + sizeof(CallNode) + sizeof(char) * (size + 1));
   *node = (Node){
-    .base.kind = ND_Call,
+    .kind = ND_Call,
     .call_node =
       (CallNode){
         .args = args,
         .name.size = size,
       },
   };
-  strncpy(node->call_node.name.array, view.itr, size);
+  memcpy(node->call_node.name.array, view.itr, size);
   node->call_node.name.array[size] = 0;
   return node;
 }
