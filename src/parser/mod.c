@@ -353,10 +353,6 @@ static Node* unary(Token** rest, Token* token) {
     return unary(rest, token + 1);
   } else if (token->info == PK_Sub) {
     return make_unary(ND_Negation, unary(rest, token + 1));
-  } else if (token->info == PK_Ampersand) {
-    return make_unary(ND_Addr, unary(rest, token + 1));
-  } else if (token->info == PK_Mul) {
-    return make_unary(ND_Deref, unary(rest, token + 1));
   }
   return primary(rest, token);
 }
@@ -375,14 +371,34 @@ static Node* fn_call(Token** rest, Token* token) {
 
 // primary = "(" expr ")" | ident func-args? | num
 static Node* primary(Token** rest, Token* token) {
-  if (token->info == PK_LeftParen) {
-    Node* node = expr(&token, token + 1);
-    *rest = expect_info(token, PK_RightParen);
-    return node;
+  if (token->kind == TK_Punct) {
+    if (token->info == PK_LeftParen) {
+      Node* node = expr(&token, token + 1);
+      *rest = expect_info(token, PK_RightParen);
+      return node;
+    } else if (token->info == PK_LeftBracket) {
+      return stmt(rest, token);
+    }
 
   } else if (token->kind == TK_Ident) {
-    if ((token + 1)->info == PK_LeftParen) {
+    if (token[1].info == PK_LeftParen) {
       return fn_call(rest, token);
+
+    } else if (token[1].info == PK_Ampersand) {
+      Node* var = find_variable(token);
+      if (var == nullptr) {
+        error_tok(token, "Variable not found in scope");
+      }
+      *rest = token + 2;
+      return make_unary(ND_Addr, var);
+
+    } else if (token[1].info == PK_Mul) {
+      Node* var = find_variable(token);
+      if (var == nullptr) {
+        error_tok(token, "Variable not found in scope");
+      }
+      *rest = token + 2;
+      return make_unary(ND_Deref, var);
     }
     Node* var = find_variable(token);
     if (var == nullptr) {
