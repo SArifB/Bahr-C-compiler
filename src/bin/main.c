@@ -33,8 +33,8 @@ i32 main(i32 argc, cstr argv[]) {
   // Set memory management
   parser_set_alloc(default_alloc);
   parser_set_dealloc(void_fn);
-  codegen_set_alloc(default_alloc);
-  codegen_set_dealloc(void_fn);
+  codegen_set_alloc(malloc);
+  codegen_set_dealloc(free);
 
   // Parse String
   Node* prog = parse_string(content);

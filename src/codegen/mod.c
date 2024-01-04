@@ -30,8 +30,9 @@ DECLARE_VECTOR(cstr)
 DEFINE_VECTOR(cstr, codegen_alloc, codegen_dealloc)
 
 typedef struct {
-  LLVMValueRef function;
+  LLVMValueRef value;
   LLVMTypeRef type;
+  cstrVector* arg_names;
   cstr name;
 } DeclFn;
 
@@ -62,10 +63,7 @@ Codegen* codegen_make(cstr name) {
   return cdgn;
 }
 
-static DeclFnVector* decl_fns = nullptr;
-
 void codegen_dispose(Codegen* cdgn) {
-  codegen_dealloc(decl_fns);
   LLVMShutdown();
   LLVMDisposeBuilder(cdgn->bldr);
   LLVMDisposeModule(cdgn->mod);
@@ -95,6 +93,7 @@ unreturning static void print_cdgn_err(NodeKind kind) {
   exit(1);
 }
 
+static DeclFnVector* decl_fns = nullptr;
 static DeclVarVector* decl_vars = nullptr;
 
 static DeclFn* get_decl_fn(StrView name) {
@@ -155,6 +154,7 @@ static LLVMTypeRef get_type(LLVMContextRef ctx, Node* type) {
   exit(1);
 }
 
+static LLVMValueRef codegen_reg_fns(Codegen* cdgn, Node* node);
 static LLVMValueRef codegen_function(Codegen* cdgn, Node* node);
 static LLVMValueRef codegen_parse(
   Codegen* cdgn, Node* node, LLVMValueRef function
@@ -170,9 +170,14 @@ static LLVMValueRef codegen_call(
 );
 
 LLVMValueRef codegen_generate(Codegen* cdgn, Node* prog) {
+  decl_fns = DeclFn_vector_make(8);
+  for (Node* func = prog; func != nullptr; func = func->next) {
+    unused LLVMValueRef ret = codegen_reg_fns(cdgn, func);
+  }
   for (Node* func = prog; func != nullptr; func = func->next) {
     unused LLVMValueRef ret = codegen_function(cdgn, func);
   }
+  codegen_dealloc(decl_fns);
 
   str str_mod = LLVMPrintModuleToString(cdgn->mod);
   if (str_mod == nullptr) {
@@ -192,14 +197,9 @@ LLVMValueRef codegen_generate(Codegen* cdgn, Node* prog) {
   return nullptr;
 }
 
-static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
-  if (decl_fns == nullptr) {
-    decl_fns = DeclFn_vector_make(2);
-  }
-  decl_vars = DeclVar_vector_make(2);
-
-  LLVMTypeRefVector* arg_types = LLVMTypeRef_vector_make(0);
-  cstrVector* arg_names = cstr_vector_make(0);
+static LLVMValueRef codegen_reg_fns(Codegen* cdgn, Node* node) {
+  LLVMTypeRefVector* arg_types = LLVMTypeRef_vector_make(2);
+  cstrVector* arg_names = cstr_vector_make(2);
 
   for (Node* arg = node->function.args; arg != nullptr; arg = arg->next) {
     LLVMTypeRef type = get_type(cdgn->ctx, arg->declaration.type);
@@ -217,32 +217,41 @@ static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
     &decl_fns,
     (DeclFn){
       .name = node->function.name.array,
-      .function = function,
+      .value = function,
       .type = function_type,
+      .arg_names = arg_names,
     }
   );
 
+  codegen_dealloc(arg_types);
+  return function;
+}
+
+static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
   if (node->function.body == nullptr) {
-    codegen_dealloc(arg_types);
-    codegen_dealloc(arg_names);
-    codegen_dealloc(decl_vars);
-    return function;
+    return nullptr;
   }
+  decl_vars = DeclVar_vector_make(2);
+  DeclFn* function = get_decl_fn(view_from(node->function.name));
 
-  LLVMPositionBuilderAtEnd(
-    cdgn->bldr, LLVMAppendBasicBlockInContext(cdgn->ctx, function, "entry")
-  );
+  usize arg_count = LLVMCountParams(function->value);
+  LLVMTypeRefVector* arg_types = LLVMTypeRef_vector_make(arg_count);
+  LLVMGetParamTypes(function->type, arg_types->buffer);
 
-  for (usize i = 0; i < arg_types->length; ++i) {
-    LLVMValueRef decl =
-      LLVMBuildAlloca(cdgn->bldr, arg_types->buffer[i], arg_names->buffer[i]);
-    LLVMValueRef val = LLVMGetParam(function, i);
+  LLVMBasicBlockRef block =
+    LLVMAppendBasicBlockInContext(cdgn->ctx, function->value, "entry");
+  LLVMPositionBuilderAtEnd(cdgn->bldr, block);
+
+  for (usize i = 0; i < arg_count; ++i) {
+    cstr name = function->arg_names->buffer[i];
+    LLVMValueRef decl = LLVMBuildAlloca(cdgn->bldr, arg_types->buffer[i], name);
+    LLVMValueRef val = LLVMGetParam(function->value, i);
     LLVMBuildStore(cdgn->bldr, val, decl);
 
     DeclVar_vector_push(
       &decl_vars,
       (DeclVar){
-        .name = arg_names->buffer[i],
+        .name = name,
         .variable = decl,
         .is_ptr = true,
       }
@@ -251,13 +260,13 @@ static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
 
   for (Node* branch = node->function.body->unary; branch != nullptr;
        branch = branch->next) {
-    unused LLVMValueRef ret = codegen_parse(cdgn, branch, function);
+    unused LLVMValueRef ret = codegen_parse(cdgn, branch, function->value);
   }
 
   codegen_dealloc(arg_types);
-  codegen_dealloc(arg_names);
+  codegen_dealloc(function->arg_names);
   codegen_dealloc(decl_vars);
-  return function;
+  return function->value;
 }
 
 static LLVMValueRef codegen_parse(
@@ -425,7 +434,7 @@ static LLVMValueRef codegen_call(
     LLVMValueRef_vector_push(&call_args, value);
   }
   LLVMValueRef result = LLVMBuildCall2(
-    cdgn->bldr, decl_fn->type, decl_fn->function, call_args->buffer,
+    cdgn->bldr, decl_fn->type, decl_fn->value, call_args->buffer,
     call_args->length, decl_fn->name
   );
   codegen_dealloc(call_args);
