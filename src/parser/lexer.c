@@ -186,13 +186,9 @@ TokenVector* lex_string(const StrView view) {
         tmp_sen += 1;
       }
       if (flt == true) {
-        tokens_push(
-            .kind = TK_NumLiteral, .info = AD_F64Type, .pos = {itr, tmp_sen},
-        );
+        tokens_push(.kind = TK_FltLiteral, .pos = {itr, tmp_sen}, );
       } else {
-        tokens_push(
-            .kind = TK_NumLiteral, .info = AD_SIntType, .pos = {itr, tmp_sen},
-        );
+        tokens_push(.kind = TK_NumLiteral, .pos = {itr, tmp_sen}, );
       }
       itr = tmp_sen - 1;
 
@@ -312,13 +308,14 @@ void lexer_print(TokenVector* tokens) {
   Token* sen = tokens->buffer + tokens->length;
   for (; itr != sen; ++itr) {
     switch (itr->kind) {  // clang-format off
-      case TK_Ident:        eprintf("TK_Ident:%*s", 8, "");       break;
-      case TK_NumLiteral:   eprintf("TK_NumLiteral:%*s", 3, "");  break;
-      case TK_StrLiteral:   eprintf("TK_StrLiteral:%*s", 3, "");  break;
-      case TK_CharLiteral:  eprintf("TK_CharLiteral:%*s", 2, ""); break;
-      case TK_Keyword:      eprintf("TK_Keyword:%*s", 6, "");     break;
-      case TK_Punct:        eprintf("TK_Punct:%*s", 8, "");       break;
-      case TK_EOF:          eprintf("%s","TK_EOF");               break;
+      case TK_Ident:        eprintf("Ident:%*s", 8, "");       break;
+      case TK_NumLiteral:   eprintf("NumLiteral:%*s", 3, "");  break;
+      case TK_FltLiteral:   eprintf("FltLiteral:%*s", 3, "");  break;
+      case TK_StrLiteral:   eprintf("StrLiteral:%*s", 3, "");  break;
+      case TK_CharLiteral:  eprintf("CharLiteral:%*s", 2, ""); break;
+      case TK_Keyword:      eprintf("Keyword:%*s", 6, "");     break;
+      case TK_Punct:        eprintf("Punct:%*s", 8, "");       break;
+      case TK_EOF:          eprintf("%s","EOF");               break;
     }  // clang-format on
     print_str_view(itr->pos);
   }

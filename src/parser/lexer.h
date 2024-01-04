@@ -8,9 +8,10 @@ typedef enum TokenKind TokenKind;
 typedef enum AddInfo AddInfo;
 
 enum TokenKind {
-  TK_EOF = 1 << 0,
-  TK_Ident = 1 << 1,
-  TK_NumLiteral = 1 << 2,
+  TK_EOF = 0,
+  TK_Ident = 1 << 0,
+  TK_NumLiteral = 1 << 1,
+  TK_FltLiteral = 1 << 2,
   TK_StrLiteral = 1 << 3,
   TK_CharLiteral = 1 << 4,
   TK_Keyword = 1 << 5,
