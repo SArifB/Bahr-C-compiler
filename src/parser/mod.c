@@ -392,19 +392,16 @@ static Node* primary(Token** rest, Token* token) {
     return var;
 
   } else if (token->kind == TK_NumLiteral) {
-    if (token->info == AD_SIntType) {
-      Node* type = make_numeric_type(TP_SInt, 32);
-      Node* node = make_basic_value(type, token->pos);
-      *rest = token + 1;
-      return node;
+    Node* type = make_numeric_type(TP_SInt, 32);
+    Node* node = make_basic_value(type, token->pos);
+    *rest = token + 1;
+    return node;
 
-    } else if (token->info == AD_F64Type) {
-      Node* type = make_numeric_type(TP_Flt, 64);
-      Node* node = make_basic_value(type, token->pos);
-      *rest = token + 1;
-      return node;
-    }
-    error_tok(token, "Expected i32 or f64 type literal");
+  } else if (token->kind == TK_FltLiteral) {
+    Node* type = make_numeric_type(TP_Flt, 64);
+    Node* node = make_basic_value(type, token->pos);
+    *rest = token + 1;
+    return node;
 
   } else if (token->kind == TK_StrLiteral) {
     Node* node = make_str_value(token->pos);
