@@ -140,7 +140,7 @@ struct Node {
 };
 
 extern Node* parse_string(const StrView view);
-extern void print_ast(Node* prog);
+extern void enable_verbosity(bool enable);
 
 extern void parser_set_alloc(fn(void*(usize)) ctor);
 extern void parser_set_dealloc(fn(void(void*)) dtor);

@@ -24,3 +24,5 @@ extern Node* make_function(Node* type, StrView view, Node* body, Node* args);
 extern fn(void*(usize)) parser_alloc;
 extern fn(void(void*)) parser_dealloc;
 extern NodeRefVector* current_locals;
+
+extern void print_ast(Node* prog);

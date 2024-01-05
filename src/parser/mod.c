@@ -2,15 +2,31 @@
 #include <parser/ctors.h>
 #include <parser/lexer.h>
 #include <parser/mod.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <utility/mod.h>
+
+static bool print_verbose = false;
+
+void enable_verbosity(bool enable) {
+  print_verbose = enable;
+}
 
 static Node* parse_lexer(TokenVector* tokens);
 
 Node* parse_string(const StrView view) {
   TokenVector* tokens = lex_string(view);
-  return parse_lexer(tokens);
+  if (print_verbose) {
+    lexer_print(tokens);
+    eputs("\n-----------------------------------------------");
+  }
+  Node* prog = parse_lexer(tokens);
+  if (print_verbose) {
+    print_ast(prog);
+    eputs("\n-----------------------------------------------");
+  }
+  return prog;
 }
 
 NodeRefVector* current_locals = nullptr;

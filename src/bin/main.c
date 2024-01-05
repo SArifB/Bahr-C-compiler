@@ -37,9 +37,8 @@ i32 main(i32 argc, cstr argv[]) {
   codegen_set_dealloc(free);
 
   // Parse String
+  enable_verbosity(true);
   Node* prog = parse_string(content);
-  print_ast(prog);
-  eputs("\n-----------------------------------------------");
 
   // Generate code
   Codegen* cdgn = codegen_make("some_code");
