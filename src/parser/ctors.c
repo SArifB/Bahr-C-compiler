@@ -88,7 +88,6 @@ Node* make_basic_value(Node* type, StrView view) {
     .kind = ND_Value,
     .value =
       (ValueNode){
-        .kind = type->value.kind,
         .type = type,
         .basic.size = size,
       },
@@ -107,7 +106,6 @@ Node* make_str_value(StrView view) {
     .kind = ND_Value,
     .value =
       (ValueNode){
-        .kind = TP_Str,
         .type = make_basic_type(TP_Str),
       },
   };
@@ -127,28 +125,14 @@ Node* make_str_value(StrView view) {
   return node;
 }
 
-Node* make_basic_type(TypeKind kind) {
+Node* make_numeric_value(Node* type, u64 num) {
   Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(ValueNode));
   *node = (Node){
-    .kind = ND_Type,
+    .kind = ND_Value,
     .value =
       (ValueNode){
-        .is_type = true,
-        .kind = kind,
-      },
-  };
-  return node;
-}
-
-Node* make_numeric_type(TypeKind kind, i32 width) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(ValueNode));
-  *node = (Node){
-    .kind = ND_Type,
-    .value =
-      (ValueNode){
-        .is_type = true,
-        .kind = kind,
-        .bit_width = width,
+        .type = type,
+        .number = num,
       },
   };
   return node;
@@ -160,7 +144,6 @@ Node* make_pointer_value(Node* type, Node* value) {
     .kind = ND_Value,
     .value =
       (ValueNode){
-        .kind = TP_Ptr,
         .type = type,
         .base = value,
       },
@@ -168,15 +151,53 @@ Node* make_pointer_value(Node* type, Node* value) {
   return node;
 }
 
-Node* make_pointer_type(Node* type) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(ValueNode));
+Node* make_basic_type(TypeKind kind) {
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(TypeNode));
   *node = (Node){
     .kind = ND_Type,
-    .value =
-      (ValueNode){
-        .is_type = true,
+    .type =
+      (TypeNode){
+        .kind = kind,
+      },
+  };
+  return node;
+}
+
+Node* make_numeric_type(TypeKind kind, i32 width) {
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(TypeNode));
+  *node = (Node){
+    .kind = ND_Type,
+    .type =
+      (TypeNode){
+        .kind = kind,
+        .bit_width = width,
+      },
+  };
+  return node;
+}
+
+Node* make_pointer_type(Node* type) {
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(TypeNode));
+  *node = (Node){
+    .kind = ND_Type,
+    .type =
+      (TypeNode){
         .kind = TP_Ptr,
-        .type = type,
+        .base = type,
+      },
+  };
+  return node;
+}
+
+Node* make_array_type(Node* type, usize size) {
+  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(TypeNode));
+  *node = (Node){
+    .kind = ND_Type,
+    .type =
+      (TypeNode){
+        .kind = TP_Arr,
+        .array.base = type,
+        .array.size = size,
       },
   };
   return node;

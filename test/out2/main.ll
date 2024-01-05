@@ -4,10 +4,6 @@ source_filename = "some_code"
 @.str = private unnamed_addr global [12 x i8] c"hello\0Aworld\00", align 1
 @.str.1 = private unnamed_addr global [10 x i8] c"some text\00", align 1
 
-declare i32 @puts(ptr)
-
-declare i32 @float_fn(float)
-
 define i32 @main(i32 %0, ptr %1) {
 entry:
   %argc = alloca i32, align 4
@@ -24,3 +20,7 @@ entry:
   %puts2 = call i32 @puts(ptr @.str.1)
   ret i32 0
 }
+
+declare i32 @puts(ptr)
+
+declare i32 @float_fn(float)

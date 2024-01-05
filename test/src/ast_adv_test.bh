@@ -1,6 +1,6 @@
 // Test main function
 fn main(argc: i32, argv: **i8): i32 {
-  puts(*argv)
+  puts(argv*)
   let message: *i8 = "hello\nworld"
   puts(message)
   puts("some text")

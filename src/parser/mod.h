@@ -6,6 +6,7 @@ typedef enum OperKind OperKind;
 typedef enum TypeKind TypeKind;
 typedef enum NodeKind NodeKind;
 typedef struct OperNode OperNode;
+typedef struct TypeNode TypeNode;
 typedef struct ValueNode ValueNode;
 typedef struct DeclNode DeclNode;
 typedef struct FnNode FnNode;
@@ -30,6 +31,7 @@ enum OperKind {
   OP_Gte,
   OP_Gt,
   OP_Asg,
+  OP_ArrIdx,
 };
 
 struct OperNode {
@@ -39,22 +41,34 @@ struct OperNode {
 };
 
 enum TypeKind {
-  TP_Void,
+  TP_Undf,
+  TP_Unit,
   TP_SInt,
   TP_UInt,
   TP_Flt,
   TP_Str,
   TP_Ptr,
+  TP_Arr,
+};
+
+struct TypeNode {
+  TypeKind kind;
+  union {
+    usize bit_width;
+    Node* base;
+    struct {
+      Node* base;
+      usize size;
+    } array;
+  };
 };
 
 struct ValueNode {
-  TypeKind kind : 8;
-  bool is_type;
-  u8 bit_width;
   Node* type;
   union {
-    StrSpan basic;
     Node* base;
+    u64 number;
+    StrSpan basic;
   };
 };
 
@@ -64,7 +78,6 @@ struct DeclNode {
   StrSpan name;
 };
 
-typedef struct NodeRefVector NodeRefVector;
 struct FnNode {
   Node* ret_type;
   Node* args;
@@ -116,6 +129,7 @@ struct Node {
   union {
     OperNode operation;
     Node* unary;
+    TypeNode type;
     ValueNode value;
     DeclNode declaration;
     FnNode function;
