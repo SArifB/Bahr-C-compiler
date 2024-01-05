@@ -75,11 +75,55 @@ static Token* expect_ident(Token* token) {
   return token + 1;
 }
 
-// declspec = "*" | "int"
-static Node* declspec(Token** rest, Token* token) {
+static Node* parse_list(
+  Token** rest, Token* token, AddInfo breaker,
+  fn(Node*(Token**, Token*)) callable
+) {
+  Node handle = {};
+  Node* cursor = &handle;
+  while (token->info != breaker) {
+    if (cursor != &handle) {
+      token = expect_info(token, PK_Comma);
+    }
+    if (token->info == breaker) {
+      break;
+    }
+    cursor->next = callable(&token, token);
+    cursor = cursor->next;
+  };
+  *rest = token;
+  return handle.next;
+}
+
+static Node* parse_type(Token** rest, Token* token);
+static Node* function(Token** rest, Token* token);
+static Node* extern_function(Token** rest, Token* token);
+static Node* argument(Token** rest, Token* token);
+static Node* declaration(Token** rest, Token* token);
+static Node* stmt(Token** rest, Token* token);
+static Node* compound_stmt(Token** rest, Token* token);
+static Node* assign(Token** rest, Token* token);
+static Node* expr(Token** rest, Token* token);
+static Node* equality(Token** rest, Token* token);
+static Node* relational(Token** rest, Token* token);
+static Node* add(Token** rest, Token* token);
+static Node* mul(Token** rest, Token* token);
+static Node* unary(Token** rest, Token* token);
+static Node* primary(Token** rest, Token* token);
+
+// parse_type = "[" num "]" | "*" | "i"num | "f"num
+static Node* parse_type(Token** rest, Token* token) {
   if (token->kind == TK_Punct) {
-    if (token->info == PK_Mul) {
-      return make_pointer_type(declspec(rest, token + 1));
+    if (consume(&token, token, PK_Mul)) {
+      return make_pointer_type(parse_type(rest, token));
+    } else if (consume(&token, token, PK_LeftSqrBrack)) {
+      Node* size = expr(&token, token);
+      Node* type = parse_type(rest, expect_info(token, PK_RightSqrBrack));
+      if (size->kind == ND_Value) {
+        return make_array_type(type, atoi(size->value.basic.array));
+      } else {
+        error_tok(token, "Size value not found");
+      }
     }
   } else if (token->kind == TK_Ident) {
     if (token->info == AD_SIntType) {
@@ -129,41 +173,6 @@ static Node* declspec(Token** rest, Token* token) {
   error_tok(token, "Invalid expression");
 }
 
-static Node* parse_list(
-  Token** rest, Token* token, AddInfo breaker,
-  fn(Node*(Token**, Token*)) callable
-) {
-  Node handle = {};
-  Node* cursor = &handle;
-  while (token->info != breaker) {
-    if (cursor != &handle) {
-      token = expect_info(token, PK_Comma);
-    }
-    if (token->info == breaker) {
-      break;
-    }
-    cursor->next = callable(&token, token);
-    cursor = cursor->next;
-  };
-  *rest = token;
-  return handle.next;
-}
-
-static Node* function(Token** rest, Token* token);
-static Node* extern_function(Token** rest, Token* token);
-static Node* argument(Token** rest, Token* token);
-static Node* declaration(Token** rest, Token* token);
-static Node* stmt(Token** rest, Token* token);
-static Node* compound_stmt(Token** rest, Token* token);
-static Node* assign(Token** rest, Token* token);
-static Node* expr(Token** rest, Token* token);
-static Node* equality(Token** rest, Token* token);
-static Node* relational(Token** rest, Token* token);
-static Node* add(Token** rest, Token* token);
-static Node* mul(Token** rest, Token* token);
-static Node* unary(Token** rest, Token* token);
-static Node* primary(Token** rest, Token* token);
-
 // program = functions*
 static Node* parse_lexer(TokenVector* tokens) {
   Token* token = tokens->buffer;
@@ -191,7 +200,7 @@ static Node* function(Token** rest, Token* token) {
   current_locals = nullptr;
 
   Node* args = parse_list(&token, token, PK_RightParen, argument);
-  Node* type = declspec(&token, expect_info(token + 1, PK_Colon));
+  Node* type = parse_type(&token, expect_info(token + 1, PK_Colon));
   Node* body = compound_stmt(rest, expect_info(token, PK_LeftBracket));
   return make_function(type, name, body, args);
 }
@@ -203,7 +212,7 @@ static Node* extern_function(Token** rest, Token* token) {
   token = expect_info(token, PK_LeftParen);
 
   Node* args = parse_list(&token, token, PK_RightParen, argument);
-  Node* type = declspec(rest, expect_info(token + 1, PK_Colon));
+  Node* type = parse_type(rest, expect_info(token + 1, PK_Colon));
   return make_function(type, name, nullptr, args);
 }
 
@@ -211,7 +220,7 @@ static Node* extern_function(Token** rest, Token* token) {
 static Node* argument(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
-  Node* type = declspec(rest, expect_info(token, PK_Colon));
+  Node* type = parse_type(rest, expect_info(token, PK_Colon));
   return make_arg_var(type, name);
 }
 
@@ -219,7 +228,7 @@ static Node* argument(Token** rest, Token* token) {
 static Node* declaration(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
-  Node* type = declspec(&token, expect_info(token, PK_Colon));
+  Node* type = parse_type(&token, expect_info(token, PK_Colon));
   Node* value = expr(rest, expect_info(token, PK_Assign));
   return make_declaration(type, name, value);
 }
@@ -362,7 +371,7 @@ static Node* mul(Token** rest, Token* token) {
   }
 }
 
-// unary = ("+" | "-" | "*" | "&") unary
+// unary = ("+" | "-") unary
 //       | primary
 static Node* unary(Token** rest, Token* token) {
   if (token->info == PK_Add) {
@@ -373,7 +382,7 @@ static Node* unary(Token** rest, Token* token) {
   return primary(rest, token);
 }
 
-// funcall = ident "(" (assign ("," assign)*)? ")"
+// funcall = ident "(" (equality ("," equality)*)? ")"
 static Node* fn_call(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
@@ -385,7 +394,11 @@ static Node* fn_call(Token** rest, Token* token) {
   return call;
 }
 
-// primary = "(" expr ")" | ident func-args? | num
+// primary = "(" expr ")"
+//         | ident ( func-args? )
+//         | ident*
+//         | ident&
+//         | num | flt | str
 static Node* primary(Token** rest, Token* token) {
   if (token->kind == TK_Punct) {
     if (token->info == PK_LeftParen) {
@@ -394,31 +407,49 @@ static Node* primary(Token** rest, Token* token) {
       return node;
     } else if (token->info == PK_LeftBracket) {
       return stmt(rest, token);
+    } else if (token->info == PK_LeftSqrBrack) {
+      if (token[1].info == PK_RightSqrBrack) {
+        Node* type = make_array_type(make_basic_type(TP_Undf), 0);
+        Node* node = make_pointer_value(type, nullptr);
+        *rest = token + 2;
+        return node;
+      }
+      Node* list = parse_list(rest, token, PK_RightSqrBrack, unary);
+      TypeKind first_type = list->value.type->type.kind;
+      usize size = 0;
+      for (Node* value = list; value != nullptr; value = value->next) {
+        if (value->value.type->type.kind != first_type) {
+          error_tok(token, "Non uniform type found in initializer");
+        } else {
+          size += 1;
+        }
+      }
+      Node* type = make_array_type(list->value.type, size);
+      Node* node = make_pointer_value(type, list);
+      return node;
     }
 
   } else if (token->kind == TK_Ident) {
     if (token[1].info == PK_LeftParen) {
       return fn_call(rest, token);
+    }
 
-    } else if (token[1].info == PK_Ampersand) {
-      Node* var = find_variable(token);
-      if (var == nullptr) {
-        error_tok(token, "Variable not found in scope");
-      }
+    Node* var = find_variable(token);
+    if (var == nullptr) {
+      error_tok(token, "Variable not found in scope");
+    }
+    if (token[1].info == PK_Ampersand) {
       *rest = token + 2;
       return make_unary(ND_Addr, var);
 
     } else if (token[1].info == PK_Mul) {
-      Node* var = find_variable(token);
-      if (var == nullptr) {
-        error_tok(token, "Variable not found in scope");
-      }
       *rest = token + 2;
       return make_unary(ND_Deref, var);
-    }
-    Node* var = find_variable(token);
-    if (var == nullptr) {
-      error_tok(token, "Variable not found in scope");
+
+    } else if (token[1].info == PK_LeftSqrBrack) {
+      Node* index = expr(&token, token + 2);
+      *rest = token + 1;
+      return make_oper(OP_ArrIdx, var, index);
     }
     *rest = token + 1;
     return var;

@@ -121,37 +121,7 @@ static DeclVar* get_decl_var(StrView name) {
 }
 
 static bool is_integer(Node* node) {
-  return node->value.kind == TP_SInt || node->value.kind == TP_UInt;
-}
-
-static LLVMTypeRef get_type(LLVMContextRef ctx, Node* type) {
-  if (type->kind == ND_Variable) {
-    return get_type(ctx, type->unary);
-
-  } else if (type->kind == ND_ArgVar) {
-    return get_type(ctx, type->declaration.type);
-
-  } else if (is_integer(type)) {
-    return LLVMIntTypeInContext(ctx, type->value.bit_width);
-
-  } else if (type->value.kind == TP_Flt) {
-    if (type->value.bit_width == 15) {
-      return LLVMBFloatTypeInContext(ctx);
-    } else if (type->value.bit_width == 16) {
-      return LLVMHalfTypeInContext(ctx);
-    } else if (type->value.bit_width == 32) {
-      return LLVMFloatTypeInContext(ctx);
-    } else if (type->value.bit_width == 64) {
-      return LLVMDoubleTypeInContext(ctx);
-    } else if (type->value.bit_width == 128) {
-      return LLVMFP128TypeInContext(ctx);
-    }
-
-  } else if (type->value.kind == TP_Ptr) {
-    return LLVMPointerType(get_type(ctx, type->value.type), 0);
-  }
-  eputs("ND_Value type unimplemented");
-  exit(1);
+  return node->type.kind == TP_SInt || node->type.kind == TP_UInt;
 }
 
 static LLVMValueRef codegen_reg_fns(Codegen* cdgn, Node* node);
@@ -165,9 +135,11 @@ static LLVMBasicBlockRef codegen_parse_block(
 static LLVMValueRef codegen_oper(
   Codegen* cdgn, Node* node, LLVMValueRef function
 );
+static LLVMValueRef codegen_value(Codegen* cdgn, Node* node);
 static LLVMValueRef codegen_call(
   Codegen* cdgn, Node* node, LLVMValueRef function
 );
+static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node);
 
 LLVMValueRef codegen_generate(Codegen* cdgn, Node* prog) {
   decl_fns = DeclFn_vector_make(8);
@@ -202,11 +174,11 @@ static LLVMValueRef codegen_reg_fns(Codegen* cdgn, Node* node) {
   cstrVector* arg_names = cstr_vector_make(2);
 
   for (Node* arg = node->function.args; arg != nullptr; arg = arg->next) {
-    LLVMTypeRef type = get_type(cdgn->ctx, arg->declaration.type);
+    LLVMTypeRef type = codegen_type(cdgn, arg->declaration.type);
     LLVMTypeRef_vector_push(&arg_types, type);
     cstr_vector_push(&arg_names, arg->declaration.name.array);
   }
-  LLVMTypeRef ret_type = get_type(cdgn->ctx, node->function.ret_type);
+  LLVMTypeRef ret_type = codegen_type(cdgn, node->function.ret_type);
 
   LLVMTypeRef function_type =
     LLVMFunctionType(ret_type, arg_types->buffer, arg_types->length, false);
@@ -285,8 +257,12 @@ static LLVMValueRef codegen_parse(
     LLVMValueRef val = codegen_parse(cdgn, node->unary, function);
     return LLVMBuildRet(cdgn->bldr, val);
 
+  } else if (node->kind == ND_Type) {
+    eputs("Raw ND_Type unimplemented");
+    exit(1);
+
   } else if (node->kind == ND_Decl) {
-    LLVMTypeRef type = get_type(cdgn->ctx, node->declaration.type);
+    LLVMTypeRef type = codegen_type(cdgn, node->declaration.type);
     LLVMValueRef decl =
       LLVMBuildAlloca(cdgn->bldr, type, node->declaration.name.array);
     LLVMValueRef val = codegen_parse(cdgn, node->declaration.value, function);
@@ -301,26 +277,10 @@ static LLVMValueRef codegen_parse(
     return decl;
 
   } else if (node->kind == ND_Value) {
-    if (is_integer(node) == true) {
-      LLVMTypeRef type = get_type(cdgn->ctx, node->value.type);
-      return LLVMConstInt(type, atoi(node->value.basic.array), true);
-    } else if (node->value.kind == TP_Str) {
-      LLVMTypeRef type = LLVMArrayType(
-        LLVMInt8TypeInContext(cdgn->ctx), node->value.basic.size + 1
-      );
-      LLVMValueRef str_val = LLVMConstStringInContext(
-        cdgn->ctx, node->value.basic.array, node->value.basic.size, false
-      );
-      LLVMValueRef global_str = LLVMAddGlobal(cdgn->mod, type, ".str");
-      LLVMSetInitializer(global_str, str_val);
-      LLVMSetLinkage(global_str, LLVMPrivateLinkage);
-      LLVMSetUnnamedAddr(global_str, LLVMGlobalUnnamedAddr);
-      LLVMSetAlignment(global_str, 1);
-      return global_str;
-    }
+    return codegen_value(cdgn, node);
 
   } else if (node->kind == ND_Variable) {
-    LLVMTypeRef type = get_type(cdgn->ctx, node->unary->declaration.type);
+    LLVMTypeRef type = codegen_type(cdgn, node->unary->declaration.type);
     DeclVar* decl_var = get_decl_var(view_from(node->unary->declaration.name));
     if (decl_var == nullptr) {
       eputs("ND_Variable not found");
@@ -346,7 +306,7 @@ static LLVMValueRef codegen_parse(
 
   } else if (node->kind == ND_Deref) {
     // ->unary->declaration.type
-    LLVMTypeRef type = get_type(cdgn->ctx, node->unary);
+    LLVMTypeRef type = codegen_type(cdgn, node->unary);
     LLVMValueRef ptr = codegen_parse(cdgn, node->unary, function);
     LLVMValueRef load =
       LLVMBuildLoad2(cdgn->bldr, LLVMPointerType(type, 0), ptr, "");
@@ -416,6 +376,31 @@ static LLVMValueRef codegen_oper(
       return LLVMBuildICmp(cdgn->bldr, LLVMIntSGE, lhs, rhs, "gte");
     case OP_Asg:
       return LLVMBuildStore(cdgn->bldr, rhs, lhs);
+    case OP_ArrIdx:
+      return nullptr;
+  }
+  print_cdgn_err(node->kind);
+}
+
+static LLVMValueRef codegen_value(Codegen* cdgn, Node* node) {
+  if (is_integer(node->value.type) == true) {
+    LLVMTypeRef type = codegen_type(cdgn, node->value.type);
+    return LLVMConstInt(type, atoi(node->value.basic.array), true);
+  } else if (node->value.type->type.kind == TP_Str) {
+    LLVMTypeRef type = LLVMArrayType(
+      LLVMInt8TypeInContext(cdgn->ctx), node->value.basic.size + 1
+    );
+    LLVMValueRef str_val = LLVMConstStringInContext(
+      cdgn->ctx, node->value.basic.array, node->value.basic.size, false
+    );
+    LLVMValueRef global_str = LLVMAddGlobal(cdgn->mod, type, ".str");
+    LLVMSetInitializer(global_str, str_val);
+    LLVMSetLinkage(global_str, LLVMPrivateLinkage);
+    LLVMSetUnnamedAddr(global_str, LLVMGlobalUnnamedAddr);
+    LLVMSetAlignment(global_str, 1);
+    return global_str;
+  } else if (node->value.type->type.kind == TP_Arr) {
+    // TODO: Implement array value
   }
   print_cdgn_err(node->kind);
 }
@@ -440,6 +425,52 @@ static LLVMValueRef codegen_call(
   codegen_dealloc(call_args);
   return result;
 }
+
+static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node) {
+  if (node->kind == ND_Variable) {
+    return codegen_type(cdgn, node->unary);
+
+  } else if (node->kind == ND_ArgVar) {
+    return codegen_type(cdgn, node->declaration.type);
+
+  } else if (node->kind == ND_Decl) {
+    return codegen_type(cdgn, node->declaration.type);
+
+  } else if (node->kind == ND_Value) {
+    return codegen_type(cdgn, node->value.type);
+
+  } else if (node->kind == ND_Type) {
+    if (is_integer(node)) {
+      return LLVMIntTypeInContext(cdgn->ctx, node->type.bit_width);
+
+    } else if (node->type.kind == TP_Flt) {
+      if (node->type.bit_width == 15) {
+        return LLVMBFloatTypeInContext(cdgn->ctx);
+      } else if (node->type.bit_width == 16) {
+        return LLVMHalfTypeInContext(cdgn->ctx);
+      } else if (node->type.bit_width == 32) {
+        return LLVMFloatTypeInContext(cdgn->ctx);
+      } else if (node->type.bit_width == 64) {
+        return LLVMDoubleTypeInContext(cdgn->ctx);
+      } else if (node->type.bit_width == 128) {
+        return LLVMFP128TypeInContext(cdgn->ctx);
+      }
+
+    } else if (node->type.kind == TP_Ptr) {
+      return LLVMPointerType(codegen_type(cdgn, node->type.base), 0);
+
+    } else if (node->type.kind == TP_Arr) {
+      return LLVMArrayType(
+        codegen_type(cdgn, node->type.array.base), node->type.array.size
+      );
+    }
+    eputs("Type unimplemented");
+    exit(1);
+  }
+  eputs("Node is not a type");
+  exit(1);
+}
+
 /*
 LLVMExecutionEngineRef engine_make(Codegen* cdgn);
 void engine_shutdown(LLVMExecutionEngineRef engine);

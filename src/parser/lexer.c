@@ -84,9 +84,7 @@ static bool is_charnum(cstr ref) {
 }
 
 static bool is_keyword(cstr itr, cstr ref, usize size) {
-  return strncmp(itr, ref, size) == 0 &&
-         ((itr[size] >= 'a' && itr[size] <= 'z') ||
-          (itr[size] >= 'A' && itr[size] <= 'Z')) == false;
+  return strncmp(itr, ref, size) == 0 && is_charnum(&itr[size]) == false;
 }
 
 static const char pnct_table[][4] = {
