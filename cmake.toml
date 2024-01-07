@@ -31,18 +31,19 @@ sources = ["./src/utility/*.h"]
 type = "executable"
 include-directories = ["src"]
 compile-options = ["-Wall", "-Werror", "-Wextra", "-std=c2x"]
-link-libraries = ["utility"]
+link-libraries = ["utility", "mimalloc"]
 
 [template.my_library]
 type = "static"
 include-directories = ["src"]
 compile-options = ["-Wall", "-Werror", "-Wextra", "-std=c2x"]
-link-libraries = ["utility"]
+link-libraries = ["utility", "mimalloc"]
 
 [template.my_interface]
 type = "interface"
 include-directories = ["src"]
 compile-options = ["-Wall", "-Werror", "-Wextra", "-std=c2x"]
+link-libraries = ["mimalloc"]
 
 # Tests
 # TODO: add tests

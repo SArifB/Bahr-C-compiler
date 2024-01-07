@@ -54,6 +54,7 @@ target_include_directories(bin PRIVATE
 
 target_link_libraries(bin PRIVATE
 	utility
+	mimalloc
 )
 
 target_link_libraries(bin PRIVATE
@@ -91,6 +92,7 @@ target_include_directories(codegen PUBLIC
 
 target_link_libraries(codegen PUBLIC
 	utility
+	mimalloc
 )
 
 target_link_libraries(codegen PUBLIC
@@ -124,6 +126,7 @@ target_include_directories(parser PUBLIC
 
 target_link_libraries(parser PUBLIC
 	utility
+	mimalloc
 )
 
 # Target: arena
@@ -150,6 +153,7 @@ target_include_directories(arena PUBLIC
 
 target_link_libraries(arena PUBLIC
 	utility
+	mimalloc
 )
 
 # Target: utility
@@ -173,5 +177,9 @@ target_compile_options(utility INTERFACE
 
 target_include_directories(utility INTERFACE
 	src
+)
+
+target_link_libraries(utility INTERFACE
+	mimalloc
 )
 
