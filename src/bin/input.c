@@ -6,25 +6,34 @@
 #include <unistd.h>
 #include <utility/mod.h>
 
-StrView input_file(const char* filename) {
+InputFile input_file(cstr filename) {
   i32 fd = open(filename, O_RDONLY);
   if (fd == -1) {
     exit(1);
   }
+
   struct stat sb;
   if (fstat(fd, &sb) == -1) {
     exit(1);
   }
-  str addr = mmap(nullptr, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+  cstr addr = mmap(nullptr, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
   if (addr == MAP_FAILED) {
     exit(1);
   }
-  close(fd);
-  return (StrView){addr, addr + sb.st_size};
+
+  if (close(fd) == -1) {
+    exit(1);
+  }
+  return (InputFile){
+    .name = filename,
+    .file = addr,
+    .size = sb.st_size,
+  };
 }
 
-void input_free(StrView view) {
-  if (munmap((str)view.itr, view_len(view)) == -1) {
+void input_free(InputFile input) {
+  if (munmap((str)input.file, input.size) == -1) {
     exit(1);
   };
 }

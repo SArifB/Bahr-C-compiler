@@ -26,8 +26,8 @@ i32 main(i32 argc, cstr argv[]) {
     eprintf("Usage: %s <input file>", argv[0]);
     return 1;
   }
-  StrView content = input_file(argv[1]);
-  eputw(content);
+  InputFile input = input_file(argv[1]);
+  eprintf("%.*s", (i32)input.size, input.file);
   eputs("\n-----------------------------------------------");
 
   // Set memory management
@@ -37,16 +37,19 @@ i32 main(i32 argc, cstr argv[]) {
   codegen_set_dealloc(free);
 
   // Parse String
-  enable_verbosity(true);
-  Node* prog = parse_string(content);
+  enable_verbosity();
+  Node* prog = parse_string((StrView){
+    .ptr = input.file,
+    .size = input.size,
+  });
 
   // Generate code
-  Codegen* cdgn = codegen_make("some_code");
+  Codegen* cdgn = codegen_make(input.name);
   codegen_generate(cdgn, prog);
   eputs("\n-----------------------------------------------");
 
   // Cleanup owned memory
-  input_free(content);
+  input_free(input);
   codegen_dispose(cdgn);
   default_dealloc();
   return 0;

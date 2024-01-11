@@ -1,5 +1,12 @@
 #pragma once
 #include <utility/mod.h>
 
-extern StrView input_file(const char* filename);
-extern void input_free(StrView view);
+typedef struct InputFile InputFile;
+struct InputFile {
+  cstr name;
+  cstr file;
+  usize size;
+};
+
+extern InputFile input_file(cstr filename);
+extern void input_free(InputFile input);
