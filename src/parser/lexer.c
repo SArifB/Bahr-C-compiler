@@ -20,12 +20,12 @@ unreturning void error(cstr fmt, ...) {
 
 unreturning static void verror_at(cstr location, cstr fmt, va_list ap) {
   i32 line_num = 1;
-  for (cstr cursor = current_input.itr; cursor < location; ++cursor) {
+  for (cstr cursor = current_input.ptr; cursor < location; ++cursor) {
     if (*cursor == '\n') {
       line_num += 1;
     }
   }
-  cstr input = current_input.itr;
+  cstr input = current_input.ptr;
   cstr line = location;
   while (input < line && line[-1] != '\n') {
     line--;
@@ -54,37 +54,28 @@ unreturning void error_at(cstr location, cstr fmt, ...) {
 unreturning void error_tok(Token* token, cstr fmt, ...) {
   va_list ap;
   va_start(ap);
-  verror_at(token->pos.itr, fmt, ap);
+  verror_at(token->pos.ptr, fmt, ap);
 }
 
-static bool skippable(cstr itr) {
-  return *itr == ' ' || *itr == '\t' || *itr == '\r' || *itr == '\f';
+static bool skippable(char ref) {
+  return ref == ' ' || ref == '\t' || ref == '\r' || ref == '\f';
 }
 
-static bool is_numliteral(cstr ref) {
-  return (*ref >= '0' && *ref <= '9') || *ref == '.' || *ref == '_';
+static bool is_numliteral(char ref) {
+  return (ref >= '0' && ref <= '9') || ref == '.' || ref == '_';
 }
 
-static bool is_number(cstr ref) {
-  return *ref >= '0' && *ref <= '9';
+static bool is_number(char ref) {
+  return ref >= '0' && ref <= '9';
 }
 
-static bool is_str_lit_char(cstr ref) {
-  return *ref == '\"' || (*ref == '\"' && *(ref - 1) == '\\');
+static bool is_ident(char ref) {
+  return (ref >= 'a' && ref <= 'z') || (ref >= 'A' && ref <= 'Z') || ref == '_';
 }
 
-static bool is_ident(cstr ref) {
-  return (*ref >= 'a' && *ref <= 'z') || (*ref >= 'A' && *ref <= 'Z') ||
-         *ref == '_';
-}
-
-static bool is_charnum(cstr ref) {
-  return (*ref >= 'a' && *ref <= 'z') || (*ref >= 'A' && *ref <= 'Z') ||
-         (*ref >= '0' && *ref <= '9') || *ref == '_';
-}
-
-static bool is_keyword(cstr itr, cstr ref, usize size) {
-  return strncmp(itr, ref, size) == 0 && is_charnum(&itr[size]) == false;
+static bool is_charnum(char ref) {
+  return (ref >= 'a' && ref <= 'z') || (ref >= 'A' && ref <= 'Z') ||
+         (ref >= '0' && ref <= '9') || ref == '_';
 }
 
 static const char pnct_table[][4] = {
@@ -133,19 +124,148 @@ static const AddInfo flt_info_table[sizeof_arr(flt_table)] = {
   AD_F16Type, AD_BF16Type, AD_F32Type, AD_F64Type, AD_F128Type,
 };
 
-static bool is_punct(cstr ref) {
-  for (usize i = 0; i < sizeof_arr(pnct_table); ++i) {
-    if (strncmp(ref, ref, pnct_sizes[i]) == 0) {
-      return true;
+typedef struct OptNumIdx OptNumIdx;
+struct OptNumIdx {
+  usize size;
+  bool flt;
+  bool some;
+};
+
+static OptNumIdx try_get_num_lit(cstr iter) {
+  if (is_numliteral(*iter) != true) {
+    return (OptNumIdx){};
+  }
+  usize size = 0;
+  bool flt = false;
+  for (; is_numliteral(iter[size]) == true; ++size) {
+    if (iter[size] == '.' && flt == true) {
+      error_at(&iter[size], "More than one '.' found");
+    } else if (iter[size] == '.' && flt == false) {
+      flt = true;
     }
   }
-  return false;
+  return (OptNumIdx){
+    .size = size,
+    .flt = flt,
+    .some = true,
+  };
+}
+
+typedef struct OptIdx OptIdx;
+struct OptIdx {
+  usize size;
+  bool some;
+};
+
+static OptIdx try_get_str_lit(cstr iter) {
+  if (*iter != '\"') {
+    return (OptIdx){};
+  }
+  usize size = 1;
+  /*   return *ref == '\"' || (*ref == '\"' && *(ref - 1) == '\\'); */
+  // while (() == false) {
+  while (iter[size] != '\"' || (iter[size] != '\"' && iter[size - 1] != '\\')) {
+    size += 1;
+  }
+  return (OptIdx){
+    .size = size,
+    .some = true,
+  };
+}
+
+static OptIdx try_get_char_lit(cstr iter) {
+  if (*iter != '\'') {
+    return (OptIdx){};
+  }
+  usize size = 1;
+  while (iter[size] != '\'') {
+    size += 1;
+  }
+  return (OptIdx){
+    .size = size,
+    .some = true,
+  };
+}
+
+static OptIdx try_get_kwrd(cstr iter) {
+  if (is_ident(*iter) == false) {
+    return (OptIdx){};
+  }
+  for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
+    if (strncmp(iter, kwrd_table[i], kwrd_sizes[i]) == 0 && //
+      is_charnum(iter[kwrd_sizes[i]]) == false) {
+      return (OptIdx){
+        .size = i,
+        .some = true,
+      };
+    }
+  }
+  return (OptIdx){};
+}
+
+static OptIdx try_get_fltt(cstr iter) {
+  if (*iter != 'f' && *iter != 'b') {
+    return (OptIdx){};
+  }
+  for (usize i = 0; i < sizeof_arr(flt_table); ++i) {
+    if (strncmp(iter, flt_table[i], flt_sizes[i]) == 0 && //
+      is_charnum(iter[flt_sizes[i]]) == false) {
+      return (OptIdx){
+        .size = i,
+        .some = true,
+      };
+    }
+  }
+  return (OptIdx){};
+}
+
+static OptIdx try_get_intt(cstr iter, char comp) {
+  if (*iter != comp) {
+    return (OptIdx){};
+  }
+  usize size = 1;
+  while (is_number(iter[size])) {
+    size += 1;
+  }
+  if (is_charnum(iter[size]) == true) {
+    return (OptIdx){};
+  }
+  return (OptIdx){
+    .size = size,
+    .some = true,
+  };
+}
+
+static OptIdx try_get_ident(cstr iter) {
+  usize size = 0;
+  while (is_charnum(iter[size]) == true) {
+    size += 1;
+  }
+  if (size == 0) {
+    return (OptIdx){};
+  }
+  return (OptIdx){
+    .size = size,
+    .some = true,
+  };
+}
+
+static OptIdx try_get_punct(cstr iter) {
+  for (usize i = 0; i < sizeof_arr(pnct_table); ++i) {
+    if (strncmp(iter, pnct_table[i], pnct_sizes[i]) == 0) {
+      return (OptIdx){
+        .size = i,
+        .some = true,
+      };
+    }
+  }
+  return (OptIdx){};
 }
 
 #define tokens_push(...) Token_vector_push(&tokens, ((Token){__VA_ARGS__}))
 
 TokenVector* lex_string(const StrView view) {
-  TokenVector* tokens = Token_vector_make(0);
+  TokenVector* tokens = Token_vector_make(64);
   current_input = view;
 
   for (usize i = 0; i < sizeof_arr(pnct_table); ++i) {
@@ -155,150 +275,123 @@ TokenVector* lex_string(const StrView view) {
     kwrd_sizes[i] = strlen(kwrd_table[i]);
   }
 
-  cstr itr = view.itr;
-  for (; itr != view.sen; ++itr) {
-    if (skippable(itr) == true) {
-      // Skip
-      /// End of line
-    } else if (*itr == '\n') {
+  const char* iter = view.ptr;
+  while (iter != view.ptr + view.size) {
+    if (skippable(*iter) == true) {
+      iter += 1;
+      continue;
+    }
+
+    /// End of line
+    if (*iter == '\n') {
       if (tokens->length != 0) {
         tokens->buffer[tokens->length - 1].is_eol = true;
       }
-
-      /// Comment
-    } else if (strncmp(itr, "//", sizeof("//") - 1) == 0) {
-      while (*itr != '\n') {
-        itr += 1;
-      }
-
-      /// Number
-    } else if (is_numliteral(itr) == true) {
-      cstr tmp_sen = itr + 1;
-      bool flt = false;
-      while (is_numliteral(tmp_sen) == true) {
-        if (*tmp_sen == '.' && flt == true) {
-          error_at(tmp_sen, "More than one '.' found");
-        } else if (*tmp_sen == '.' && flt == false) {
-          flt = true;
-        }
-        tmp_sen += 1;
-      }
-      if (flt == true) {
-        tokens_push(.kind = TK_FltLiteral, .pos = {itr, tmp_sen}, );
-      } else {
-        tokens_push(.kind = TK_NumLiteral, .pos = {itr, tmp_sen}, );
-      }
-      itr = tmp_sen - 1;
-
-      /// String
-    } else if (*itr == '\"') {
-      cstr tmp_sen = itr + 1;
-      while (is_str_lit_char(tmp_sen) == false) {
-        tmp_sen += 1;
-      }
-      tokens_push(.kind = TK_StrLiteral, .pos = {itr + 1, tmp_sen}, );
-      itr = tmp_sen;
-
-      /// Char
-    } else if (*itr == '\'') {
-      cstr tmp_sen = itr + 1;
-      while (*tmp_sen != '\'') {
-        tmp_sen += 1;
-      }
-      tokens_push(.kind = TK_CharLiteral, .pos = {itr + 1, tmp_sen}, );
-      itr = tmp_sen;
-
-      /// Keyword
-    } else if (is_ident(itr) == true) {
-      bool kw = false;
-      for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
-        if (is_keyword(itr, kwrd_table[i], kwrd_sizes[i])) {
-          tokens_push(
-              .kind = TK_Keyword, .info = kwrd_info_table[i],
-              .pos = {itr, itr + kwrd_sizes[i]},
-          );
-          itr += kwrd_sizes[i] - 1;
-          kw = true;
-          break;
-        }
-      }
-      if (kw == true) {
-        continue;
-      }
-
-      /// Floating point
-      bool flt = false;
-      for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
-        if (strncmp(itr, flt_table[i], flt_sizes[i]) == 0 && //
-          is_charnum(itr + flt_sizes[i]) == false) {
-          tokens_push(
-              .kind = TK_Ident, .info = flt_info_table[i],
-              .pos = {itr, itr + flt_sizes[i]},
-          );
-          itr += flt_sizes[i] - 1;
-          flt = true;
-          break;
-        }
-      }
-      if (flt == true) {
-        continue;
-      }
-
-      cstr tmp_sen = itr + 1;
-      /// Signed integer
-      if (*itr == 'i') {
-        while (is_number(tmp_sen)) {
-          tmp_sen += 1;
-        }
-        tokens_push(
-            .kind = TK_Ident, .info = AD_SIntType, .pos = {itr, tmp_sen},
-        );
-        itr = tmp_sen - 1;
-        continue;
-
-        /// Unsigned integer
-      } else if (*itr == 'u') {
-        while (is_number(tmp_sen)) {
-          tmp_sen += 1;
-        }
-        tokens_push(
-            .kind = TK_Ident, .info = AD_UIntType, .pos = {itr, tmp_sen},
-        );
-        itr = tmp_sen - 1;
-        continue;
-      }
-
-      /// Ident
-      while (is_charnum(tmp_sen) == true) {
-        tmp_sen += 1;
-      }
-      tokens_push(.kind = TK_Ident, .pos = {itr, tmp_sen}, );
-      itr = tmp_sen - 1;
-
-      /// Punct
-    } else if (is_punct(itr) == true) {
-      for (usize i = 0; i < sizeof_arr(pnct_table); ++i) {
-        if (strncmp(itr, pnct_table[i], pnct_sizes[i]) == 0) {
-          tokens_push(
-              .kind = TK_Punct, .info = pnct_info_table[i],
-              .pos = {itr, itr + pnct_sizes[i]},
-          );
-          itr += pnct_sizes[i] - 1;
-          break;
-        }
-      }
-
-    } else {
-      error_at(itr, "Invalid token");
+      iter += 1;
+      continue;
     }
+
+    /// Comment
+    if (*iter == '/' && iter[1] == '/') {
+      while (*iter != '\n') {
+        iter += 1;
+      }
+      continue;
+    }
+
+    /// Number
+    OptNumIdx opt_num = try_get_num_lit(iter);
+    if (opt_num.some == true) {
+      if (opt_num.flt == true) {
+        tokens_push(.kind = TK_FltLiteral, .pos = {iter, opt_num.size}, );
+      } else {
+        tokens_push(.kind = TK_NumLiteral, .pos = {iter, opt_num.size}, );
+      }
+      iter += opt_num.size;
+      continue;
+    }
+
+    OptIdx opt;
+    /// String
+    opt = try_get_str_lit(iter);
+    if (opt.some == true) {
+      tokens_push(.kind = TK_StrLiteral, .pos = {iter + 1, opt.size - 1}, );
+      iter += opt.size + 1;
+      continue;
+    }
+
+    /// Char
+    opt = try_get_char_lit(iter);
+    if (opt.some == true) {
+      tokens_push(.kind = TK_CharLiteral, .pos = {iter + 1, opt.size}, );
+      iter += opt.size + 1;
+      continue;
+    }
+
+    /// Keyword
+    opt = try_get_kwrd(iter);
+    if (opt.some == true) {
+      tokens_push(
+          .kind = TK_Keyword, .info = kwrd_info_table[opt.size],
+          .pos = {iter, kwrd_sizes[opt.size]},
+      );
+      iter += kwrd_sizes[opt.size];
+      continue;
+    }
+
+    /// Floating point
+    opt = try_get_fltt(iter);
+    if (opt.some == true) {
+      tokens_push(
+          .kind = TK_Ident, .info = flt_info_table[opt.size],
+          .pos = {iter, flt_sizes[opt.size]},
+      );
+      iter += flt_sizes[opt.size];
+      continue;
+    }
+
+    /// Signed integer
+    opt = try_get_intt(iter, 'i');
+    if (opt.some == true) {
+      tokens_push(
+          .kind = TK_Ident, .info = AD_SIntType, .pos = {iter, opt.size},
+      );
+      iter += opt.size;
+      continue;
+    }
+
+    /// Unsigned integer
+    opt = try_get_intt(iter, 'u');
+    if (opt.some == true) {
+      tokens_push(
+          .kind = TK_Ident, .info = AD_UIntType, .pos = {iter, opt.size},
+      );
+      iter += opt.size;
+      continue;
+    }
+
+    /// Ident
+    opt = try_get_ident(iter);
+    if (opt.some == true) {
+      tokens_push(.kind = TK_Ident, .pos = {iter, opt.size}, );
+      iter += opt.size;
+      continue;
+    }
+
+    /// Punct
+    opt = try_get_punct(iter);
+    if (opt.some == true) {
+      tokens_push(
+          .kind = TK_Punct, .info = pnct_info_table[opt.size],
+          .pos = {iter, pnct_sizes[opt.size]},
+      );
+      iter += pnct_sizes[opt.size];
+      continue;
+    }
+
+    error_at(iter, "Invalid token");
   }
-
-  tokens_push(.kind = TK_EOF, .pos = {itr, itr}, );
   return tokens;
-}
-
-void print_str_view(StrView view) {
-  eprintf("%.*s\n", (i32)(view.sen - view.itr), view.itr);
 }
 
 void lexer_print(TokenVector* tokens) {
@@ -315,6 +408,6 @@ void lexer_print(TokenVector* tokens) {
       case TK_Punct:        eprintf("Punct:%*s", 8, "");       break;
       case TK_EOF:          eprintf("%s","EOF");               break;
     }  // clang-format on
-    print_str_view(itr->pos);
+    eputw(itr->pos);
   }
 }
