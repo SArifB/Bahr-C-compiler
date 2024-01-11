@@ -9,8 +9,8 @@
 
 static bool print_verbose = false;
 
-void enable_verbosity(bool enable) {
-  print_verbose = enable;
+void enable_verbosity() {
+  print_verbose = true;
 }
 
 static Node* parse_lexer(TokenVector* tokens);
@@ -34,12 +34,12 @@ NodeRefVector* current_locals = nullptr;
 static Node* find_variable(Token* token) {
   Node** itr = current_locals->buffer;
   Node** sen = current_locals->buffer + current_locals->length;
-  usize size = token->pos.sen - token->pos.itr;
+  cstr lookup = token->pos.ptr;
+  usize size = token->pos.size;
   for (; itr != sen; ++itr) {
-    if (
-      strncmp(token->pos.itr, (*itr)->declaration.name.array, size) == 0
-      && (*itr)->declaration.name.array[size] =='\0') {
-      return make_unary(ND_Variable, (*itr));
+    cstr name = (**itr).declaration.name.array;
+    if (strncmp(lookup, name, size) == 0 && name[size] == 0) {
+      return make_unary(ND_Variable, *itr);
     }
   }
   return nullptr;
@@ -127,7 +127,7 @@ static Node* parse_type(Token** rest, Token* token) {
     }
   } else if (token->kind == TK_Ident) {
     if (token->info == AD_SIntType) {
-      i32 width = atoi(token->pos.itr + 1);
+      i32 width = atoi(token->pos.ptr + 1);
       if (width > 128) {
         error_tok(token, "Bit width too wide");
       }
@@ -136,7 +136,7 @@ static Node* parse_type(Token** rest, Token* token) {
       return type;
 
     } else if (token->info == AD_UIntType) {
-      i32 width = atoi(token->pos.itr + 1);
+      i32 width = atoi(token->pos.ptr + 1);
       if (width > 128) {
         error_tok(token, "Bit width too wide");
       }

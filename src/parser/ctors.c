@@ -17,7 +17,7 @@ void parser_set_dealloc(fn(void(void*)) dtor) {
   parser_dealloc = dtor;
 }
 
-DEFINE_VECTOR(NodeRef, parser_alloc, parser_dealloc);
+DEFINE_VECTOR(NodeRef, parser_alloc, parser_dealloc)
 
 // static bool is_integer(Node* node) {
 //   return node->kind == ND_Value &&
@@ -80,7 +80,7 @@ Node* make_unary(NodeKind kind, Node* value) {
 }
 
 Node* make_basic_value(Node* type, StrView view) {
-  usize size = view.sen - view.itr;
+  usize size = view.size;
   Node* node = parser_alloc(
     NODE_BASE_SIZE + sizeof(ValueNode) + sizeof(char) * (size + 1)
   );
@@ -92,13 +92,13 @@ Node* make_basic_value(Node* type, StrView view) {
         .basic.size = size,
       },
   };
-  memcpy(node->value.basic.array, view.itr, size);
+  memcpy(node->value.basic.array, view.ptr, size);
   node->value.basic.array[size] = 0;
   return node;
 }
 
 Node* make_str_value(StrView view) {
-  usize size = view.sen - view.itr;
+  usize size = view.size;
   Node* node = parser_alloc(
     NODE_BASE_SIZE + sizeof(ValueNode) + sizeof(char) * (size + 1)
   );
@@ -109,9 +109,9 @@ Node* make_str_value(StrView view) {
         .type = make_basic_type(TP_Str),
       },
   };
-  cstr restrict src = view.itr;
+  cstr restrict src = view.ptr;
   str restrict itr = node->value.basic.array;
-  for (; src != view.sen; ++itr, ++src) {
+  for (; src != view.ptr + view.size; ++itr, ++src) {
     if (*src == '\\' && *(src + 1) == 'n') {
       *itr = '\n';
       src += 1;
@@ -207,7 +207,7 @@ Node* make_declaration(Node* type, StrView view, Node* value) {
   if (current_locals == nullptr) {
     current_locals = NodeRef_vector_make(8);
   }
-  usize size = view.sen - view.itr;
+  usize size = view.size;
   Node* node =
     parser_alloc(NODE_BASE_SIZE + sizeof(DeclNode) + sizeof(char) * (size + 1));
   *node = (Node){
@@ -219,7 +219,7 @@ Node* make_declaration(Node* type, StrView view, Node* value) {
         .name.size = size,
       },
   };
-  memcpy(node->declaration.name.array, view.itr, size);
+  memcpy(node->declaration.name.array, view.ptr, size);
   node->declaration.name.array[size] = 0;
   NodeRef_vector_push(&current_locals, node);
   return node;
@@ -229,7 +229,7 @@ Node* make_arg_var(Node* type, StrView view) {
   if (current_locals == nullptr) {
     current_locals = NodeRef_vector_make(8);
   }
-  usize size = view.sen - view.itr;
+  usize size = view.size;
   Node* node =
     parser_alloc(NODE_BASE_SIZE + sizeof(DeclNode) + sizeof(char) * (size + 1));
   *node = (Node){
@@ -240,14 +240,14 @@ Node* make_arg_var(Node* type, StrView view) {
         .name.size = size,
       },
   };
-  memcpy(node->declaration.name.array, view.itr, size);
+  memcpy(node->declaration.name.array, view.ptr, size);
   node->declaration.name.array[size] = 0;
   NodeRef_vector_push(&current_locals, node);
   return node;
 }
 
 Node* make_function(Node* type, StrView view, Node* body, Node* args) {
-  usize size = view.sen - view.itr;
+  usize size = view.size;
   Node* node =
     parser_alloc(NODE_BASE_SIZE + sizeof(FnNode) + sizeof(char) * (size + 1));
   *node = (Node){
@@ -261,7 +261,7 @@ Node* make_function(Node* type, StrView view, Node* body, Node* args) {
         .name.size = size,
       },
   };
-  memcpy(node->function.name.array, view.itr, size);
+  memcpy(node->function.name.array, view.ptr, size);
   node->function.name.array[size] = 0;
   return node;
 }
@@ -294,7 +294,7 @@ Node* make_while_node(Node* cond, Node* then) {
 }
 
 Node* make_call_node(StrView view, Node* args) {
-  usize size = view.sen - view.itr;
+  usize size = view.size;
   Node* node =
     parser_alloc(NODE_BASE_SIZE + sizeof(CallNode) + sizeof(char) * (size + 1));
   *node = (Node){
@@ -305,7 +305,7 @@ Node* make_call_node(StrView view, Node* args) {
         .name.size = size,
       },
   };
-  memcpy(node->call_node.name.array, view.itr, size);
+  memcpy(node->call_node.name.array, view.ptr, size);
   node->call_node.name.array[size] = 0;
   return node;
 }

@@ -68,14 +68,14 @@ struct ValueNode {
   union {
     Node* base;
     u64 number;
-    StrSpan basic;
+    StrArr basic;
   };
 };
 
 struct DeclNode {
   Node* type;
   Node* value;
-  StrSpan name;
+  StrArr name;
 };
 
 struct FnNode {
@@ -83,7 +83,7 @@ struct FnNode {
   Node* args;
   Node* body;
   NodeRefVector* locals;
-  StrSpan name;
+  StrArr name;
 };
 
 struct IfNode {
@@ -99,7 +99,7 @@ struct WhileNode {
 
 struct CallNode {
   Node* args;
-  StrSpan name;
+  StrArr name;
 };
 
 enum NodeKind {
@@ -140,10 +140,9 @@ struct Node {
 };
 
 extern Node* parse_string(const StrView view);
-extern void enable_verbosity(bool enable);
+extern void enable_verbosity();
 
 extern void parser_set_alloc(fn(void*(usize)) ctor);
 extern void parser_set_dealloc(fn(void(void*)) dtor);
 
-#define view_from(var_arr) \
-  ((StrView){(var_arr).array, (var_arr).array + (var_arr).size})
+#define view_from(arr) ((StrView){(arr).array, (arr).size})

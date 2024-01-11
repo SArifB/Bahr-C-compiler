@@ -23,14 +23,12 @@ typedef char* str;
 
 typedef struct StrView StrView;
 struct StrView {
-  cstr itr;
-  cstr sen;
+  cstr ptr;
+  usize size;
 };
 
-#define view_len(view) ((view).sen - (view).itr)
-
-typedef struct StrSpan StrSpan;
-struct StrSpan {
+typedef struct StrArr StrArr;
+struct StrArr {
   usize size;
   char array[];
 };
@@ -52,5 +50,6 @@ struct StrSpan {
 #define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
 #define evprintf(fmt, ...) vfprintf(stderr, fmt, __VA_ARGS__)
 #define eputs(string) fputs(string "\n", stderr)
-#define eputw(view) eprintf("%.*s\n", (i32)view_len(view), (view).itr)
+#define eputw(view) eprintf("%.*s\n", (i32)(view).size, (view).ptr)
+#define eputa(arr) eprintf("%.*s\n", (i32)(arr)->size, (arr)->array)
 #define eputc(ch) fputc(ch, stderr)
