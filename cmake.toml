@@ -22,6 +22,10 @@ sources = ["./src/parser/*.c"]
 type = "my_library"
 sources = ["./src/arena/*.c"]
 
+[target.fxhash]
+type = "my_library"
+sources = ["./src/fxhash/*.c"]
+
 [target.utility]
 type = "my_interface"
 sources = ["./src/utility/*.h"]

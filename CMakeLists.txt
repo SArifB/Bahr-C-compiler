@@ -156,6 +156,33 @@ target_link_libraries(arena PUBLIC
 	mimalloc
 )
 
+# Target: fxhash
+set(fxhash_SOURCES
+	"./src/fxhash/mod.c"
+	cmake.toml
+)
+
+add_library(fxhash STATIC)
+
+target_sources(fxhash PRIVATE ${fxhash_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${fxhash_SOURCES})
+
+target_compile_options(fxhash PUBLIC
+	-Wall
+	-Werror
+	-Wextra
+	-std=c2x
+)
+
+target_include_directories(fxhash PUBLIC
+	src
+)
+
+target_link_libraries(fxhash PUBLIC
+	utility
+	mimalloc
+)
+
 # Target: utility
 set(utility_SOURCES
 	"./src/utility/mod.h"
