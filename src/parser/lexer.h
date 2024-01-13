@@ -4,18 +4,15 @@
 
 typedef struct Lexer Lexer;
 typedef struct Token Token;
-typedef enum TokenKind TokenKind;
-typedef enum AddInfo AddInfo;
 
 enum TokenKind {
-  TK_EOF = 0,
-  TK_Ident = 1 << 0,
-  TK_NumLiteral = 1 << 1,
-  TK_FltLiteral = 1 << 2,
-  TK_StrLiteral = 1 << 3,
-  TK_CharLiteral = 1 << 4,
-  TK_Keyword = 1 << 5,
-  TK_Punct = 1 << 6,
+  TK_Ident,
+  TK_NumLiteral,
+  TK_FltLiteral,
+  TK_StrLiteral,
+  TK_CharLiteral,
+  TK_Keyword,
+  TK_Punct,
 };
 
 enum AddInfo {
@@ -89,9 +86,9 @@ enum AddInfo {
 };
 
 struct Token {
-  TokenKind kind : 8;
+  enum TokenKind kind : 8;
   bool is_eol;
-  AddInfo info;
+  enum AddInfo info;
   StrView pos;
 };
 DECLARE_VECTOR(Token)

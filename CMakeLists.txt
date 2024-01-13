@@ -24,40 +24,41 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	configure_file(cmake.toml cmake.toml COPYONLY)
 endif()
 
-project(comp-test3
+project(Bahr
 	LANGUAGES
 		C
 )
 
-# Target: bin
-set(bin_SOURCES
-	"./src/bin/input.c"
-	"./src/bin/main.c"
+# Target: bahr
+set(bahr_SOURCES
+	"./src/bahr/input.c"
+	"./src/bahr/main.c"
 	cmake.toml
 )
 
-add_executable(bin)
+add_executable(bahr)
 
-target_sources(bin PRIVATE ${bin_SOURCES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${bin_SOURCES})
+target_sources(bahr PRIVATE ${bahr_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${bahr_SOURCES})
 
-target_compile_options(bin PRIVATE
+target_compile_options(bahr PRIVATE
 	-Wall
 	-Werror
 	-Wextra
+	-Wpedantic
 	-std=c2x
 )
 
-target_include_directories(bin PRIVATE
+target_include_directories(bahr PRIVATE
 	src
 )
 
-target_link_libraries(bin PRIVATE
+target_link_libraries(bahr PRIVATE
 	utility
 	mimalloc
 )
 
-target_link_libraries(bin PRIVATE
+target_link_libraries(bahr PRIVATE
 	arena
 	parser
 	codegen
@@ -65,7 +66,7 @@ target_link_libraries(bin PRIVATE
 
 get_directory_property(CMKR_VS_STARTUP_PROJECT DIRECTORY ${PROJECT_SOURCE_DIR} DEFINITION VS_STARTUP_PROJECT)
 if(NOT CMKR_VS_STARTUP_PROJECT)
-	set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bin)
+	set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bahr)
 endif()
 
 # Target: codegen
@@ -83,6 +84,7 @@ target_compile_options(codegen PUBLIC
 	-Wall
 	-Werror
 	-Wextra
+	-Wpedantic
 	-std=c2x
 )
 
@@ -117,6 +119,7 @@ target_compile_options(parser PUBLIC
 	-Wall
 	-Werror
 	-Wextra
+	-Wpedantic
 	-std=c2x
 )
 
@@ -144,6 +147,7 @@ target_compile_options(arena PUBLIC
 	-Wall
 	-Werror
 	-Wextra
+	-Wpedantic
 	-std=c2x
 )
 
@@ -156,29 +160,30 @@ target_link_libraries(arena PUBLIC
 	mimalloc
 )
 
-# Target: fxhash
-set(fxhash_SOURCES
-	"./src/fxhash/mod.c"
+# Target: hashmap
+set(hashmap_SOURCES
+	"./src/hashmap/mod.c"
 	cmake.toml
 )
 
-add_library(fxhash STATIC)
+add_library(hashmap STATIC)
 
-target_sources(fxhash PRIVATE ${fxhash_SOURCES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${fxhash_SOURCES})
+target_sources(hashmap PRIVATE ${hashmap_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${hashmap_SOURCES})
 
-target_compile_options(fxhash PUBLIC
+target_compile_options(hashmap PUBLIC
 	-Wall
 	-Werror
 	-Wextra
+	-Wpedantic
 	-std=c2x
 )
 
-target_include_directories(fxhash PUBLIC
+target_include_directories(hashmap PUBLIC
 	src
 )
 
-target_link_libraries(fxhash PUBLIC
+target_link_libraries(hashmap PUBLIC
 	utility
 	mimalloc
 )
@@ -200,6 +205,7 @@ target_compile_options(utility INTERFACE
 	-Werror
 	-Wextra
 	-std=c2x
+	-Wpedantic
 )
 
 target_include_directories(utility INTERFACE

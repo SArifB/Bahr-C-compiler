@@ -6,8 +6,8 @@
 #include <string.h>
 #include <utility/mod.h>
 
-fn(void*(usize)) parser_alloc = nullptr;
-fn(void(void*)) parser_dealloc = nullptr;
+fn(void*(usize)) parser_alloc = malloc;
+fn(void(void*)) parser_dealloc = free;
 
 void parser_set_alloc(fn(void*(usize)) ctor) {
   parser_alloc = ctor;
@@ -56,8 +56,8 @@ DEFINE_VECTOR(NodeRef, parser_alloc, parser_dealloc)
 //   return make_oper(OP_PtrSub, lhs, rhs);
 // }
 
-Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(OperNode));
+Node* make_oper(enum OperKind oper, Node* lhs, Node* rhs) {
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Operation,
     .operation =
@@ -70,8 +70,8 @@ Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   return node;
 }
 
-Node* make_unary(NodeKind kind, Node* value) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(Node*));
+Node* make_unary(enum NodeKind kind, Node* value) {
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = kind,
     .unary = value,
@@ -79,40 +79,36 @@ Node* make_unary(NodeKind kind, Node* value) {
   return node;
 }
 
+static StrArr* alloc_string(StrView view) {
+  usize size = sizeof(usize) + sizeof(char) * (view.size + 1);
+  StrArr* string = parser_alloc(size);
+  memcpy(string->array, view.ptr, view.size);
+  string->array[view.size] = 0;
+  string->size = view.size;
+  return string;
+}
+
 Node* make_basic_value(Node* type, StrView view) {
-  usize size = view.size;
-  Node* node = parser_alloc(
-    NODE_BASE_SIZE + sizeof(ValueNode) + sizeof(char) * (size + 1)
-  );
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Value,
     .value =
       (ValueNode){
         .type = type,
-        .basic.size = size,
+        .basic = alloc_string(view),
       },
   };
-  memcpy(node->value.basic.array, view.ptr, size);
-  node->value.basic.array[size] = 0;
   return node;
 }
 
-Node* make_str_value(StrView view) {
-  usize size = view.size;
-  Node* node = parser_alloc(
-    NODE_BASE_SIZE + sizeof(ValueNode) + sizeof(char) * (size + 1)
-  );
-  *node = (Node){
-    .kind = ND_Value,
-    .value =
-      (ValueNode){
-        .type = make_basic_type(TP_Str),
-      },
-  };
+static StrArr* alloc_str_lit(StrView view) {
+  usize size = sizeof(usize) + sizeof(char) * (view.size + 1);
+  StrArr* string = parser_alloc(size);
   cstr restrict src = view.ptr;
-  str restrict itr = node->value.basic.array;
+  str restrict itr = string->array;
+  size = view.size;
   for (; src != view.ptr + view.size; ++itr, ++src) {
-    if (*src == '\\' && *(src + 1) == 'n') {
+    if (*src == '\\' && src[1] == 'n') {
       *itr = '\n';
       src += 1;
       size -= 1;
@@ -121,12 +117,25 @@ Node* make_str_value(StrView view) {
     }
   }
   *itr = 0;
-  node->value.basic.size = size;
+  string->size = size;
+  return string;
+}
+
+Node* make_str_value(StrView view) {
+  Node* node = parser_alloc(sizeof(Node));
+  *node = (Node){
+    .kind = ND_Value,
+    .value =
+      (ValueNode){
+        .type = make_basic_type(TP_Str),
+        .basic = alloc_str_lit(view),
+      },
+  };
   return node;
 }
 
 Node* make_numeric_value(Node* type, u64 num) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(ValueNode));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Value,
     .value =
@@ -139,7 +148,7 @@ Node* make_numeric_value(Node* type, u64 num) {
 }
 
 Node* make_pointer_value(Node* type, Node* value) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(ValueNode));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Value,
     .value =
@@ -151,8 +160,8 @@ Node* make_pointer_value(Node* type, Node* value) {
   return node;
 }
 
-Node* make_basic_type(TypeKind kind) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(TypeNode));
+Node* make_basic_type(enum TypeKind kind) {
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Type,
     .type =
@@ -163,8 +172,8 @@ Node* make_basic_type(TypeKind kind) {
   return node;
 }
 
-Node* make_numeric_type(TypeKind kind, i32 width) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(TypeNode));
+Node* make_numeric_type(enum TypeKind kind, i32 width) {
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Type,
     .type =
@@ -177,7 +186,7 @@ Node* make_numeric_type(TypeKind kind, i32 width) {
 }
 
 Node* make_pointer_type(Node* type) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(TypeNode));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Type,
     .type =
@@ -190,7 +199,7 @@ Node* make_pointer_type(Node* type) {
 }
 
 Node* make_array_type(Node* type, usize size) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(TypeNode));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Type,
     .type =
@@ -207,20 +216,16 @@ Node* make_declaration(Node* type, StrView view, Node* value) {
   if (current_locals == nullptr) {
     current_locals = NodeRef_vector_make(8);
   }
-  usize size = view.size;
-  Node* node =
-    parser_alloc(NODE_BASE_SIZE + sizeof(DeclNode) + sizeof(char) * (size + 1));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Decl,
     .declaration =
       (DeclNode){
         .type = type,
         .value = value,
-        .name.size = size,
+        .name = alloc_string(view),
       },
   };
-  memcpy(node->declaration.name.array, view.ptr, size);
-  node->declaration.name.array[size] = 0;
   NodeRef_vector_push(&current_locals, node);
   return node;
 }
@@ -229,27 +234,21 @@ Node* make_arg_var(Node* type, StrView view) {
   if (current_locals == nullptr) {
     current_locals = NodeRef_vector_make(8);
   }
-  usize size = view.size;
-  Node* node =
-    parser_alloc(NODE_BASE_SIZE + sizeof(DeclNode) + sizeof(char) * (size + 1));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_ArgVar,
     .declaration =
       (DeclNode){
         .type = type,
-        .name.size = size,
+        .name = alloc_string(view),
       },
   };
-  memcpy(node->declaration.name.array, view.ptr, size);
-  node->declaration.name.array[size] = 0;
   NodeRef_vector_push(&current_locals, node);
   return node;
 }
 
 Node* make_function(Node* type, StrView view, Node* body, Node* args) {
-  usize size = view.size;
-  Node* node =
-    parser_alloc(NODE_BASE_SIZE + sizeof(FnNode) + sizeof(char) * (size + 1));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Function,
     .function =
@@ -258,16 +257,14 @@ Node* make_function(Node* type, StrView view, Node* body, Node* args) {
         .args = args,
         .ret_type = type,
         .locals = current_locals,
-        .name.size = size,
+        .name = alloc_string(view),
       },
   };
-  memcpy(node->function.name.array, view.ptr, size);
-  node->function.name.array[size] = 0;
   return node;
 }
 
 Node* make_if_node(Node* cond, Node* then, Node* elseb) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(IfNode));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_If,
     .if_node =
@@ -281,7 +278,7 @@ Node* make_if_node(Node* cond, Node* then, Node* elseb) {
 }
 
 Node* make_while_node(Node* cond, Node* then) {
-  Node* node = parser_alloc(NODE_BASE_SIZE + sizeof(WhileNode));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_While,
     .while_node =
@@ -294,18 +291,14 @@ Node* make_while_node(Node* cond, Node* then) {
 }
 
 Node* make_call_node(StrView view, Node* args) {
-  usize size = view.size;
-  Node* node =
-    parser_alloc(NODE_BASE_SIZE + sizeof(CallNode) + sizeof(char) * (size + 1));
+  Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Call,
     .call_node =
       (CallNode){
         .args = args,
-        .name.size = size,
+        .name = alloc_string(view),
       },
   };
-  memcpy(node->call_node.name.array, view.ptr, size);
-  node->call_node.name.array[size] = 0;
   return node;
 }

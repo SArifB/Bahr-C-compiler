@@ -47,6 +47,7 @@ struct StrArr {
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define sizeof_arr(arr) (sizeof(arr) / sizeof(*(arr)))
 
+#define eprintln(fmt, ...) fprintf(stderr, fmt "\n", __VA_ARGS__)
 #define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
 #define evprintf(fmt, ...) vfprintf(stderr, fmt, __VA_ARGS__)
 #define eputs(string) fputs(string "\n", stderr)

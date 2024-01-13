@@ -50,7 +50,7 @@ static void print_branch(Node* node) {
     }
 
   } else if (node->kind == ND_Decl) {
-    eprintf("Declaration = %s\n", node->declaration.name.array);
+    eprintf("Declaration = %s\n", node->declaration.name->array);
     print_branch(node->declaration.type);
     if (node->declaration.value != nullptr) {
       print_branch(node->declaration.value);
@@ -95,15 +95,15 @@ static void print_branch(Node* node) {
         print_branch(val);
       }
     } else {
-      eprintf("Value = %s\n", node->value.basic.array);
+      eprintf("Value = %s\n", node->value.basic->array);
     }
 
   } else if (node->kind == ND_Variable) {
-    eprintf("Variable = %s\n", node->unary->declaration.name.array);
+    eprintf("Variable = %s\n", node->unary->declaration.name->array);
     print_branch(node->unary->declaration.type);
 
   } else if (node->kind == ND_ArgVar) {
-    eprintf("Argument = %s\n", node->declaration.name.array);
+    eprintf("Argument = %s\n", node->declaration.name->array);
     print_branch(node->declaration.type);
 
   } else if (node->kind == ND_If) {
@@ -119,7 +119,7 @@ static void print_branch(Node* node) {
     print_branch(node->while_node.then);
 
   } else if (node->kind == ND_Call) {
-    eprintf("Call = %s\n", node->call_node.name.array);
+    eprintf("Call = %s\n", node->call_node.name->array);
     for (Node* branch = node->call_node.args; branch != nullptr;
          branch = branch->next) {
       print_branch(branch);
@@ -133,7 +133,7 @@ void print_ast(Node* prog) {
     if (branch != prog) {
       eputs("--------------------------------------");
     }
-    eprintf("Function = %s\n", branch->function.name.array);
+    eprintf("Function = %s\n", branch->function.name->array);
     print_branch(branch->function.ret_type);
     indent += 1;
     for (Node* arg = branch->function.args; arg != nullptr; arg = arg->next) {

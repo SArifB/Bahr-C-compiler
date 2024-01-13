@@ -9,8 +9,8 @@
 #include <utility/mod.h>
 #include <utility/vec.h>
 
-static fn(void*(usize)) codegen_alloc = nullptr;
-static fn(void(void*)) codegen_dealloc = nullptr;
+static fn(void*(usize)) codegen_alloc = malloc;
+static fn(void(void*)) codegen_dealloc = free;
 
 void codegen_set_alloc(fn(void*(usize)) ctor) {
   codegen_alloc = ctor;
@@ -71,7 +71,7 @@ void codegen_dispose(Codegen* cdgn) {
   codegen_dealloc(cdgn);
 }
 
-unreturning static void print_cdgn_err(NodeKind kind) {
+unreturning static void print_cdgn_err(enum NodeKind kind) {
   switch (kind) {  // clang-format off
     case ND_None:       eputs("Invalid nodekind: ND_None");      break;
     case ND_Operation:  eputs("Invalid nodekind: ND_Operation"); break;
@@ -100,8 +100,9 @@ static DeclFn* get_decl_fn(StrView name) {
   usize size = name.size;
   for (usize i = 0; i < decl_fns->length; ++i) {
     if (
-      strncmp(name.ptr, decl_fns->buffer[i].name, size) == 0
-      && decl_fns->buffer[i].name[size] == '\0') {
+      strncmp(name.ptr, decl_fns->buffer[i].name, size) == 0 &&
+      decl_fns->buffer[i].name[size] == 0
+    ) {
       return &decl_fns->buffer[i];
     }
   }
@@ -149,6 +150,9 @@ LLVMValueRef codegen_generate(Codegen* cdgn, Node* prog) {
   for (Node* func = prog; func != nullptr; func = func->next) {
     unused LLVMValueRef ret = codegen_function(cdgn, func);
   }
+  for (usize i = 0; i < decl_fns->length; ++i) {
+    codegen_dealloc(decl_fns->buffer[i].arg_names);
+  }
   codegen_dealloc(decl_fns);
 
   str str_mod = LLVMPrintModuleToString(cdgn->mod);
@@ -176,19 +180,19 @@ static LLVMValueRef codegen_reg_fns(Codegen* cdgn, Node* node) {
   for (Node* arg = node->function.args; arg != nullptr; arg = arg->next) {
     LLVMTypeRef type = codegen_type(cdgn, arg->declaration.type);
     LLVMTypeRef_vector_push(&arg_types, type);
-    cstr_vector_push(&arg_names, arg->declaration.name.array);
+    cstr_vector_push(&arg_names, arg->declaration.name->array);
   }
   LLVMTypeRef ret_type = codegen_type(cdgn, node->function.ret_type);
 
   LLVMTypeRef function_type =
     LLVMFunctionType(ret_type, arg_types->buffer, arg_types->length, false);
   LLVMValueRef function =
-    LLVMAddFunction(cdgn->mod, node->function.name.array, function_type);
+    LLVMAddFunction(cdgn->mod, node->function.name->array, function_type);
 
   DeclFn_vector_push(
     &decl_fns,
     (DeclFn){
-      .name = node->function.name.array,
+      .name = node->function.name->array,
       .value = function,
       .type = function_type,
       .arg_names = arg_names,
@@ -236,7 +240,6 @@ static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
   }
 
   codegen_dealloc(arg_types);
-  codegen_dealloc(function->arg_names);
   codegen_dealloc(decl_vars);
   return function->value;
 }
@@ -264,14 +267,14 @@ static LLVMValueRef codegen_parse(
   } else if (node->kind == ND_Decl) {
     LLVMTypeRef type = codegen_type(cdgn, node->declaration.type);
     LLVMValueRef decl =
-      LLVMBuildAlloca(cdgn->bldr, type, node->declaration.name.array);
+      LLVMBuildAlloca(cdgn->bldr, type, node->declaration.name->array);
     LLVMValueRef val = codegen_parse(cdgn, node->declaration.value, function);
     LLVMBuildStore(cdgn->bldr, val, decl);
     DeclVar_vector_push(
       &decl_vars,
       (DeclVar){
         .variable = decl,
-        .name = node->declaration.name.array,
+        .name = node->declaration.name->array,
       }
     );
     return decl;
@@ -385,13 +388,13 @@ static LLVMValueRef codegen_oper(
 static LLVMValueRef codegen_value(Codegen* cdgn, Node* node) {
   if (is_integer(node->value.type) == true) {
     LLVMTypeRef type = codegen_type(cdgn, node->value.type);
-    return LLVMConstInt(type, atoi(node->value.basic.array), true);
+    return LLVMConstInt(type, atoi(node->value.basic->array), true);
   } else if (node->value.type->type.kind == TP_Str) {
     LLVMTypeRef type = LLVMArrayType(
-      LLVMInt8TypeInContext(cdgn->ctx), node->value.basic.size + 1
+      LLVMInt8TypeInContext(cdgn->ctx), node->value.basic->size + 1
     );
     LLVMValueRef str_val = LLVMConstStringInContext(
-      cdgn->ctx, node->value.basic.array, node->value.basic.size, false
+      cdgn->ctx, node->value.basic->array, node->value.basic->size, false
     );
     LLVMValueRef global_str = LLVMAddGlobal(cdgn->mod, type, ".str");
     LLVMSetInitializer(global_str, str_val);

@@ -34,19 +34,19 @@ sources = ["./src/utility/*.h"]
 [template.my_executable]
 type = "executable"
 include-directories = ["src"]
-compile-options = ["-Wall", "-Werror", "-Wextra", "-std=c2x"]
+compile-options = ["-Wall", "-Werror", "-Wextra", "-Wpedantic", "-std=c2x"]
 link-libraries = ["utility", "mimalloc"]
 
 [template.my_library]
 type = "static"
 include-directories = ["src"]
-compile-options = ["-Wall", "-Werror", "-Wextra", "-std=c2x"]
+compile-options = ["-Wall", "-Werror", "-Wextra", "-Wpedantic", "-std=c2x"]
 link-libraries = ["utility", "mimalloc"]
 
 [template.my_interface]
 type = "interface"
 include-directories = ["src"]
-compile-options = ["-Wall", "-Werror", "-Wextra", "-std=c2x"]
+compile-options = ["-Wall", "-Werror", "-Wextra", "-std=c2x", "-Wpedantic"]
 link-libraries = ["mimalloc"]
 
 # Tests

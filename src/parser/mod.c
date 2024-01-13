@@ -26,6 +26,7 @@ Node* parse_string(const StrView view) {
     print_ast(prog);
     eputs("\n-----------------------------------------------");
   }
+  parser_dealloc(tokens);
   return prog;
 }
 
@@ -36,8 +37,9 @@ static Node* find_variable(Token* token) {
   Node** sen = current_locals->buffer + current_locals->length;
   cstr lookup = token->pos.ptr;
   usize size = token->pos.size;
+  
   for (; itr != sen; ++itr) {
-    cstr name = (**itr).declaration.name.array;
+    cstr name = (**itr).declaration.name->array;
     if (strncmp(lookup, name, size) == 0 && name[size] == 0) {
       return make_unary(ND_Variable, *itr);
     }
@@ -45,7 +47,7 @@ static Node* find_variable(Token* token) {
   return nullptr;
 }
 
-static bool consume(Token** rest, Token* token, AddInfo info) {
+static bool consume(Token** rest, Token* token, enum AddInfo info) {
   if (token->info != info) {
     *rest = token;
     return false;
@@ -54,7 +56,7 @@ static bool consume(Token** rest, Token* token, AddInfo info) {
   return true;
 }
 
-static Token* expect_info(Token* token, AddInfo info) {
+static Token* expect_info(Token* token, enum AddInfo info) {
   if (token->info != info) {
     error_tok(token, "Invalid expression");
   }
@@ -76,10 +78,10 @@ static Token* expect_ident(Token* token) {
 }
 
 static Node* parse_list(
-  Token** rest, Token* token, AddInfo breaker,
+  Token** rest, Token* token, enum AddInfo breaker,
   fn(Node*(Token**, Token*)) callable
 ) {
-  Node handle = {};
+  Node handle = {0};
   Node* cursor = &handle;
   while (token->info != breaker) {
     if (cursor != &handle) {
@@ -120,7 +122,7 @@ static Node* parse_type(Token** rest, Token* token) {
       Node* size = expr(&token, token);
       Node* type = parse_type(rest, expect_info(token, PK_RightSqrBrack));
       if (size->kind == ND_Value) {
-        return make_array_type(type, atoi(size->value.basic.array));
+        return make_array_type(type, atoi(size->value.basic->array));
       } else {
         error_tok(token, "Size value not found");
       }
@@ -176,10 +178,11 @@ static Node* parse_type(Token** rest, Token* token) {
 // program = functions*
 static Node* parse_lexer(TokenVector* tokens) {
   Token* token = tokens->buffer;
+  Token* sentinel = tokens->buffer + tokens->length;
 
-  Node handle = {};
+  Node handle = {0};
   Node* cursor = &handle;
-  while (token->kind != TK_EOF) {
+  while (token != sentinel) {
     if (consume(&token, token, KW_Ext)) {
       cursor->next = extern_function(&token, expect_info(token, KW_Fn));
       cursor = cursor->next;
@@ -197,6 +200,7 @@ static Node* function(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
   token = expect_info(token, PK_LeftParen);
+  parser_dealloc(current_locals);
   current_locals = nullptr;
 
   Node* args = parse_list(&token, token, PK_RightParen, argument);
@@ -274,7 +278,7 @@ static Node* stmt(Token** rest, Token* token) {
 
 // compound-stmt = stmt* "}"
 static Node* compound_stmt(Token** rest, Token* token) {
-  Node handle = {};
+  Node handle = {0};
   Node* node_cursor = &handle;
   while (token->info != PK_RightBracket) {
     token = expect_eol(token - 1);
@@ -415,7 +419,7 @@ static Node* primary(Token** rest, Token* token) {
         return node;
       }
       Node* list = parse_list(rest, token, PK_RightSqrBrack, unary);
-      TypeKind first_type = list->value.type->type.kind;
+      enum TypeKind first_type = list->value.type->type.kind;
       usize size = 0;
       for (Node* value = list; value != nullptr; value = value->next) {
         if (value->value.type->type.kind != first_type) {
