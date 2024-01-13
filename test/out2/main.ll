@@ -1,5 +1,5 @@
-; ModuleID = 'some_code'
-source_filename = "some_code"
+; ModuleID = 'test/src/ast_test.bh'
+source_filename = "test/src/ast_test.bh"
 
 @.str = private unnamed_addr global [12 x i8] c"hello\0Aworld\00", align 1
 @.str.1 = private unnamed_addr global [10 x i8] c"some text\00", align 1

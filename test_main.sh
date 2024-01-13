@@ -6,7 +6,7 @@
 # Requires: fish, clang, gcc
 # Can substitute fish for any shell and gcc for any compiler
 
-./build/bin test/src/ast_adv_test.bh > test/out2/main.ll
+./build/bahr test/src/ast_test.bh > test/out2/main.ll
 cd test/out2/
 llc -relocation-model=pic main.ll
 gcc -o main main.s

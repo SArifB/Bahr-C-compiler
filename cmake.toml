@@ -1,12 +1,12 @@
 # Reference: https://build-cpp.github.io/cmkr/cmake-toml
 [project]
-name = "comp-test3"
+name = "Bahr"
 languages = ["C"]
 
 # Targets
-[target.bin]
+[target.bahr]
 type = "my_executable"
-sources = ["./src/bin/*.c"]
+sources = ["./src/bahr/*.c"]
 link-libraries = ["arena", "parser", "codegen"]
 
 [target.codegen]
@@ -22,9 +22,9 @@ sources = ["./src/parser/*.c"]
 type = "my_library"
 sources = ["./src/arena/*.c"]
 
-[target.fxhash]
+[target.hashmap]
 type = "my_library"
-sources = ["./src/fxhash/*.c"]
+sources = ["./src/hashmap/*.c"]
 
 [target.utility]
 type = "my_interface"

@@ -1,5 +1,5 @@
 	.text
-	.file	"some_code"
+	.file	"ast_test.bh"
 	.globl	main                            # -- Begin function main
 	.p2align	4, 0x90
 	.type	main,@function

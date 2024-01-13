@@ -5,7 +5,7 @@
 # Requires: fish, clang, gcc
 # Can substitute fish for any shell and gcc for any compiler
 
-./build/bin test/src/test.bh > test/out/test.ll
+./build/bahr test/src/test.bh > test/out/test.ll
 cd test/out/
 llc test.ll
 gcc -o test main.c test.s
