@@ -3,9 +3,10 @@
 
 typedef struct InputFile InputFile;
 struct InputFile {
-  cstr name;
-  cstr file;
-  usize size;
+  const cstr name;
+  const cstr file;
+  const usize size;
+  const i32 descriptor;
 };
 
 extern InputFile input_file(cstr filename);
