@@ -40,7 +40,8 @@ If you want to see the "hello world" example you can call
 
 There are many optimizations I will try to still implement (eg. compiling IR to asm or obj in memory). Right now in release mode, "hello world" example completes in about 57 ms.
 
-![Screenshot](public/bahr-hyperfine-24.01.07.png)
+24.01.15
+![Screenshot](public/hyperfine-24.01.15.png)
 
 ## Inspiration
 
