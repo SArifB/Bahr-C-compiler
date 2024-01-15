@@ -55,11 +55,10 @@ target_include_directories(bahr PRIVATE
 
 target_link_libraries(bahr PRIVATE
 	utility
-	mimalloc
+	jemalloc
 )
 
 target_link_libraries(bahr PRIVATE
-	arena
 	parser
 	codegen
 )
@@ -94,7 +93,7 @@ target_include_directories(codegen PUBLIC
 
 target_link_libraries(codegen PUBLIC
 	utility
-	mimalloc
+	jemalloc
 )
 
 target_link_libraries(codegen PUBLIC
@@ -129,7 +128,11 @@ target_include_directories(parser PUBLIC
 
 target_link_libraries(parser PUBLIC
 	utility
-	mimalloc
+	jemalloc
+)
+
+target_link_libraries(parser PUBLIC
+	arena
 )
 
 # Target: arena
@@ -157,7 +160,7 @@ target_include_directories(arena PUBLIC
 
 target_link_libraries(arena PUBLIC
 	utility
-	mimalloc
+	jemalloc
 )
 
 # Target: hashmap
@@ -185,7 +188,7 @@ target_include_directories(hashmap PUBLIC
 
 target_link_libraries(hashmap PUBLIC
 	utility
-	mimalloc
+	jemalloc
 )
 
 # Target: utility
@@ -204,8 +207,8 @@ target_compile_options(utility INTERFACE
 	-Wall
 	-Werror
 	-Wextra
-	-std=c2x
 	-Wpedantic
+	-std=c2x
 )
 
 target_include_directories(utility INTERFACE
@@ -213,6 +216,6 @@ target_include_directories(utility INTERFACE
 )
 
 target_link_libraries(utility INTERFACE
-	mimalloc
+	jemalloc
 )
 

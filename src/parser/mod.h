@@ -118,8 +118,6 @@ enum NodeKind {
   ND_Call,
 };
 
-#define NODE_BASE_SIZE (sizeof(usize) * 2)
-
 struct Node {
   enum NodeKind kind;
   Node* next;
@@ -138,8 +136,6 @@ struct Node {
 
 extern Node* parse_string(const StrView view);
 extern void enable_verbosity();
-
-extern void parser_set_alloc(fn(void*(usize)) ctor);
-extern void parser_set_dealloc(fn(void(void*)) dtor);
+extern void parser_dealloc();
 
 #define view_from(arr) ((StrView){(arr)->array, (arr)->size})

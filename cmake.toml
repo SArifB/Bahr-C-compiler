@@ -7,7 +7,7 @@ languages = ["C"]
 [target.bahr]
 type = "my_executable"
 sources = ["./src/bahr/*.c"]
-link-libraries = ["arena", "parser", "codegen"]
+link-libraries = ["parser", "codegen"]
 
 [target.codegen]
 type = "my_library"
@@ -17,6 +17,7 @@ link-libraries = ["LLVM"]
 [target.parser]
 type = "my_library"
 sources = ["./src/parser/*.c"]
+link-libraries = ["arena"]
 
 [target.arena]
 type = "my_library"
@@ -35,19 +36,19 @@ sources = ["./src/utility/*.h"]
 type = "executable"
 include-directories = ["src"]
 compile-options = ["-Wall", "-Werror", "-Wextra", "-Wpedantic", "-std=c2x"]
-link-libraries = ["utility", "mimalloc"]
+link-libraries = ["utility", "jemalloc"]
 
 [template.my_library]
 type = "static"
 include-directories = ["src"]
 compile-options = ["-Wall", "-Werror", "-Wextra", "-Wpedantic", "-std=c2x"]
-link-libraries = ["utility", "mimalloc"]
+link-libraries = ["utility", "jemalloc"]
 
 [template.my_interface]
 type = "interface"
 include-directories = ["src"]
-compile-options = ["-Wall", "-Werror", "-Wextra", "-std=c2x", "-Wpedantic"]
-link-libraries = ["mimalloc"]
+compile-options = ["-Wall", "-Werror", "-Wextra", "-Wpedantic", "-std=c2x"]
+link-libraries = ["jemalloc"]
 
 # Tests
 # TODO: add tests

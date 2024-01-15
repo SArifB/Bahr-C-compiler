@@ -6,7 +6,7 @@
 #include <string.h>
 #include <utility/mod.h>
 
-DEFINE_VECTOR(Token, parser_alloc, parser_dealloc)
+DEFINE_VECTOR(Token, malloc, free)
 
 static StrView current_input;
 
@@ -162,8 +162,6 @@ static OptIdx try_get_str_lit(cstr iter) {
     return (OptIdx){0};
   }
   usize size = 1;
-  /*   return *ref == '\"' || (*ref == '\"' && *(ref - 1) == '\\'); */
-  // while (() == false) {
   while (iter[size] != '\"' || (iter[size] != '\"' && iter[size - 1] != '\\')) {
     size += 1;
   }
@@ -266,10 +264,6 @@ static OptIdx try_get_punct(cstr iter) {
 
 TokenVector* lex_string(const StrView view) {
   TokenVector* tokens = Token_vector_make(64);
-  if (tokens == nullptr) {
-    eputs("No tokens found");
-    exit(1);
-  }
   current_input = view;
 
   for (usize i = 0; i < sizeof_arr(pnct_table); ++i) {

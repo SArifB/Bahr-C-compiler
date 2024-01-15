@@ -1,3 +1,4 @@
+#include <arena/mod.h>
 #include <parser/ctors.h>
 #include <parser/lexer.h>
 #include <parser/mod.h>
@@ -6,18 +7,18 @@
 #include <string.h>
 #include <utility/mod.h>
 
-fn(void*(usize)) parser_alloc = malloc;
-fn(void(void*)) parser_dealloc = free;
+DEFINE_VECTOR(NodeRef, malloc, free)
 
-void parser_set_alloc(fn(void*(usize)) ctor) {
-  parser_alloc = ctor;
+static Arena PARSER_POOL = {0};
+
+static void* parser_alloc(usize size) {
+  return arena_alloc(&PARSER_POOL, size);
 }
 
-void parser_set_dealloc(fn(void(void*)) dtor) {
-  parser_dealloc = dtor;
+void parser_dealloc() {
+  arena_free(&PARSER_POOL);
+  free(current_locals);
 }
-
-DEFINE_VECTOR(NodeRef, parser_alloc, parser_dealloc)
 
 // static bool is_integer(Node* node) {
 //   return node->kind == ND_Value &&

@@ -26,7 +26,7 @@ Node* parse_string(const StrView view) {
     print_ast(prog);
     eputs("\n-----------------------------------------------");
   }
-  parser_dealloc(tokens);
+  free(tokens);
   return prog;
 }
 
@@ -37,7 +37,7 @@ static Node* find_variable(Token* token) {
   Node** sen = current_locals->buffer + current_locals->length;
   cstr lookup = token->pos.ptr;
   usize size = token->pos.size;
-  
+
   for (; itr != sen; ++itr) {
     cstr name = (**itr).declaration.name->array;
     if (strncmp(lookup, name, size) == 0 && name[size] == 0) {
@@ -200,7 +200,7 @@ static Node* function(Token** rest, Token* token) {
   StrView name = token->pos;
   token = expect_ident(token);
   token = expect_info(token, PK_LeftParen);
-  parser_dealloc(current_locals);
+  free(current_locals);
   current_locals = nullptr;
 
   Node* args = parse_list(&token, token, PK_RightParen, argument);
