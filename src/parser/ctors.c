@@ -9,7 +9,7 @@
 
 DEFINE_VECTOR(NodeRef, malloc, free)
 
-static Arena PARSER_POOL = {0};
+static Arena PARSER_POOL = {};
 
 static void* parser_alloc(usize size) {
   return arena_alloc(&PARSER_POOL, size);
@@ -57,7 +57,7 @@ void parser_dealloc() {
 //   return make_oper(OP_PtrSub, lhs, rhs);
 // }
 
-Node* make_oper(enum OperKind oper, Node* lhs, Node* rhs) {
+Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Operation,
@@ -71,7 +71,7 @@ Node* make_oper(enum OperKind oper, Node* lhs, Node* rhs) {
   return node;
 }
 
-Node* make_unary(enum NodeKind kind, Node* value) {
+Node* make_unary(NodeKind kind, Node* value) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = kind,
@@ -161,7 +161,7 @@ Node* make_pointer_value(Node* type, Node* value) {
   return node;
 }
 
-Node* make_basic_type(enum TypeKind kind) {
+Node* make_basic_type(TypeKind kind) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Type,
@@ -173,7 +173,7 @@ Node* make_basic_type(enum TypeKind kind) {
   return node;
 }
 
-Node* make_numeric_type(enum TypeKind kind, i32 width) {
+Node* make_numeric_type(TypeKind kind, i32 width) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Type,

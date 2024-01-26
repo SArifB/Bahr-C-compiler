@@ -5,7 +5,7 @@
 typedef struct Lexer Lexer;
 typedef struct Token Token;
 
-enum TokenKind {
+typedef enum {
   TK_Ident,
   TK_NumLiteral,
   TK_FltLiteral,
@@ -13,9 +13,9 @@ enum TokenKind {
   TK_CharLiteral,
   TK_Keyword,
   TK_Punct,
-};
+} TokenKind;
 
-enum AddInfo {
+typedef enum {
   AD_None,
 
   // Integer types
@@ -83,12 +83,12 @@ enum AddInfo {
   KW_While,
   KW_Match,
   KW_Return,
-};
+} AddInfo;
 
 struct Token {
-  enum TokenKind kind : 8;
+  TokenKind kind : 8;
   bool is_eol;
-  enum AddInfo info;
+  AddInfo info;
   StrView pos;
 };
 DECLARE_VECTOR(Token)

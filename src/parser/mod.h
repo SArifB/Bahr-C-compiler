@@ -13,7 +13,7 @@ typedef struct CallNode CallNode;
 typedef struct Node Node, *NodeRef;
 DECLARE_VECTOR(NodeRef)
 
-enum OperKind {
+typedef enum {
   OP_Add,
   // OP_PtrAdd,
   OP_Sub,
@@ -29,15 +29,15 @@ enum OperKind {
   OP_Gt,
   OP_Asg,
   OP_ArrIdx,
-};
+} OperKind;
 
 struct OperNode {
-  enum OperKind kind;
+  OperKind kind;
   Node* lhs;
   Node* rhs;
 };
 
-enum TypeKind {
+typedef enum {
   TP_Undf,
   TP_Unit,
   TP_SInt,
@@ -46,10 +46,10 @@ enum TypeKind {
   TP_Str,
   TP_Ptr,
   TP_Arr,
-};
+} TypeKind;
 
 struct TypeNode {
-  enum TypeKind kind;
+  TypeKind kind;
   union {
     usize bit_width;
     Node* base;
@@ -99,7 +99,7 @@ struct CallNode {
   StrArr* name;
 };
 
-enum NodeKind {
+typedef enum {
   ND_None,
   ND_Operation,
   ND_Negation,
@@ -116,10 +116,10 @@ enum NodeKind {
   ND_If,
   ND_While,
   ND_Call,
-};
+} NodeKind;
 
 struct Node {
-  enum NodeKind kind;
+  NodeKind kind;
   Node* next;
   union {
     OperNode operation;

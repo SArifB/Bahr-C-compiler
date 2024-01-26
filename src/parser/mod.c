@@ -47,7 +47,7 @@ static Node* find_variable(Token* token) {
   return nullptr;
 }
 
-static bool consume(Token** rest, Token* token, enum AddInfo info) {
+static bool consume(Token** rest, Token* token, AddInfo info) {
   if (token->info != info) {
     *rest = token;
     return false;
@@ -56,7 +56,7 @@ static bool consume(Token** rest, Token* token, enum AddInfo info) {
   return true;
 }
 
-static Token* expect_info(Token* token, enum AddInfo info) {
+static Token* expect_info(Token* token, AddInfo info) {
   if (token->info != info) {
     error_tok(token, "Invalid expression");
   }
@@ -78,10 +78,10 @@ static Token* expect_ident(Token* token) {
 }
 
 static Node* parse_list(
-  Token** rest, Token* token, enum AddInfo breaker,
+  Token** rest, Token* token, AddInfo breaker,
   fn(Node*(Token**, Token*)) callable
 ) {
-  Node handle = {0};
+  Node handle = {};
   Node* cursor = &handle;
   while (token->info != breaker) {
     if (cursor != &handle) {
@@ -180,7 +180,7 @@ static Node* parse_lexer(TokenVector* tokens) {
   Token* token = tokens->buffer;
   Token* sentinel = tokens->buffer + tokens->length;
 
-  Node handle = {0};
+  Node handle = {};
   Node* cursor = &handle;
   while (token != sentinel) {
     if (consume(&token, token, KW_Ext)) {
@@ -278,7 +278,7 @@ static Node* stmt(Token** rest, Token* token) {
 
 // compound-stmt = stmt* "}"
 static Node* compound_stmt(Token** rest, Token* token) {
-  Node handle = {0};
+  Node handle = {};
   Node* node_cursor = &handle;
   while (token->info != PK_RightBracket) {
     token = expect_eol(token - 1);
@@ -419,7 +419,7 @@ static Node* primary(Token** rest, Token* token) {
         return node;
       }
       Node* list = parse_list(rest, token, PK_RightSqrBrack, unary);
-      enum TypeKind first_type = list->value.type->type.kind;
+      TypeKind first_type = list->value.type->type.kind;
       usize size = 0;
       for (Node* value = list; value != nullptr; value = value->next) {
         if (value->value.type->type.kind != first_type) {

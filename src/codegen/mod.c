@@ -60,7 +60,7 @@ static void codegen_dispose(Codegen* cdgn) {
   free(cdgn);
 }
 
-unreturning static void print_cdgn_err(enum NodeKind kind) {
+unreturning static void print_cdgn_err(NodeKind kind) {
   switch (kind) {  // clang-format off
     case ND_None:       eputs("Invalid nodekind: ND_None");      break;
     case ND_Operation:  eputs("Invalid nodekind: ND_Operation"); break;
@@ -134,7 +134,7 @@ static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node);
 LLVMValueRef codegen_generate(cstr name, Node* prog) {
   Codegen* cdgn = codegen_make(name);
   decl_fns = DeclFn_vector_make(8);
-  
+
   for (Node* func = prog; func != nullptr; func = func->next) {
     unused LLVMValueRef ret = codegen_reg_fns(cdgn, func);
   }
@@ -425,10 +425,7 @@ static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node) {
   if (node->kind == ND_Variable) {
     return codegen_type(cdgn, node->unary);
 
-  } else if (node->kind == ND_ArgVar) {
-    return codegen_type(cdgn, node->declaration.type);
-
-  } else if (node->kind == ND_Decl) {
+  } else if (node->kind == ND_Decl || node->kind == ND_ArgVar) {
     return codegen_type(cdgn, node->declaration.type);
 
   } else if (node->kind == ND_Value) {

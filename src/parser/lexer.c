@@ -87,7 +87,7 @@ static const char pnct_table[][4] = {
 
 static usize pnct_sizes[sizeof_arr(pnct_table)];
 
-static const enum AddInfo pnct_info_table[sizeof_arr(pnct_table)] = {
+static const AddInfo pnct_info_table[sizeof_arr(pnct_table)] = {
   PK_LeftParen,    PK_RightParen,    PK_LeftBracket, PK_RightBracket,
   PK_LeftSqrBrack, PK_RightSqrBrack, PK_AddAssign,   PK_SubAssign,
   PK_MulAssign,    PK_DivAssign,     PK_RightArrow,  PK_FatRightArrow,
@@ -107,7 +107,7 @@ static const char kwrd_table[][8] = {
 
 static usize kwrd_sizes[sizeof_arr(kwrd_table)];
 
-static const enum AddInfo kwrd_info_table[sizeof_arr(kwrd_table)] = {
+static const AddInfo kwrd_info_table[sizeof_arr(kwrd_table)] = {
   KW_Ext,  KW_Pub, KW_Let,   KW_Fn,    KW_Use,    KW_If,
   KW_Else, KW_For, KW_While, KW_Match, KW_Return,
 };
@@ -120,7 +120,7 @@ static usize flt_sizes[sizeof_arr(flt_table)] = {
   3, 4, 3, 3, 4,
 };
 
-static const enum AddInfo flt_info_table[sizeof_arr(flt_table)] = {
+static const AddInfo flt_info_table[sizeof_arr(flt_table)] = {
   AD_F16Type, AD_BF16Type, AD_F32Type, AD_F64Type, AD_F128Type,
 };
 
@@ -133,7 +133,7 @@ struct OptNumIdx {
 
 static OptNumIdx try_get_num_lit(cstr iter) {
   if (is_numliteral(*iter) != true) {
-    return (OptNumIdx){0};
+    return (OptNumIdx){};
   }
   usize size = 0;
   bool flt = false;
@@ -159,7 +159,7 @@ struct OptIdx {
 
 static OptIdx try_get_str_lit(cstr iter) {
   if (*iter != '\"') {
-    return (OptIdx){0};
+    return (OptIdx){};
   }
   usize size = 1;
   while (iter[size] != '\"' || (iter[size] != '\"' && iter[size - 1] != '\\')) {
@@ -173,7 +173,7 @@ static OptIdx try_get_str_lit(cstr iter) {
 
 static OptIdx try_get_char_lit(cstr iter) {
   if (*iter != '\'') {
-    return (OptIdx){0};
+    return (OptIdx){};
   }
   usize size = 1;
   while (iter[size] != '\'') {
@@ -187,7 +187,7 @@ static OptIdx try_get_char_lit(cstr iter) {
 
 static OptIdx try_get_kwrd(cstr iter) {
   if (is_ident(*iter) == false) {
-    return (OptIdx){0};
+    return (OptIdx){};
   }
   for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
     if (strncmp(iter, kwrd_table[i], kwrd_sizes[i]) == 0 && //
@@ -198,12 +198,12 @@ static OptIdx try_get_kwrd(cstr iter) {
       };
     }
   }
-  return (OptIdx){0};
+  return (OptIdx){};
 }
 
 static OptIdx try_get_fltt(cstr iter) {
   if (*iter != 'f' && *iter != 'b') {
-    return (OptIdx){0};
+    return (OptIdx){};
   }
   for (usize i = 0; i < sizeof_arr(flt_table); ++i) {
     if (strncmp(iter, flt_table[i], flt_sizes[i]) == 0 && //
@@ -214,19 +214,19 @@ static OptIdx try_get_fltt(cstr iter) {
       };
     }
   }
-  return (OptIdx){0};
+  return (OptIdx){};
 }
 
 static OptIdx try_get_intt(cstr iter, char comp) {
   if (*iter != comp) {
-    return (OptIdx){0};
+    return (OptIdx){};
   }
   usize size = 1;
   while (is_number(iter[size])) {
     size += 1;
   }
   if (is_charnum(iter[size]) == true) {
-    return (OptIdx){0};
+    return (OptIdx){};
   }
   return (OptIdx){
     .size = size,
@@ -240,7 +240,7 @@ static OptIdx try_get_ident(cstr iter) {
     size += 1;
   }
   if (size == 0) {
-    return (OptIdx){0};
+    return (OptIdx){};
   }
   return (OptIdx){
     .size = size,
@@ -257,7 +257,7 @@ static OptIdx try_get_punct(cstr iter) {
       };
     }
   }
-  return (OptIdx){0};
+  return (OptIdx){};
 }
 
 #define tokens_push(...) Token_vector_push(&tokens, ((Token){__VA_ARGS__}))
