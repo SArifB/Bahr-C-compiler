@@ -57,23 +57,23 @@ unreturning void error_tok(Token* token, cstr fmt, ...) {
   verror_at(token->pos.ptr, fmt, ap);
 }
 
-static bool skippable(char ref) {
+static inline bool is_skippable(char ref) {
   return ref == ' ' || ref == '\t' || ref == '\r' || ref == '\f';
 }
 
-static bool is_numliteral(char ref) {
+static inline bool is_numliteral(char ref) {
   return (ref >= '0' && ref <= '9') || ref == '.' || ref == '_';
 }
 
-static bool is_number(char ref) {
+static inline bool is_number(char ref) {
   return ref >= '0' && ref <= '9';
 }
 
-static bool is_ident(char ref) {
+static inline bool is_ident(char ref) {
   return (ref >= 'a' && ref <= 'z') || (ref >= 'A' && ref <= 'Z') || ref == '_';
 }
 
-static bool is_charnum(char ref) {
+static inline bool is_charnum(char ref) {
   return (ref >= 'a' && ref <= 'z') || (ref >= 'A' && ref <= 'Z') ||
          (ref >= '0' && ref <= '9') || ref == '_';
 }
@@ -116,7 +116,7 @@ static const char flt_table[][4] = {
   "f16", "bf16", "f32", "f64", "f128",
 };
 
-static usize flt_sizes[sizeof_arr(flt_table)] = {
+static const usize flt_sizes[sizeof_arr(flt_table)] = {
   3, 4, 3, 3, 4,
 };
 
@@ -222,7 +222,7 @@ static OptIdx try_get_intt(cstr iter, char comp) {
     return (OptIdx){};
   }
   usize size = 1;
-  while (is_number(iter[size])) {
+  while (is_number(iter[size]) == true) {
     size += 1;
   }
   if (is_charnum(iter[size]) == true) {
@@ -260,7 +260,7 @@ static OptIdx try_get_punct(cstr iter) {
   return (OptIdx){};
 }
 
-#define tokens_push(...) Token_vector_push(&tokens, ((Token){__VA_ARGS__}))
+#define tokens_push(...) Token_vector_push(&tokens, ((Token)__VA_ARGS__))
 
 TokenVector* lex_string(const StrView view) {
   TokenVector* tokens = Token_vector_make(64);
@@ -275,7 +275,7 @@ TokenVector* lex_string(const StrView view) {
 
   const char* iter = view.ptr;
   while (iter != view.ptr + view.size) {
-    if (skippable(*iter) == true) {
+    if (is_skippable(*iter) == true) {
       iter += 1;
       continue;
     }
@@ -301,9 +301,15 @@ TokenVector* lex_string(const StrView view) {
     OptNumIdx opt_num = try_get_num_lit(iter);
     if (opt_num.some == true) {
       if (opt_num.flt == true) {
-        tokens_push(.kind = TK_FltLiteral, .pos = {iter, opt_num.size}, );
+        tokens_push({
+          .kind = TK_FltLiteral,
+          .pos = {iter, opt_num.size},
+        });
       } else {
-        tokens_push(.kind = TK_NumLiteral, .pos = {iter, opt_num.size}, );
+        tokens_push({
+          .kind = TK_NumLiteral,
+          .pos = {iter, opt_num.size},
+        });
       }
       iter += opt_num.size;
       continue;
@@ -313,7 +319,10 @@ TokenVector* lex_string(const StrView view) {
     /// String
     opt = try_get_str_lit(iter);
     if (opt.some == true) {
-      tokens_push(.kind = TK_StrLiteral, .pos = {iter + 1, opt.size - 1}, );
+      tokens_push({
+        .kind = TK_StrLiteral,
+        .pos = {iter + 1, opt.size - 1},
+      });
       iter += opt.size + 1;
       continue;
     }
@@ -321,7 +330,10 @@ TokenVector* lex_string(const StrView view) {
     /// Char
     opt = try_get_char_lit(iter);
     if (opt.some == true) {
-      tokens_push(.kind = TK_CharLiteral, .pos = {iter + 1, opt.size}, );
+      tokens_push({
+        .kind = TK_CharLiteral,
+        .pos = {iter + 1, opt.size},
+      });
       iter += opt.size + 1;
       continue;
     }
@@ -329,10 +341,11 @@ TokenVector* lex_string(const StrView view) {
     /// Keyword
     opt = try_get_kwrd(iter);
     if (opt.some == true) {
-      tokens_push(
-          .kind = TK_Keyword, .info = kwrd_info_table[opt.size],
-          .pos = {iter, kwrd_sizes[opt.size]},
-      );
+      tokens_push({
+        .kind = TK_Keyword,
+        .info = kwrd_info_table[opt.size],
+        .pos = {iter, kwrd_sizes[opt.size]},
+      });
       iter += kwrd_sizes[opt.size];
       continue;
     }
@@ -340,10 +353,11 @@ TokenVector* lex_string(const StrView view) {
     /// Floating point
     opt = try_get_fltt(iter);
     if (opt.some == true) {
-      tokens_push(
-          .kind = TK_Ident, .info = flt_info_table[opt.size],
-          .pos = {iter, flt_sizes[opt.size]},
-      );
+      tokens_push({
+        .kind = TK_Ident,
+        .info = flt_info_table[opt.size],
+        .pos = {iter, flt_sizes[opt.size]},
+      });
       iter += flt_sizes[opt.size];
       continue;
     }
@@ -351,9 +365,11 @@ TokenVector* lex_string(const StrView view) {
     /// Signed integer
     opt = try_get_intt(iter, 'i');
     if (opt.some == true) {
-      tokens_push(
-          .kind = TK_Ident, .info = AD_SIntType, .pos = {iter, opt.size},
-      );
+      tokens_push({
+        .kind = TK_Ident,
+        .info = AD_SIntType,
+        .pos = {iter, opt.size},
+      });
       iter += opt.size;
       continue;
     }
@@ -361,9 +377,11 @@ TokenVector* lex_string(const StrView view) {
     /// Unsigned integer
     opt = try_get_intt(iter, 'u');
     if (opt.some == true) {
-      tokens_push(
-          .kind = TK_Ident, .info = AD_UIntType, .pos = {iter, opt.size},
-      );
+      tokens_push({
+        .kind = TK_Ident,
+        .info = AD_UIntType,
+        .pos = {iter, opt.size},
+      });
       iter += opt.size;
       continue;
     }
@@ -371,7 +389,10 @@ TokenVector* lex_string(const StrView view) {
     /// Ident
     opt = try_get_ident(iter);
     if (opt.some == true) {
-      tokens_push(.kind = TK_Ident, .pos = {iter, opt.size}, );
+      tokens_push({
+        .kind = TK_Ident,
+        .pos = {iter, opt.size},
+      });
       iter += opt.size;
       continue;
     }
@@ -379,10 +400,11 @@ TokenVector* lex_string(const StrView view) {
     /// Punct
     opt = try_get_punct(iter);
     if (opt.some == true) {
-      tokens_push(
-          .kind = TK_Punct, .info = pnct_info_table[opt.size],
-          .pos = {iter, pnct_sizes[opt.size]},
-      );
+      tokens_push({
+        .kind = TK_Punct,
+        .info = pnct_info_table[opt.size],
+        .pos = {iter, pnct_sizes[opt.size]},
+      });
       iter += pnct_sizes[opt.size];
       continue;
     }

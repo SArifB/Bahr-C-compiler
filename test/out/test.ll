@@ -1,5 +1,5 @@
-; ModuleID = 'some_code'
-source_filename = "some_code"
+; ModuleID = 'test/src/test.bh'
+source_filename = "test/src/test.bh"
 
 define i32 @test() {
 entry:

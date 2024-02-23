@@ -118,6 +118,7 @@ static Node* parse_type(Token** rest, Token* token) {
   if (token->kind == TK_Punct) {
     if (consume(&token, token, PK_Mul)) {
       return make_pointer_type(parse_type(rest, token));
+      
     } else if (consume(&token, token, PK_LeftSqrBrack)) {
       Node* size = expr(&token, token);
       Node* type = parse_type(rest, expect_info(token, PK_RightSqrBrack));
@@ -409,8 +410,10 @@ static Node* primary(Token** rest, Token* token) {
       Node* node = expr(&token, token + 1);
       *rest = expect_info(token, PK_RightParen);
       return node;
+
     } else if (token->info == PK_LeftBracket) {
       return stmt(rest, token);
+
     } else if (token->info == PK_LeftSqrBrack) {
       if (token[1].info == PK_RightSqrBrack) {
         Node* type = make_array_type(make_basic_type(TP_Undf), 0);
@@ -441,8 +444,8 @@ static Node* primary(Token** rest, Token* token) {
     Node* var = find_variable(token);
     if (var == nullptr) {
       error_tok(token, "Variable not found in scope");
-    }
-    if (token[1].info == PK_Ampersand) {
+      
+    } else if (token[1].info == PK_Ampersand) {
       *rest = token + 2;
       return make_unary(ND_Addr, var);
 
