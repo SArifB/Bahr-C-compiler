@@ -61,7 +61,7 @@ static inline bool is_skippable(char ref) {
   return ref == ' ' || ref == '\t' || ref == '\r' || ref == '\f';
 }
 
-static inline bool is_numliteral(char ref) {
+static inline bool is_num_literal(char ref) {
   return (ref >= '0' && ref <= '9') || ref == '.' || ref == '_';
 }
 
@@ -69,35 +69,46 @@ static inline bool is_number(char ref) {
   return ref >= '0' && ref <= '9';
 }
 
-static inline bool is_ident(char ref) {
+static inline bool is_char_literal(char ref) {
   return (ref >= 'a' && ref <= 'z') || (ref >= 'A' && ref <= 'Z') || ref == '_';
 }
 
-static inline bool is_charnum(char ref) {
-  return (ref >= 'a' && ref <= 'z') || (ref >= 'A' && ref <= 'Z') ||
-         (ref >= '0' && ref <= '9') || ref == '_';
+static inline bool is_char_number(char ref) {
+  return is_char_literal(ref) || is_number(ref);
 }
 
-static const char pnct_table[][4] = {
-  "(",  ")",  "{",  "}",  "[",  "]", "+=", "-=", "*=", "/=",
-  "->", "=>", ":=", "&&", "||", "!", "?",  "<<", ">>", "==",
-  "!=", "<=", ">=", "<",  ">",  "&", "|",  "~",  "=",  "+",
-  "-",  "*",  "/",  ",",  ";",  ".", ":",  "#",  "%",  "@",
+static const char punct_table[][4] = {
+  "<<=", ">>=", "...", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=",
+  ":=",  "..",  ".*",  ".&", "<-", "->", "=>", "&&", "||", "<<", ">>",
+  "==",  "!=",  "<=",  ">=", "<",  ">",  "(",  ")",  "{",  "}",  "[",
+  "]",   "&",   "|",   "!",  "?",  "^",  "~",  "=",  "+",  "-",  "*",
+  "/",   ",",   ";",   ".",  ":",  "#",  "%",  "@",
 };
 
-static usize pnct_sizes[sizeof_arr(pnct_table)];
+static inline usize punct_size(usize idx) {
+  if (idx < 3) {   // less than "+=", ...
+    return 3;
+  }
+  if (idx < 26) {  // less than "<", ...
+    return 2;
+  }
+  return 1;
+}
 
-static const AddInfo pnct_info_table[sizeof_arr(pnct_table)] = {
-  PK_LeftParen,    PK_RightParen,    PK_LeftBracket, PK_RightBracket,
-  PK_LeftSqrBrack, PK_RightSqrBrack, PK_AddAssign,   PK_SubAssign,
-  PK_MulAssign,    PK_DivAssign,     PK_RightArrow,  PK_FatRightArrow,
-  PK_Declare,      PK_And,           PK_Or,          PK_Neg,
-  PK_Question,     PK_ShiftLeft,     PK_ShiftRight,  PK_Eq,
-  PK_NEq,          PK_Lte,           PK_Gte,         PK_Lt,
-  PK_Gt,           PK_Ampersand,     PK_Pipe,        PK_BitNeg,
-  PK_Assign,       PK_Add,           PK_Sub,         PK_Mul,
-  PK_Div,          PK_Comma,         PK_SemiCol,     PK_Dot,
-  PK_Colon,        PK_Hash,          PK_Percent,     PK_AddrOf,
+static const AddInfo punct_info_table[sizeof_arr(punct_table)] = {
+  PK_LeftShftAsgn, PK_RightShftAsgn, PK_Ellipsis,  PK_AddAssign,
+  PK_SubAssign,    PK_MulAssign,     PK_DivAssign, PK_ModAssign,
+  PK_AndAssign,    PK_OrAssign,      PK_XorAssign, PK_DeclAssign,
+  PK_DotDot,       PK_Deref,         PK_AddrOf,    PK_LeftArrow,
+  PK_RightArrow,   PK_RightFatArrow, PK_And,       PK_Or,
+  PK_LeftShift,    PK_RightShift,    PK_Eq,        PK_NEq,
+  PK_Lte,          PK_Gte,           PK_Lt,        PK_Gt,
+  PK_LeftParen,    PK_RightParen,    PK_LeftBrace, PK_RightBrace,
+  PK_LeftBracket,  PK_RightBracket,  PK_Ampersand, PK_Pipe,
+  PK_Not,          PK_Question,      PK_Xor,       PK_Negation,
+  PK_Assign,       PK_Add,           PK_Sub,       PK_Mul,
+  PK_Div,          PK_Comma,         PK_SemiCol,   PK_Dot,
+  PK_Colon,        PK_Hash,          PK_Percent,   PK_AddrOf,
 };
 
 static const char kwrd_table[][8] = {
@@ -105,7 +116,9 @@ static const char kwrd_table[][8] = {
   "else", "for", "while", "match", "ret",
 };
 
-static usize kwrd_sizes[sizeof_arr(kwrd_table)];
+static const usize kwrd_sizes[sizeof_arr(kwrd_table)] = {
+  3, 3, 3, 2, 3, 2, 4, 3, 5, 5, 3,
+};
 
 static const AddInfo kwrd_info_table[sizeof_arr(kwrd_table)] = {
   KW_Ext,  KW_Pub, KW_Let,   KW_Fn,    KW_Use,    KW_If,
@@ -132,21 +145,21 @@ struct OptNumIdx {
 };
 
 static OptNumIdx try_get_num_lit(cstr iter) {
-  if (is_numliteral(*iter) != true) {
+  if (is_number(*iter) != true) {
     return (OptNumIdx){};
   }
   usize size = 0;
-  bool flt = false;
-  for (; is_numliteral(iter[size]) == true; ++size) {
-    if (iter[size] == '.' && flt == true) {
+  bool flt_found = false;
+  for (; is_num_literal(iter[size]) == true; ++size) {
+    if (iter[size] == '.' && flt_found == true) {
       error_at(&iter[size], "More than one '.' found");
-    } else if (iter[size] == '.' && flt == false) {
-      flt = true;
+    } else if (iter[size] == '.' && flt_found == false) {
+      flt_found = true;
     }
   }
   return (OptNumIdx){
     .size = size,
-    .flt = flt,
+    .flt = flt_found,
     .some = true,
   };
 }
@@ -157,12 +170,16 @@ struct OptIdx {
   bool some;
 };
 
+static inline bool not_quote_punct(char ref, char prev) {
+  return ref != '\"' || (ref != '\"' && prev != '\\');
+}
+
 static OptIdx try_get_str_lit(cstr iter) {
   if (*iter != '\"') {
     return (OptIdx){};
   }
   usize size = 1;
-  while (iter[size] != '\"' || (iter[size] != '\"' && iter[size - 1] != '\\')) {
+  while (not_quote_punct(iter[size], iter[size - 1]) == true) {
     size += 1;
   }
   return (OptIdx){
@@ -186,12 +203,12 @@ static OptIdx try_get_char_lit(cstr iter) {
 }
 
 static OptIdx try_get_kwrd(cstr iter) {
-  if (is_ident(*iter) == false) {
+  if (is_char_literal(*iter) == false) {
     return (OptIdx){};
   }
   for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
-    if (strncmp(iter, kwrd_table[i], kwrd_sizes[i]) == 0 && //
-      is_charnum(iter[kwrd_sizes[i]]) == false) {
+    if (memcmp(iter, kwrd_table[i], kwrd_sizes[i]) == 0 && //
+      is_char_number(iter[kwrd_sizes[i]]) == false) {
       return (OptIdx){
         .size = i,
         .some = true,
@@ -206,8 +223,8 @@ static OptIdx try_get_fltt(cstr iter) {
     return (OptIdx){};
   }
   for (usize i = 0; i < sizeof_arr(flt_table); ++i) {
-    if (strncmp(iter, flt_table[i], flt_sizes[i]) == 0 && //
-      is_charnum(iter[flt_sizes[i]]) == false) {
+    if (memcmp(iter, flt_table[i], flt_sizes[i]) == 0 && //
+      is_char_number(iter[flt_sizes[i]]) == false) {
       return (OptIdx){
         .size = i,
         .some = true,
@@ -225,7 +242,7 @@ static OptIdx try_get_intt(cstr iter, char comp) {
   while (is_number(iter[size]) == true) {
     size += 1;
   }
-  if (is_charnum(iter[size]) == true) {
+  if (is_char_literal(iter[size]) == true) {
     return (OptIdx){};
   }
   return (OptIdx){
@@ -236,7 +253,7 @@ static OptIdx try_get_intt(cstr iter, char comp) {
 
 static OptIdx try_get_ident(cstr iter) {
   usize size = 0;
-  while (is_charnum(iter[size]) == true) {
+  while (is_char_number(iter[size]) == true) {
     size += 1;
   }
   if (size == 0) {
@@ -249,8 +266,8 @@ static OptIdx try_get_ident(cstr iter) {
 }
 
 static OptIdx try_get_punct(cstr iter) {
-  for (usize i = 0; i < sizeof_arr(pnct_table); ++i) {
-    if (strncmp(iter, pnct_table[i], pnct_sizes[i]) == 0) {
+  for (usize i = 0; i < sizeof_arr(punct_table); ++i) {
+    if (memcmp(iter, punct_table[i], punct_size(i)) == 0) {
       return (OptIdx){
         .size = i,
         .some = true,
@@ -265,13 +282,6 @@ static OptIdx try_get_punct(cstr iter) {
 TokenVector* lex_string(const StrView view) {
   TokenVector* tokens = Token_vector_make(64);
   current_input = view;
-
-  for (usize i = 0; i < sizeof_arr(pnct_table); ++i) {
-    pnct_sizes[i] = strlen(pnct_table[i]);
-  }
-  for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
-    kwrd_sizes[i] = strlen(kwrd_table[i]);
-  }
 
   const char* iter = view.ptr;
   while (iter != view.ptr + view.size) {
@@ -307,7 +317,7 @@ TokenVector* lex_string(const StrView view) {
         });
       } else {
         tokens_push({
-          .kind = TK_NumLiteral,
+          .kind = TK_IntLiteral,
           .pos = {iter, opt_num.size},
         });
       }
@@ -402,10 +412,10 @@ TokenVector* lex_string(const StrView view) {
     if (opt.some == true) {
       tokens_push({
         .kind = TK_Punct,
-        .info = pnct_info_table[opt.size],
-        .pos = {iter, pnct_sizes[opt.size]},
+        .info = punct_info_table[opt.size],
+        .pos = {iter, punct_size(opt.size)},
       });
-      iter += pnct_sizes[opt.size];
+      iter += punct_size(opt.size);
       continue;
     }
 
@@ -420,7 +430,7 @@ void lexer_print(TokenVector* tokens) {
   for (; itr != sen; ++itr) {
     switch (itr->kind) {  // clang-format off
       case TK_Ident:        eprintf("Ident:%*s", 8, "");       break;
-      case TK_NumLiteral:   eprintf("NumLiteral:%*s", 3, "");  break;
+      case TK_IntLiteral:   eprintf("IntLiteral:%*s", 3, "");  break;
       case TK_FltLiteral:   eprintf("FltLiteral:%*s", 3, "");  break;
       case TK_StrLiteral:   eprintf("StrLiteral:%*s", 3, "");  break;
       case TK_CharLiteral:  eprintf("CharLiteral:%*s", 2, ""); break;

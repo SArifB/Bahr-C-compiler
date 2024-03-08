@@ -40,7 +40,7 @@ static Node* find_variable(Token* token) {
 
   for (; itr != sen; ++itr) {
     cstr name = (**itr).declaration.name->array;
-    if (strncmp(lookup, name, size) == 0 && name[size] == 0) {
+    if (memcmp(lookup, name, size) == 0 && name[size] == 0) {
       return make_unary(ND_Variable, *itr);
     }
   }
@@ -118,10 +118,10 @@ static Node* parse_type(Token** rest, Token* token) {
   if (token->kind == TK_Punct) {
     if (consume(&token, token, PK_Mul)) {
       return make_pointer_type(parse_type(rest, token));
-      
-    } else if (consume(&token, token, PK_LeftSqrBrack)) {
+
+    } else if (consume(&token, token, PK_LeftBracket)) {
       Node* size = expr(&token, token);
-      Node* type = parse_type(rest, expect_info(token, PK_RightSqrBrack));
+      Node* type = parse_type(rest, expect_info(token, PK_RightBracket));
       if (size->kind == ND_Value) {
         return make_array_type(type, atoi(size->value.basic->array));
       } else {
@@ -206,7 +206,7 @@ static Node* function(Token** rest, Token* token) {
 
   Node* args = parse_list(&token, token, PK_RightParen, argument);
   Node* type = parse_type(&token, expect_info(token + 1, PK_Colon));
-  Node* body = compound_stmt(rest, expect_info(token, PK_LeftBracket));
+  Node* body = compound_stmt(rest, expect_info(token, PK_LeftBrace));
   return make_function(type, name, body, args);
 }
 
@@ -271,7 +271,7 @@ static Node* stmt(Token** rest, Token* token) {
     Node* decl = declaration(rest, token + 1);
     return decl;
 
-  } else if (token->info == PK_LeftBracket) {
+  } else if (token->info == PK_LeftBrace) {
     return compound_stmt(rest, token + 1);
   }
   return expr(rest, token);
@@ -281,7 +281,7 @@ static Node* stmt(Token** rest, Token* token) {
 static Node* compound_stmt(Token** rest, Token* token) {
   Node handle = {};
   Node* node_cursor = &handle;
-  while (token->info != PK_RightBracket) {
+  while (token->info != PK_RightBrace) {
     token = expect_eol(token - 1);
     node_cursor->next = stmt(&token, token);
     node_cursor = node_cursor->next;
@@ -411,17 +411,17 @@ static Node* primary(Token** rest, Token* token) {
       *rest = expect_info(token, PK_RightParen);
       return node;
 
-    } else if (token->info == PK_LeftBracket) {
+    } else if (token->info == PK_LeftBrace) {
       return stmt(rest, token);
 
-    } else if (token->info == PK_LeftSqrBrack) {
-      if (token[1].info == PK_RightSqrBrack) {
+    } else if (token->info == PK_LeftBracket) {
+      if (token[1].info == PK_RightBracket) {
         Node* type = make_array_type(make_basic_type(TP_Undf), 0);
         Node* node = make_pointer_value(type, nullptr);
         *rest = token + 2;
         return node;
       }
-      Node* list = parse_list(rest, token, PK_RightSqrBrack, unary);
+      Node* list = parse_list(rest, token, PK_RightBracket, unary);
       TypeKind first_type = list->value.type->type.kind;
       usize size = 0;
       for (Node* value = list; value != nullptr; value = value->next) {
@@ -444,16 +444,16 @@ static Node* primary(Token** rest, Token* token) {
     Node* var = find_variable(token);
     if (var == nullptr) {
       error_tok(token, "Variable not found in scope");
-      
-    } else if (token[1].info == PK_Ampersand) {
+
+    } else if (token[1].info == PK_AddrOf) {
       *rest = token + 2;
       return make_unary(ND_Addr, var);
 
-    } else if (token[1].info == PK_Mul) {
+    } else if (token[1].info == PK_Deref) {
       *rest = token + 2;
       return make_unary(ND_Deref, var);
 
-    } else if (token[1].info == PK_LeftSqrBrack) {
+    } else if (token[1].info == PK_LeftBracket) {
       Node* index = expr(&token, token + 2);
       *rest = token + 1;
       return make_oper(OP_ArrIdx, var, index);
@@ -461,7 +461,7 @@ static Node* primary(Token** rest, Token* token) {
     *rest = token + 1;
     return var;
 
-  } else if (token->kind == TK_NumLiteral) {
+  } else if (token->kind == TK_IntLiteral) {
     Node* type = make_numeric_type(TP_SInt, 32);
     Node* node = make_basic_value(type, token->pos);
     *rest = token + 1;
