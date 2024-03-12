@@ -1,19 +1,42 @@
-#include <arena/mod.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
+#include <string.h>
 #include <utility/mod.h>
+
+#ifdef __linux__
+#include <arena/mod.h>
+#include <sys/mman.h>
+#elif _WIN32  // TODO: Test on Windows
+#include <windows.h>
+#endif
 
 #define DEF_REG_CAP (usize)(8 * 1024)
 #define ELEM_SIZE(size) (((size) + sizeof(isize) - 1) / sizeof(isize))
 
 static Region* region_alloc(const usize capacity) {
   const usize size = sizeof(Region) + sizeof(usize) * capacity;
+#ifdef __linux__
   Region* tmp = mmap(
     nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0
   );
   if (tmp == MAP_FAILED) {
+    perror("mmap");
     exit(1);
   }
+#elif _WIN32  // TODO: Test on Windows
+  Region* tmp =
+    VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+  if (tmp == nullptr) {
+    perror("VirtualAlloc");
+    exit(1);
+  }
+#else
+  Region* tmp = malloc(size);
+  if (tmp == nullptr) {
+    perror("malloc");
+    exit(1);
+  }
+#endif
   *tmp = (Region){.capacity = DEF_REG_CAP};
   return tmp;
 }
@@ -41,14 +64,6 @@ void* arena_alloc(Arena arena[static 1], const usize size_in) {
   return result;
 }
 
-static void memory_copy(
-  usize* const restrict dest, const usize* const restrict src, const usize size
-) {
-  for (usize i = 0; i < size; ++i) {
-    dest[i] = src[i];
-  }
-}
-
 void* arena_realloc(
   Arena arena[static 1], void* old_ptr, const usize old_size,
   const usize new_size
@@ -61,7 +76,7 @@ void* arena_realloc(
     return old_ptr;
   }
   void* tmp = arena_alloc(arena, new_size);
-  memory_copy(tmp, old_ptr, old_size);
+  memcpy(tmp, old_ptr, old_size);
   return tmp;
 }
 
@@ -79,8 +94,18 @@ void arena_free(Arena arena[static 1]) {
   while (region != nullptr) {
     Region* tmp = region;
     region = region->next;
+#ifdef __linux__
     if (munmap(tmp, tmp->capacity) == -1) {
+      perror("munmap");
       exit(1);
     };
+#elif _WIN32  // TODO: Test on Windows
+    if (VirtualFree(myRegion, 0, MEM_RELEASE) == 0) {
+      perror("VirtualFree");
+      exit(1);
+    }
+#else
+    free(tmp);
+#endif
   }
 }
