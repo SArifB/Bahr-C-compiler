@@ -133,6 +133,7 @@ target_link_libraries(parser PUBLIC
 
 target_link_libraries(parser PUBLIC
 	arena
+	hashmap
 )
 
 # Target: arena

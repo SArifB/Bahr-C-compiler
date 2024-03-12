@@ -17,7 +17,7 @@ link-libraries = ["LLVM"]
 [target.parser]
 type = "my_library"
 sources = ["./src/parser/*.c"]
-link-libraries = ["arena"]
+link-libraries = ["arena", "hashmap"]
 
 [target.arena]
 type = "my_library"
