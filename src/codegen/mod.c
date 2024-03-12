@@ -9,14 +9,14 @@
 #include <utility/mod.h>
 #include <utility/vec.h>
 
-DECLARE_VECTOR(LLVMValueRef)
-DEFINE_VECTOR(LLVMValueRef, malloc, free)
+DEFINE_VECTOR(LLVMValueRef)
+DEFINE_VEC_FNS(LLVMValueRef, malloc, free)
 
-DECLARE_VECTOR(LLVMTypeRef)
-DEFINE_VECTOR(LLVMTypeRef, malloc, free)
+DEFINE_VECTOR(LLVMTypeRef)
+DEFINE_VEC_FNS(LLVMTypeRef, malloc, free)
 
-DECLARE_VECTOR(cstr)
-DEFINE_VECTOR(cstr, malloc, free)
+DEFINE_VECTOR(cstr)
+DEFINE_VEC_FNS(cstr, malloc, free)
 
 typedef struct {
   LLVMValueRef value;
