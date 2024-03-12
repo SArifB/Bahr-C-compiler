@@ -20,7 +20,7 @@ i32 main(i32 argc, cstr argv[]) {
   // enable_verbosity();
   Node* prog = parse_string((StrView){
     .ptr = input.file,
-    .size = input.size,
+    .length = input.length,
   });
 
   // Generate code

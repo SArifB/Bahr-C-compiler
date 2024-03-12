@@ -25,8 +25,8 @@ typedef struct {
   cstr name;
 } DeclFn;
 
-DECLARE_VECTOR(DeclFn)
-DEFINE_VECTOR(DeclFn, malloc, free)
+DEFINE_VECTOR(DeclFn)
+DEFINE_VEC_FNS(DeclFn, malloc, free)
 
 typedef struct {
   LLVMValueRef variable;
@@ -34,8 +34,8 @@ typedef struct {
   bool is_ptr;
 } DeclVar;
 
-DECLARE_VECTOR(DeclVar)
-DEFINE_VECTOR(DeclVar, malloc, free)
+DEFINE_VECTOR(DeclVar)
+DEFINE_VEC_FNS(DeclVar, malloc, free)
 
 static Codegen* codegen_make(cstr name) {
   Codegen* cdgn = malloc(sizeof(Codegen));
@@ -86,7 +86,7 @@ static DeclFnVector* decl_fns = nullptr;
 static DeclVarVector* decl_vars = nullptr;
 
 static DeclFn* get_decl_fn(StrView name) {
-  usize size = name.size;
+  usize size = name.length;
   for (usize i = 0; i < decl_fns->length; ++i) {
     if (
       memcmp(name.ptr, decl_fns->buffer[i].name, size) == 0 &&
@@ -99,7 +99,7 @@ static DeclFn* get_decl_fn(StrView name) {
 }
 
 static DeclVar* get_decl_var(StrView name) {
-  usize size = name.size;
+  usize size = name.length;
   for (usize i = 0; i < decl_vars->length; ++i) {
     if (
       memcmp(name.ptr, decl_vars->buffer[i].name, size) == 0
@@ -154,7 +154,7 @@ LLVMValueRef codegen_generate(cstr name, Node* prog) {
   printf("%s", str_mod);
   LLVMDisposeMessage(str_mod);
 
-  str error = nullptr;
+  char* error = nullptr;
   LLVMVerifyModule(cdgn->mod, LLVMAbortProcessAction, &error);
   eprintf("%s", error);
   // LLVMPrintModuleToFile(cdgn->mod, "test/out/test.ll", &error);
@@ -200,7 +200,7 @@ static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
     return nullptr;
   }
   decl_vars = DeclVar_vector_make(2);
-  DeclFn* function = get_decl_fn(view_from(node->function.name));
+  DeclFn* function = get_decl_fn(arr_view(node->function.name));
 
   usize arg_count = LLVMCountParams(function->value);
   LLVMTypeRefVector* arg_types = LLVMTypeRef_vector_make(arg_count);
@@ -276,7 +276,7 @@ static LLVMValueRef codegen_parse(
 
   } else if (node->kind == ND_Variable) {
     LLVMTypeRef type = codegen_type(cdgn, node->unary->declaration.type);
-    DeclVar* decl_var = get_decl_var(view_from(node->unary->declaration.name));
+    DeclVar* decl_var = get_decl_var(arr_view(node->unary->declaration.name));
     if (decl_var == nullptr) {
       eputs("ND_Variable not found");
       exit(1);
@@ -383,10 +383,10 @@ static LLVMValueRef codegen_value(Codegen* cdgn, Node* node) {
     return LLVMConstInt(type, atoi(node->value.basic->array), true);
   } else if (node->value.type->type.kind == TP_Str) {
     LLVMTypeRef type = LLVMArrayType(
-      LLVMInt8TypeInContext(cdgn->ctx), node->value.basic->size + 1
+      LLVMInt8TypeInContext(cdgn->ctx), node->value.basic->length + 1
     );
     LLVMValueRef str_val = LLVMConstStringInContext(
-      cdgn->ctx, node->value.basic->array, node->value.basic->size, false
+      cdgn->ctx, node->value.basic->array, node->value.basic->length, false
     );
     LLVMValueRef global_str = LLVMAddGlobal(cdgn->mod, type, ".str");
     LLVMSetInitializer(global_str, str_val);
@@ -403,7 +403,7 @@ static LLVMValueRef codegen_value(Codegen* cdgn, Node* node) {
 static LLVMValueRef codegen_call(
   Codegen* cdgn, Node* node, LLVMValueRef function
 ) {
-  DeclFn* decl_fn = get_decl_fn(view_from(node->call_node.name));
+  DeclFn* decl_fn = get_decl_fn(arr_view(node->call_node.name));
   if (decl_fn == nullptr) {
     eputs("ND_Call function not found");
     exit(1);

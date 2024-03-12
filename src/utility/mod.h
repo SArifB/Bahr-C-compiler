@@ -18,20 +18,22 @@ typedef float f32;
 typedef double f64;
 typedef long double f128;
 
-typedef const char* cstr;
-typedef char* str;
+typedef const char* restrict cstr;
+typedef char* restrict str;
 
 typedef struct StrView StrView;
 struct StrView {
   cstr ptr;
-  usize size;
+  usize length;
 };
 
 typedef struct StrArr StrArr;
 struct StrArr {
-  usize size;
+  usize length;
   char array[];
 };
+
+#define arr_view(arr) ((StrView){(arr)->array, (arr)->length})
 
 #define unused [[maybe_unused]]
 #define undiscardable [[nodiscard]]
@@ -47,10 +49,10 @@ struct StrArr {
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define sizeof_arr(arr) (sizeof(arr) / sizeof(*(arr)))
 
-#define eprintln(fmt, ...) fprintf(stderr, fmt "\n", __VA_ARGS__)
-#define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
-#define evprintf(fmt, ...) vfprintf(stderr, fmt, __VA_ARGS__)
-#define eputs(string) fputs(string "\n", stderr)
-#define eputw(view) eprintf("%.*s\n", (i32)(view).size, (view).ptr)
-#define eputa(arr) eprintf("%.*s\n", (i32)(arr)->size, (arr)->array)
 #define eputc(ch) fputc(ch, stderr)
+#define eputs(string) fputs(string "\n", stderr)
+#define evprintf(fmt, ...) vfprintf(stderr, fmt, __VA_ARGS__)
+#define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
+#define eprintln(fmt, ...) eprintf(fmt "\n", __VA_ARGS__)
+#define eputw(view) eprintln("%.*s", (i32)(view).length, (view).ptr)
+#define eputa(arr) eprintln("%.*s", (i32)(arr)->length, (arr)->array)
