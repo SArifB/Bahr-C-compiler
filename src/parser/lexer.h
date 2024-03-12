@@ -102,7 +102,7 @@ struct Token {
   AddInfo info;
   StrView pos;
 };
-DECLARE_VECTOR(Token)
+DEFINE_VECTOR(Token)
 
 extern TokenVector* lex_string(const StrView view);
 extern void lexer_print(TokenVector* lexer);

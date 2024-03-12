@@ -1,4 +1,5 @@
 #pragma once
+#include <hashmap/mod.h>
 #include <parser/lexer.h>
 #include <utility/mod.h>
 
@@ -10,8 +11,11 @@ typedef struct FnNode FnNode;
 typedef struct IfNode IfNode;
 typedef struct WhileNode WhileNode;
 typedef struct CallNode CallNode;
-typedef struct Node Node, *NodeRef;
-DECLARE_VECTOR(NodeRef)
+typedef struct Node Node;
+
+typedef HashMap* Scope;
+DEFINE_VECTOR(Scope)
+typedef ScopeVector Scopes;
 
 typedef enum {
   OP_Add,
@@ -79,7 +83,6 @@ struct FnNode {
   Node* ret_type;
   Node* args;
   Node* body;
-  NodeRefVector* locals;
   StrArr* name;
 };
 
@@ -137,5 +140,3 @@ struct Node {
 extern Node* parse_string(const StrView view);
 extern void enable_verbosity();
 extern void parser_dealloc();
-
-#define view_from(arr) ((StrView){(arr)->array, (arr)->size})

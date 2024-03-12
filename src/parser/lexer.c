@@ -6,7 +6,7 @@
 #include <string.h>
 #include <utility/mod.h>
 
-DEFINE_VECTOR(Token, malloc, free)
+DEFINE_VEC_FNS(Token, malloc, free)
 
 static StrView current_input;
 
@@ -111,19 +111,60 @@ static const AddInfo punct_info_table[sizeof_arr(punct_table)] = {
   PK_Colon,        PK_Hash,          PK_Percent,   PK_AddrOf,
 };
 
-static const char kwrd_table[][8] = {
-  "ext",  "pub", "let",   "fn",    "use", "if",
-  "else", "for", "while", "match", "ret",
-};
+#define MAKE_NAME_TABLE(NAME, SIZE) \
+  static const char NAME##_table[][SIZE] = {ENTRIES};
+#define MAKE_TABLE(TYPE, NAME, NAME2)                                    \
+  static const TYPE NAME##_##NAME2##_table[sizeof_arr(NAME##_table)] = { \
+    ENTRIES                                                              \
+  };
 
-static const usize kwrd_sizes[sizeof_arr(kwrd_table)] = {
-  3, 3, 3, 2, 3, 2, 4, 3, 5, 5, 3,
-};
+#define ENTRIES        \
+  X("ext", KW_Ext)     \
+  X("pub", KW_Pub)     \
+  X("let", KW_Let)     \
+  X("fn", KW_Fn)       \
+  X("use", KW_Use)     \
+  X("if", KW_If)       \
+  X("else", KW_Else)   \
+  X("for", KW_For)     \
+  X("while", KW_While) \
+  X("match", KW_Match) \
+  X("ret", KW_Return)
 
-static const AddInfo kwrd_info_table[sizeof_arr(kwrd_table)] = {
-  KW_Ext,  KW_Pub, KW_Let,   KW_Fn,    KW_Use,    KW_If,
-  KW_Else, KW_For, KW_While, KW_Match, KW_Return,
-};
+#define X(str, info) str,
+MAKE_NAME_TABLE(kwrd, 8)
+#undef X
+
+#define X(str, info) (sizeof(str) - 1),
+MAKE_TABLE(size_t, kwrd, size)
+#undef X
+
+#define X(str, info) info,
+MAKE_TABLE(AddInfo, kwrd, info)
+#undef X
+
+#undef ENTRIES
+
+// static const char kwrd_table[][8] = {
+//   "ext",  "pub", "let",   "fn",    "use", "if",
+//   "else", "for", "while", "match", "ret",
+// };
+
+// static const usize kwrd_sizes[sizeof_arr(kwrd_table)] = {
+//   3, 3, 3, 2, 3, 2, 4, 3, 5, 5, 3,
+// };
+
+// static const AddInfo kwrd_info_table[sizeof_arr(kwrd_table)] = {
+//   KW_Ext,  KW_Pub, KW_Let,   KW_Fn,    KW_Use,    KW_If,
+//   KW_Else, KW_For, KW_While, KW_Match, KW_Return,
+// };
+
+// #define FLOAT_ENTRIES
+//   X("f16", AD_F16Type)
+//   X("bf16", AD_BF16Type)
+//   X("f32", AD_F32Type)
+//   X("f64", AD_F64Type)
+//   X("f128", AD_F128Type)
 
 static const char flt_table[][4] = {
   "f16", "bf16", "f32", "f64", "f128",
@@ -207,8 +248,8 @@ static OptIdx try_get_kwrd(cstr iter) {
     return (OptIdx){};
   }
   for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
-    if (memcmp(iter, kwrd_table[i], kwrd_sizes[i]) == 0 && //
-      is_char_number(iter[kwrd_sizes[i]]) == false) {
+    if (memcmp(iter, kwrd_table[i], kwrd_size_table[i]) == 0 && //
+      is_char_number(iter[kwrd_size_table[i]]) == false) {
       return (OptIdx){
         .size = i,
         .some = true,
@@ -283,8 +324,8 @@ TokenVector* lex_string(const StrView view) {
   TokenVector* tokens = Token_vector_make(64);
   current_input = view;
 
-  const char* iter = view.ptr;
-  while (iter != view.ptr + view.size) {
+  cstr iter = view.ptr;
+  while (iter != view.ptr + view.length) {
     if (is_skippable(*iter) == true) {
       iter += 1;
       continue;
@@ -354,9 +395,9 @@ TokenVector* lex_string(const StrView view) {
       tokens_push({
         .kind = TK_Keyword,
         .info = kwrd_info_table[opt.size],
-        .pos = {iter, kwrd_sizes[opt.size]},
+        .pos = {iter, kwrd_size_table[opt.size]},
       });
-      iter += kwrd_sizes[opt.size];
+      iter += kwrd_size_table[opt.size];
       continue;
     }
 

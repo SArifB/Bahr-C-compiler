@@ -1,13 +1,10 @@
 #include <arena/mod.h>
+#include <hashmap/mod.h>
 #include <parser/ctors.h>
 #include <parser/lexer.h>
 #include <parser/mod.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <utility/mod.h>
-
-DEFINE_VECTOR(NodeRef, malloc, free)
 
 static Arena PARSER_POOL = {};
 
@@ -17,7 +14,6 @@ static void* parser_alloc(usize size) {
 
 void parser_dealloc() {
   arena_free(&PARSER_POOL);
-  free(current_locals);
 }
 
 // static bool is_integer(Node* node) {
@@ -81,11 +77,11 @@ Node* make_unary(NodeKind kind, Node* value) {
 }
 
 static StrArr* alloc_string(StrView view) {
-  usize size = sizeof(usize) + sizeof(char) * (view.size + 1);
+  usize size = sizeof(usize) + sizeof(char) * (view.length + 1);
   StrArr* string = parser_alloc(size);
-  memcpy(string->array, view.ptr, view.size);
-  string->array[view.size] = 0;
-  string->size = view.size;
+  memcpy(string->array, view.ptr, view.length);
+  string->array[view.length] = 0;
+  string->length = view.length;
   return string;
 }
 
@@ -103,12 +99,13 @@ Node* make_basic_value(Node* type, StrView view) {
 }
 
 static StrArr* alloc_str_lit(StrView view) {
-  usize size = sizeof(usize) + sizeof(char) * (view.size + 1);
+  usize size = sizeof(usize) + sizeof(char) * (view.length + 1);
   StrArr* string = parser_alloc(size);
-  cstr restrict src = view.ptr;
-  str restrict itr = string->array;
-  size = view.size;
-  for (; src != view.ptr + view.size; ++itr, ++src) {
+  cstr src = view.ptr;
+  str itr = string->array;
+  size = view.length;
+
+  for (; src != view.ptr + view.length; ++itr, ++src) {
     if (*src == '\\' && src[1] == 'n') {
       *itr = '\n';
       src += 1;
@@ -118,7 +115,7 @@ static StrArr* alloc_str_lit(StrView view) {
     }
   }
   *itr = 0;
-  string->size = size;
+  string->length = size;
   return string;
 }
 
@@ -213,10 +210,7 @@ Node* make_array_type(Node* type, usize size) {
   return node;
 }
 
-Node* make_declaration(Node* type, StrView view, Node* value) {
-  if (current_locals == nullptr) {
-    current_locals = NodeRef_vector_make(8);
-  }
+Node* make_declaration(Node* type, StrView view, Node* value, Scopes* scopes) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_Decl,
@@ -227,14 +221,11 @@ Node* make_declaration(Node* type, StrView view, Node* value) {
         .name = alloc_string(view),
       },
   };
-  NodeRef_vector_push(&current_locals, node);
+  *hashmap_get(scopes->buffer + scopes->length - 1, view) = node;
   return node;
 }
 
-Node* make_arg_var(Node* type, StrView view) {
-  if (current_locals == nullptr) {
-    current_locals = NodeRef_vector_make(8);
-  }
+Node* make_arg_var(Node* type, StrView view, Scopes* scopes) {
   Node* node = parser_alloc(sizeof(Node));
   *node = (Node){
     .kind = ND_ArgVar,
@@ -244,7 +235,7 @@ Node* make_arg_var(Node* type, StrView view) {
         .name = alloc_string(view),
       },
   };
-  NodeRef_vector_push(&current_locals, node);
+  *hashmap_get(scopes->buffer + scopes->length - 1, view) = node;
   return node;
 }
 
@@ -257,7 +248,6 @@ Node* make_function(Node* type, StrView view, Node* body, Node* args) {
         .body = body,
         .args = args,
         .ret_type = type,
-        .locals = current_locals,
         .name = alloc_string(view),
       },
   };
