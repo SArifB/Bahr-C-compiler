@@ -196,6 +196,8 @@ static Node* parse_lexer(TokenVector* tokens) {
       cursor = cursor->next;
     }
   }
+  hashmap_free(scopes->buffer[scopes->length - 1]);
+  free(scopes);
   return handle.next;
 }
 

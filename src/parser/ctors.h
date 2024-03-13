@@ -23,6 +23,4 @@ extern Node* make_while_node(Node* cond, Node* then);
 extern Node* make_call_node(StrView view, Node* args);
 extern Node* make_function(Node* type, StrView view, Node* body, Node* args);
 
-// extern NodeRefVector* current_locals;
-
 extern void print_ast(Node* prog);
