@@ -1,6 +1,7 @@
 #include <codegen/mod.h>
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
+#include <llvm-c/TargetMachine.h>
 #include <llvm-c/Types.h>
 #include <parser/mod.h>
 #include <stdio.h>
@@ -37,27 +38,20 @@ typedef struct {
 DEFINE_VECTOR(DeclVar)
 DEFINE_VEC_FNS(DeclVar, malloc, free)
 
-static Codegen* codegen_make(cstr name) {
-  Codegen* cdgn = malloc(sizeof(Codegen));
-  if (cdgn == nullptr) {
-    eputs("codegen_alloc failed");
-    exit(1);
-  }
+static Codegen codegen_make(cstr name) {
   LLVMContextRef ctx = LLVMContextCreate();
-  *cdgn = (Codegen){
+  return (Codegen){
     .ctx = ctx,
     .mod = LLVMModuleCreateWithNameInContext(name, ctx),
     .bldr = LLVMCreateBuilderInContext(ctx),
   };
-  return cdgn;
 }
 
-static void codegen_dispose(Codegen* cdgn) {
+static void codegen_dispose(Codegen cdgn) {
   LLVMShutdown();
-  LLVMDisposeBuilder(cdgn->bldr);
-  LLVMDisposeModule(cdgn->mod);
-  LLVMContextDispose(cdgn->ctx);
-  free(cdgn);
+  LLVMDisposeBuilder(cdgn.bldr);
+  LLVMDisposeModule(cdgn.mod);
+  LLVMContextDispose(cdgn.ctx);
 }
 
 unreturning static void print_cdgn_err(NodeKind kind) {
@@ -102,8 +96,9 @@ static DeclVar* get_decl_var(StrView name) {
   usize size = name.length;
   for (usize i = 0; i < decl_vars->length; ++i) {
     if (
-      memcmp(name.ptr, decl_vars->buffer[i].name, size) == 0
-      && decl_vars->buffer[i].name[size] == 0) {
+      memcmp(name.ptr, decl_vars->buffer[i].name, size) == 0 &&
+      decl_vars->buffer[i].name[size] == 0
+    ) {
       return &decl_vars->buffer[i];
     }
   }
@@ -131,35 +126,55 @@ static LLVMValueRef codegen_call(
 );
 static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node);
 
-LLVMValueRef codegen_generate(cstr name, Node* prog) {
-  Codegen* cdgn = codegen_make(name);
+LLVMValueRef codegen_generate(cstr name, Node* prog, cstr output) {
+  Codegen cdgn = codegen_make(name);
   decl_fns = DeclFn_vector_make(8);
 
   for (Node* func = prog; func != nullptr; func = func->next) {
-    unused LLVMValueRef ret = codegen_reg_fns(cdgn, func);
+    unused LLVMValueRef ret = codegen_reg_fns(&cdgn, func);
   }
   for (Node* func = prog; func != nullptr; func = func->next) {
-    unused LLVMValueRef ret = codegen_function(cdgn, func);
+    unused LLVMValueRef ret = codegen_function(&cdgn, func);
   }
   for (usize i = 0; i < decl_fns->length; ++i) {
     free(decl_fns->buffer[i].arg_names);
   }
   free(decl_fns);
 
-  str str_mod = LLVMPrintModuleToString(cdgn->mod);
-  if (str_mod == nullptr) {
-    eputs("failed to create string representation of module");
+  char* message = nullptr;
+  bool failed = LLVMVerifyModule(cdgn.mod, LLVMAbortProcessAction, &message);
+  if (failed == true) {
+    eprintf("%s", message);
     exit(1);
   }
-  printf("%s", str_mod);
-  LLVMDisposeMessage(str_mod);
+  LLVMDisposeMessage(message);
 
-  char* error = nullptr;
-  LLVMVerifyModule(cdgn->mod, LLVMAbortProcessAction, &error);
-  eprintf("%s", error);
-  // LLVMPrintModuleToFile(cdgn->mod, "test/out/test.ll", &error);
-  // eprintf("%s", error);
-  LLVMDisposeMessage(error);
+  LLVMInitializeAllTargetInfos();
+  LLVMInitializeAllTargets();
+  LLVMInitializeAllTargetMCs();
+  LLVMInitializeAllAsmPrinters();
+
+  LLVMTargetRef Target;
+  char* Triple = LLVMGetDefaultTargetTriple();
+  failed = LLVMGetTargetFromTriple(Triple, &Target, &message);
+  if (failed == true) {
+    eprintf("%s", message);
+    exit(1);
+  }
+
+  LLVMTargetMachineRef TargetMachine = LLVMCreateTargetMachine(
+    Target, Triple, "generic", "", LLVMCodeGenLevelDefault, LLVMRelocPIC,
+    LLVMCodeModelDefault
+  );
+  failed = LLVMTargetMachineEmitToFile(
+    TargetMachine, cdgn.mod, output, LLVMObjectFile, &message
+  );
+  if (failed == true) {
+    eprintf("%s", message);
+    exit(1);
+  }
+  LLVMDisposeMessage(Triple);
+  LLVMDisposeTargetMachine(TargetMachine);
 
   codegen_dispose(cdgn);
   return nullptr;
@@ -462,52 +477,3 @@ static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node) {
   eputs("Node is not a type");
   exit(1);
 }
-
-/*
-LLVMExecutionEngineRef engine_make(Codegen* cdgn);
-void engine_shutdown(LLVMExecutionEngineRef engine);
-
-LLVMExecutionEngineRef engine_make(Codegen* cdgn) {
-  str error = nullptr;
-  LLVMVerifyModule(cdgn->mod, LLVMAbortProcessAction, &error);
-  LLVMDisposeMessage(error);
-  // LLVMDumpModule(cdgn->mod);
-  str str_mod = LLVMPrintModuleToString(cdgn->mod);
-  if (str_mod == nullptr) {
-    eputs("failed to create string reperesentation of module");
-    exit(1);
-  }
-  printf("%s\n", str_mod);
-  LLVMDisposeMessage(str_mod);
-
-  LLVMExecutionEngineRef engine;
-  LLVMLinkInMCJIT();
-  LLVMInitializeNativeTarget();
-  LLVMInitializeNativeAsmPrinter();
-  LLVMInitializeNativeAsmParser();
-
-  error = nullptr;
-  if (LLVMCreateExecutionEngineForModule(&engine, cdgn->mod, &error) != 0) {
-    eputs("failed to create execution engine");
-    exit(1);
-  }
-  if (error) {
-    eprintf("error: %s\n", error);
-    exit(1);
-  }
-  LLVMDisposeMessage(error);
-
-  // isize addr = LLVMGetFunctionAddress(engine, "sum");
-  // fn(int(int, int)) func = (any)addr;
-  // feprintln(stderr, "Sum val: %d\n", func(x, y));
-
-  // LLVMRemoveModule(engine, cdgn->mod, &cdgn->mod, &error);
-  // LLVMDisposeExecutionEngine(engine);
-  return engine;
-}
-
-void engine_shutdown(LLVMExecutionEngineRef engine) {
-  LLVMDisposeExecutionEngine(engine);
-  LLVMShutdown();
-}
- */

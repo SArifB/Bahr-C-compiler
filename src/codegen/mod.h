@@ -1,5 +1,4 @@
 #pragma once
-// #include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/Types.h>
 #include <parser/mod.h>
 #include <utility/mod.h>
@@ -11,4 +10,4 @@ struct Codegen {
   LLVMBuilderRef bldr;
 };
 
-extern LLVMValueRef codegen_generate(cstr name, Node* prog);
+extern LLVMValueRef codegen_generate(cstr name, Node* prog, cstr output);
