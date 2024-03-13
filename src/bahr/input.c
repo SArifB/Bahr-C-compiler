@@ -2,6 +2,7 @@
 #include <bahr/input.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <utility/mod.h>
 
 #ifdef __linux__
@@ -16,18 +17,27 @@ InputFile input_file(cstr file_name) {
     perror("open");
     exit(1);
   }
+
   struct stat sb;
   if (fstat(fd, &sb) == -1) {
     perror("stat");
     exit(1);
   }
+
   cstr adrs = mmap(nullptr, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
   if (adrs == MAP_FAILED) {
     perror("mmap");
     exit(1);
   }
+
+  cstr name = strdup(file_name);
+  if (name == nullptr) {
+    perror("strdup");
+    exit(1);
+  }
+
   return (InputFile){
-    .name = file_name,
+    .name = name,
     .file = adrs,
     .length = sb.st_size,
     .descriptor = fd,
@@ -43,6 +53,7 @@ void input_free(InputFile input) {
     perror("close");
     exit(1);
   }
+  free((void*)input.name);
 }
 
 #elif _WIN32  // TODO: Test on Windows
@@ -80,8 +91,14 @@ InputFile input_file(cstr file_name) {
     exit(1);
   }
 
+  cstr name = strdup(file_name);
+  if (name == nullptr) {
+    perror("strdup");
+    exit(1);
+  }
+
   return (InputFile){
-    .name = file_name,
+    .name = name,
     .file = file_view,
     .size = file_size.QuadPart,
     .handle = handle,
@@ -102,5 +119,6 @@ void input_free(InputFile input) {
     perror("CloseHandle");
     exit(1);
   }
+  free((void*)input.name);
 }
 #endif

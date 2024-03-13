@@ -8,12 +8,12 @@
 
 i32 main(i32 argc, cstr argv[]) {
   // Get String
-  if (argc == 1) {
-    eprintln("Usage: %s <input file>", argv[0]);
+  if (argc < 3) {
+    eprintln("Usage: %s <input file> <output file>", argv[0]);
     return 1;
   }
   InputFile input = input_file(argv[1]);
-  // eprintln("%.*s", (i32)input.size, input.file);
+  // eprintln("%.*s", (i32)input.length, input.file);
   // eputs("\n-----------------------------------------------");
 
   // Parse String
@@ -24,7 +24,7 @@ i32 main(i32 argc, cstr argv[]) {
   });
 
   // Generate code
-  codegen_generate(input.name, prog);
+  codegen_generate(input.name, prog, argv[2]);
   // eputs("\n-----------------------------------------------");
 
   // Cleanup owned memory
