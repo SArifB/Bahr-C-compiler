@@ -219,4 +219,3 @@ target_include_directories(utility INTERFACE
 target_link_libraries(utility INTERFACE
 	jemalloc
 )
-
