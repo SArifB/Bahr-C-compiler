@@ -77,40 +77,6 @@ static inline bool is_char_number(char ref) {
   return is_char_literal(ref) || is_number(ref);
 }
 
-static const char punct_table[][4] = {
-  "<<=", ">>=", "...", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=",
-  ":=",  "..",  ".*",  ".&", "<-", "->", "=>", "&&", "||", "<<", ">>",
-  "==",  "!=",  "<=",  ">=", "<",  ">",  "(",  ")",  "{",  "}",  "[",
-  "]",   "&",   "|",   "!",  "?",  "^",  "~",  "=",  "+",  "-",  "*",
-  "/",   ",",   ";",   ".",  ":",  "#",  "%",  "@",
-};
-
-static inline usize punct_size(usize idx) {
-  if (idx < 3) {   // less than "+=", ...
-    return 3;
-  }
-  if (idx < 26) {  // less than "<", ...
-    return 2;
-  }
-  return 1;
-}
-
-static const AddInfo punct_info_table[sizeof_arr(punct_table)] = {
-  PK_LeftShftAsgn, PK_RightShftAsgn, PK_Ellipsis,  PK_AddAssign,
-  PK_SubAssign,    PK_MulAssign,     PK_DivAssign, PK_ModAssign,
-  PK_AndAssign,    PK_OrAssign,      PK_XorAssign, PK_DeclAssign,
-  PK_DotDot,       PK_Deref,         PK_AddrOf,    PK_LeftArrow,
-  PK_RightArrow,   PK_RightFatArrow, PK_And,       PK_Or,
-  PK_LeftShift,    PK_RightShift,    PK_Eq,        PK_NEq,
-  PK_Lte,          PK_Gte,           PK_Lt,        PK_Gt,
-  PK_LeftParen,    PK_RightParen,    PK_LeftBrace, PK_RightBrace,
-  PK_LeftBracket,  PK_RightBracket,  PK_Ampersand, PK_Pipe,
-  PK_Not,          PK_Question,      PK_Xor,       PK_Negation,
-  PK_Assign,       PK_Add,           PK_Sub,       PK_Mul,
-  PK_Div,          PK_Comma,         PK_SemiCol,   PK_Dot,
-  PK_Colon,        PK_Hash,          PK_Percent,   PK_AddrOf,
-};
-
 #define MAKE_NAME_TABLE(NAME, SIZE) \
   static const char NAME##_table[][SIZE] = {ENTRIES};
 #define MAKE_TABLE(TYPE, NAME, NAME2)                                    \
@@ -118,65 +84,121 @@ static const AddInfo punct_info_table[sizeof_arr(punct_table)] = {
     ENTRIES                                                              \
   };
 
-#define ENTRIES        \
-  X("ext", KW_Ext)     \
-  X("pub", KW_Pub)     \
-  X("let", KW_Let)     \
-  X("fn", KW_Fn)       \
-  X("use", KW_Use)     \
-  X("if", KW_If)       \
-  X("else", KW_Else)   \
-  X("for", KW_For)     \
-  X("while", KW_While) \
-  X("match", KW_Match) \
-  X("ret", KW_Return)
+#define ENTRIES              \
+  X(PK_LeftShftAsgn, "<<=")  \
+  X(PK_RightShftAsgn, ">>=") \
+  X(PK_Ellipsis, "...")      \
+  X(PK_AddAssign, "+=")      \
+  X(PK_SubAssign, "-=")      \
+  X(PK_MulAssign, "*=")      \
+  X(PK_DivAssign, "/=")      \
+  X(PK_ModAssign, "%=")      \
+  X(PK_AndAssign, "&=")      \
+  X(PK_OrAssign, "|=")       \
+  X(PK_XorAssign, "^=")      \
+  X(PK_DeclAssign, ":=")     \
+  X(PK_DotDot, "..")         \
+  X(PK_Deref, ".*")          \
+  X(PK_AddrOf, ".&")         \
+  X(PK_LeftArrow, "<-")      \
+  X(PK_RightArrow, "->")     \
+  X(PK_RightFatArrow, "=>")  \
+  X(PK_And, "&&")            \
+  X(PK_Or, "||")             \
+  X(PK_LeftShift, "<<")      \
+  X(PK_RightShift, ">>")     \
+  X(PK_Eq, "==")             \
+  X(PK_NEq, "!=")            \
+  X(PK_Lte, "<=")            \
+  X(PK_Gte, ">=")            \
+  X(PK_Lt, "<")              \
+  X(PK_Gt, ">")              \
+  X(PK_LeftParen, "(")       \
+  X(PK_RightParen, ")")      \
+  X(PK_LeftBrace, "{")       \
+  X(PK_RightBrace, "}")      \
+  X(PK_LeftBracket, "[")     \
+  X(PK_RightBracket, "]")    \
+  X(PK_Ampersand, "&")       \
+  X(PK_Pipe, "|")            \
+  X(PK_Not, "!")             \
+  X(PK_Question, "?")        \
+  X(PK_Xor, "^")             \
+  X(PK_Negation, "~")        \
+  X(PK_Assign, "=")          \
+  X(PK_Add, "+")             \
+  X(PK_Sub, "-")             \
+  X(PK_Mul, "*")             \
+  X(PK_Div, "/")             \
+  X(PK_Comma, ",")           \
+  X(PK_SemiCol, ";")         \
+  X(PK_Dot, ".")             \
+  X(PK_Colon, ":")           \
+  X(PK_Hash, "#")            \
+  X(PK_Percent, "%")         \
+  X(PK_AddrOf, "@")
 
-#define X(str, info) str,
+#define X(info, str) str,
+MAKE_NAME_TABLE(punct, 4)
+#undef X
+
+#define X(info, str) (sizeof(str) - 1),
+MAKE_TABLE(size_t, punct, size)
+#undef X
+
+#define X(info, str) info,
+MAKE_TABLE(AddInfo, punct, info)
+#undef X
+
+#undef ENTRIES
+
+#define ENTRIES        \
+  X(KW_Ext, "ext")     \
+  X(KW_Pub, "pub")     \
+  X(KW_Let, "let")     \
+  X(KW_Fn, "fn")       \
+  X(KW_Use, "use")     \
+  X(KW_If, "if")       \
+  X(KW_Else, "else")   \
+  X(KW_For, "for")     \
+  X(KW_While, "while") \
+  X(KW_Match, "match") \
+  X(KW_Return, "ret")
+
+#define X(info, str) str,
 MAKE_NAME_TABLE(kwrd, 8)
 #undef X
 
-#define X(str, info) (sizeof(str) - 1),
+#define X(info, str) (sizeof(str) - 1),
 MAKE_TABLE(size_t, kwrd, size)
 #undef X
 
-#define X(str, info) info,
+#define X(info, str) info,
 MAKE_TABLE(AddInfo, kwrd, info)
 #undef X
 
 #undef ENTRIES
 
-// static const char kwrd_table[][8] = {
-//   "ext",  "pub", "let",   "fn",    "use", "if",
-//   "else", "for", "while", "match", "ret",
-// };
+#define ENTRIES          \
+  X(AD_F16Type, "f16")   \
+  X(AD_BF16Type, "bf16") \
+  X(AD_F32Type, "f32")   \
+  X(AD_F64Type, "f64")   \
+  X(AD_F128Type, "f128")
 
-// static const usize kwrd_sizes[sizeof_arr(kwrd_table)] = {
-//   3, 3, 3, 2, 3, 2, 4, 3, 5, 5, 3,
-// };
+#define X(info, str) str,
+MAKE_NAME_TABLE(flt, 4)
+#undef X
 
-// static const AddInfo kwrd_info_table[sizeof_arr(kwrd_table)] = {
-//   KW_Ext,  KW_Pub, KW_Let,   KW_Fn,    KW_Use,    KW_If,
-//   KW_Else, KW_For, KW_While, KW_Match, KW_Return,
-// };
+#define X(info, str) (sizeof(str) - 1),
+MAKE_TABLE(size_t, flt, size)
+#undef X
 
-// #define FLOAT_ENTRIES
-//   X("f16", AD_F16Type)
-//   X("bf16", AD_BF16Type)
-//   X("f32", AD_F32Type)
-//   X("f64", AD_F64Type)
-//   X("f128", AD_F128Type)
+#define X(info, str) info,
+MAKE_TABLE(AddInfo, flt, info)
+#undef X
 
-static const char flt_table[][4] = {
-  "f16", "bf16", "f32", "f64", "f128",
-};
-
-static const usize flt_sizes[sizeof_arr(flt_table)] = {
-  3, 4, 3, 3, 4,
-};
-
-static const AddInfo flt_info_table[sizeof_arr(flt_table)] = {
-  AD_F16Type, AD_BF16Type, AD_F32Type, AD_F64Type, AD_F128Type,
-};
+#undef ENTRIES
 
 typedef struct OptNumIdx OptNumIdx;
 struct OptNumIdx {
@@ -264,8 +286,8 @@ static OptIdx try_get_fltt(cstr iter) {
     return (OptIdx){};
   }
   for (usize i = 0; i < sizeof_arr(flt_table); ++i) {
-    if (memcmp(iter, flt_table[i], flt_sizes[i]) == 0 && //
-      is_char_number(iter[flt_sizes[i]]) == false) {
+    if (memcmp(iter, flt_table[i], flt_size_table[i]) == 0 && //
+      is_char_number(iter[flt_size_table[i]]) == false) {
       return (OptIdx){
         .size = i,
         .some = true,
@@ -308,7 +330,7 @@ static OptIdx try_get_ident(cstr iter) {
 
 static OptIdx try_get_punct(cstr iter) {
   for (usize i = 0; i < sizeof_arr(punct_table); ++i) {
-    if (memcmp(iter, punct_table[i], punct_size(i)) == 0) {
+    if (memcmp(iter, punct_table[i], punct_size_table[i]) == 0) {
       return (OptIdx){
         .size = i,
         .some = true,
@@ -407,9 +429,9 @@ TokenVector* lex_string(const StrView view) {
       tokens_push({
         .kind = TK_Ident,
         .info = flt_info_table[opt.size],
-        .pos = {iter, flt_sizes[opt.size]},
+        .pos = {iter, flt_size_table[opt.size]},
       });
-      iter += flt_sizes[opt.size];
+      iter += flt_size_table[opt.size];
       continue;
     }
 
@@ -454,9 +476,9 @@ TokenVector* lex_string(const StrView view) {
       tokens_push({
         .kind = TK_Punct,
         .info = punct_info_table[opt.size],
-        .pos = {iter, punct_size(opt.size)},
+        .pos = {iter, punct_size_table[opt.size]},
       });
-      iter += punct_size(opt.size);
+      iter += punct_size_table[opt.size];
       continue;
     }
 
