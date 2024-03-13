@@ -1,12 +1,10 @@
-#!/usr/bin/env fish
+#!/usr/bin/env bash
 
-# This generates an assembly file and links it to an example c file
+# This generates an object file and links it to an example c file
+# It should then print the main functions output
 # The project needs to be built first
-# Requires: fish, clang, gcc
-# Can substitute fish for any shell and gcc for any compiler
 
-./build/bahr test/src/test.bh > test/out/test.ll
-cd test/out/
-llc test.ll
-gcc -o test main.c test.s
+./build/bahr test/src/test.bh test/out/test.o
+cd test/out
+gcc -fuse-ld=mold -o test main.c test.o
 ./test

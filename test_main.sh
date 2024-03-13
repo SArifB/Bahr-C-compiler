@@ -1,13 +1,10 @@
-#!/usr/bin/env fish
+#!/usr/bin/env bash
 
-# This generates an assembly file and links it to c standard library
-# Then it should print hello world
+# This generates an object file and links it to the C standard library
+# It should then print the hello world example
 # The project needs to be built first
-# Requires: fish, clang, gcc
-# Can substitute fish for any shell and gcc for any compiler
 
-./build/bahr test/src/ast_test.bh > test/out2/main.ll
-cd test/out2/
-llc -relocation-model=pic main.ll
-gcc -o main main.s
+./build/bahr test/src/ast_test.bh test/out2/main.o
+cd test/out2
+gcc -fuse-ld=mold -o main main.o
 ./main
