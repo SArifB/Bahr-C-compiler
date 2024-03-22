@@ -24,6 +24,10 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	configure_file(cmake.toml cmake.toml COPYONLY)
 endif()
 
+# Variables
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_C_STANDARD 23)
+
 project(Bahr
 	LANGUAGES
 		C
@@ -46,7 +50,6 @@ target_compile_options(bahr PRIVATE
 	-Werror
 	-Wextra
 	-Wpedantic
-	-std=c2x
 )
 
 target_include_directories(bahr PRIVATE
@@ -56,6 +59,10 @@ target_include_directories(bahr PRIVATE
 target_link_libraries(bahr PRIVATE
 	utility
 	jemalloc
+)
+
+target_link_options(bahr PRIVATE
+	-fuse-ld=mold
 )
 
 target_link_libraries(bahr PRIVATE
@@ -84,7 +91,6 @@ target_compile_options(codegen PUBLIC
 	-Werror
 	-Wextra
 	-Wpedantic
-	-std=c2x
 )
 
 target_include_directories(codegen PUBLIC
@@ -94,6 +100,10 @@ target_include_directories(codegen PUBLIC
 target_link_libraries(codegen PUBLIC
 	utility
 	jemalloc
+)
+
+target_link_options(codegen PUBLIC
+	-fuse-ld=mold
 )
 
 target_link_libraries(codegen PUBLIC
@@ -119,7 +129,6 @@ target_compile_options(parser PUBLIC
 	-Werror
 	-Wextra
 	-Wpedantic
-	-std=c2x
 )
 
 target_include_directories(parser PUBLIC
@@ -129,6 +138,10 @@ target_include_directories(parser PUBLIC
 target_link_libraries(parser PUBLIC
 	utility
 	jemalloc
+)
+
+target_link_options(parser PUBLIC
+	-fuse-ld=mold
 )
 
 target_link_libraries(parser PUBLIC
@@ -152,7 +165,6 @@ target_compile_options(arena PUBLIC
 	-Werror
 	-Wextra
 	-Wpedantic
-	-std=c2x
 )
 
 target_include_directories(arena PUBLIC
@@ -162,6 +174,10 @@ target_include_directories(arena PUBLIC
 target_link_libraries(arena PUBLIC
 	utility
 	jemalloc
+)
+
+target_link_options(arena PUBLIC
+	-fuse-ld=mold
 )
 
 # Target: hashmap
@@ -180,7 +196,6 @@ target_compile_options(hashmap PUBLIC
 	-Werror
 	-Wextra
 	-Wpedantic
-	-std=c2x
 )
 
 target_include_directories(hashmap PUBLIC
@@ -190,6 +205,10 @@ target_include_directories(hashmap PUBLIC
 target_link_libraries(hashmap PUBLIC
 	utility
 	jemalloc
+)
+
+target_link_options(hashmap PUBLIC
+	-fuse-ld=mold
 )
 
 # Target: utility
@@ -209,13 +228,8 @@ target_compile_options(utility INTERFACE
 	-Werror
 	-Wextra
 	-Wpedantic
-	-std=c2x
 )
 
 target_include_directories(utility INTERFACE
 	src
-)
-
-target_link_libraries(utility INTERFACE
-	jemalloc
 )
