@@ -208,7 +208,7 @@ static Node* extern_function(Token** rest, Token* token, Scopes* scopes) {
   token = expect_info(token, PK_LeftParen);
 
   Node* args = parse_list(&token, token, scopes, PK_RightParen, argument);
-  Node* type = parse_type(rest, expect_info(token + 1, PK_Colon), scopes);
+  Node* type = parse_type(rest, token + 1, scopes);
   return make_function(type, name, nullptr, args);
 }
 
@@ -220,7 +220,7 @@ static Node* function(Token** rest, Token* token, Scopes* scopes) {
   Scope_vector_push(&scopes, hashmap_make(8));
 
   Node* args = parse_list(&token, token, scopes, PK_RightParen, argument);
-  Node* type = parse_type(&token, expect_info(token + 1, PK_Colon), scopes);
+  Node* type = parse_type(&token, token + 1, scopes);
   Node* body = compound_stmt(rest, expect_info(token, PK_LeftBrace), scopes);
 
   hashmap_free(scopes->buffer[scopes->length - 1]);
@@ -232,7 +232,7 @@ static Node* function(Token** rest, Token* token, Scopes* scopes) {
 static Node* argument(Token** rest, Token* token, Scopes* scopes) {
   StrView name = token->pos;
   token = expect_ident(token);
-  Node* type = parse_type(rest, expect_info(token, PK_Colon), scopes);
+  Node* type = parse_type(rest, token, scopes);
   return make_arg_var(type, name, scopes);
 }
 
@@ -240,7 +240,7 @@ static Node* argument(Token** rest, Token* token, Scopes* scopes) {
 static Node* declaration(Token** rest, Token* token, Scopes* scopes) {
   StrView name = token->pos;
   token = expect_ident(token);
-  Node* type = parse_type(&token, expect_info(token, PK_Colon), scopes);
+  Node* type = parse_type(&token, token, scopes);
   Node* value = expr(rest, expect_info(token, PK_Assign), scopes);
   return make_declaration(type, name, value, scopes);
 }
