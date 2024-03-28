@@ -148,6 +148,7 @@ LLVMValueRef codegen_generate(cstr name, Node* prog, cstr output) {
     exit(1);
   }
   LLVMDisposeMessage(message);
+  LLVMDumpModule(cdgn.mod);
 
   LLVMInitializeAllTargetInfos();
   LLVMInitializeAllTargets();
@@ -387,7 +388,9 @@ static LLVMValueRef codegen_oper(
     case OP_Asg:
       return LLVMBuildStore(cdgn->bldr, rhs, lhs);
     case OP_ArrIdx:
-      return nullptr;
+      return LLVMBuildInBoundsGEP2(
+        cdgn->bldr, LLVMTypeOf(lhs), lhs, &rhs, 1, "arr_idx"
+      );
   }
   print_cdgn_err(node->kind);
 }
@@ -426,7 +429,9 @@ static LLVMValueRef codegen_call(
   LLVMValueRefVector* call_args = LLVMValueRef_vector_make(0);
   for (Node* arg = node->call_node.args; arg != nullptr; arg = arg->next) {
     LLVMValueRef value = codegen_parse(cdgn, arg, function);
-    LLVMValueRef_vector_push(&call_args, value);
+    LLVMValueRef value_load =
+      LLVMBuildLoad2(cdgn->bldr, LLVMTypeOf(value), value, "");
+    LLVMValueRef_vector_push(&call_args, value_load);
   }
   LLVMValueRef result = LLVMBuildCall2(
     cdgn->bldr, decl_fn->type, decl_fn->value, call_args->buffer,
