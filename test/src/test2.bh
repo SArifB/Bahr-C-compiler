@@ -1,0 +1,8 @@
+
+fn main(argc i32, argv **i8) i32 {
+  let argc2 i32 = argc - 1
+  puts(argv[argc2])
+  ret 0
+}
+
+ext fn puts(s *i8) i32
