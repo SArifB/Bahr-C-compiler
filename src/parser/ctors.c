@@ -6,16 +6,6 @@
 #include <string.h>
 #include <utility/mod.h>
 
-static Arena PARSER_POOL = {};
-
-static void* parser_alloc(usize size) {
-  return arena_alloc(&PARSER_POOL, size);
-}
-
-void parser_dealloc() {
-  arena_free(&PARSER_POOL);
-}
-
 // static bool is_integer(Node* node) {
 //   return node->kind == ND_Value &&
 //          (node->value.kind == TP_SInt || node->value.kind == TP_UInt);
@@ -53,8 +43,8 @@ void parser_dealloc() {
 //   return make_oper(OP_PtrSub, lhs, rhs);
 // }
 
-Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_oper(Arena* arena, OperKind oper, Node* lhs, Node* rhs) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Operation,
     .operation =
@@ -67,8 +57,8 @@ Node* make_oper(OperKind oper, Node* lhs, Node* rhs) {
   return node;
 }
 
-Node* make_unary(NodeKind kind, Node* value) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_unary(Arena* arena, NodeKind kind, Node* value) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = kind,
     .unary = value,
@@ -76,31 +66,31 @@ Node* make_unary(NodeKind kind, Node* value) {
   return node;
 }
 
-static StrArr* alloc_string(StrView view) {
+static StrArr* alloc_string(Arena* arena, StrView view) {
   usize size = sizeof(usize) + sizeof(char) * (view.length + 1);
-  StrArr* string = parser_alloc(size);
+  StrArr* string = arena_alloc(arena, size);
   memcpy(string->array, view.ptr, view.length);
   string->array[view.length] = 0;
   string->length = view.length;
   return string;
 }
 
-Node* make_basic_value(Node* type, StrView view) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_basic_value(Arena* arena, Node* type, StrView view) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Value,
     .value =
       (ValueNode){
         .type = type,
-        .basic = alloc_string(view),
+        .basic = alloc_string(arena, view),
       },
   };
   return node;
 }
 
-static StrArr* alloc_str_lit(StrView view) {
+static StrArr* alloc_str_lit(Arena* arena, StrView view) {
   usize size = sizeof(usize) + sizeof(char) * (view.length + 1);
-  StrArr* string = parser_alloc(size);
+  StrArr* string = arena_alloc(arena, size);
   cstr src = view.ptr;
   str itr = string->array;
   size = view.length;
@@ -119,21 +109,21 @@ static StrArr* alloc_str_lit(StrView view) {
   return string;
 }
 
-Node* make_str_value(StrView view) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_str_value(Arena* arena, StrView view) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Value,
     .value =
       (ValueNode){
-        .type = make_basic_type(TP_Str),
-        .basic = alloc_str_lit(view),
+        .type = make_basic_type(arena, TP_Str),
+        .basic = alloc_str_lit(arena, view),
       },
   };
   return node;
 }
 
-Node* make_numeric_value(Node* type, u64 num) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_numeric_value(Arena* arena, Node* type, u64 num) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Value,
     .value =
@@ -145,8 +135,8 @@ Node* make_numeric_value(Node* type, u64 num) {
   return node;
 }
 
-Node* make_pointer_value(Node* type, Node* value) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_pointer_value(Arena* arena, Node* type, Node* value) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Value,
     .value =
@@ -158,8 +148,8 @@ Node* make_pointer_value(Node* type, Node* value) {
   return node;
 }
 
-Node* make_basic_type(TypeKind kind) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_basic_type(Arena* arena, TypeKind kind) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Type,
     .type =
@@ -170,8 +160,8 @@ Node* make_basic_type(TypeKind kind) {
   return node;
 }
 
-Node* make_numeric_type(TypeKind kind, i32 width) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_numeric_type(Arena* arena, TypeKind kind, i32 width) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Type,
     .type =
@@ -183,8 +173,8 @@ Node* make_numeric_type(TypeKind kind, i32 width) {
   return node;
 }
 
-Node* make_pointer_type(Node* type) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_pointer_type(Arena* arena, Node* type) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Type,
     .type =
@@ -196,8 +186,8 @@ Node* make_pointer_type(Node* type) {
   return node;
 }
 
-Node* make_array_type(Node* type, usize size) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_array_type(Arena* arena, Node* type, usize size) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Type,
     .type =
@@ -210,37 +200,39 @@ Node* make_array_type(Node* type, usize size) {
   return node;
 }
 
-Node* make_declaration(Node* type, StrView view, Node* value, Scopes* scopes) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_declaration(Context cx, Node* type, StrView view, Node* value) {
+  Node* node = arena_alloc(cx.arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Decl,
     .declaration =
       (DeclNode){
         .type = type,
         .value = value,
-        .name = alloc_string(view),
+        .name = alloc_string(cx.arena, view),
       },
   };
-  *hashmap_get(scopes->buffer + scopes->length - 1, view) = node;
+  *hashmap_get(cx.scopes->buffer + cx.scopes->length - 1, view) = node;
   return node;
 }
 
-Node* make_arg_var(Node* type, StrView view, Scopes* scopes) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_arg_var(Context cx, Node* type, StrView view) {
+  Node* node = arena_alloc(cx.arena, sizeof(Node));
   *node = (Node){
     .kind = ND_ArgVar,
     .declaration =
       (DeclNode){
         .type = type,
-        .name = alloc_string(view),
+        .name = alloc_string(cx.arena, view),
       },
   };
-  *hashmap_get(scopes->buffer + scopes->length - 1, view) = node;
+  *hashmap_get(cx.scopes->buffer + cx.scopes->length - 1, view) = node;
   return node;
 }
 
-Node* make_function(Node* type, StrView view, Node* body, Node* args) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_function(
+  Arena* arena, Node* type, StrView view, Node* body, Node* args
+) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Function,
     .function =
@@ -248,14 +240,14 @@ Node* make_function(Node* type, StrView view, Node* body, Node* args) {
         .body = body,
         .args = args,
         .ret_type = type,
-        .name = alloc_string(view),
+        .name = alloc_string(arena, view),
       },
   };
   return node;
 }
 
-Node* make_if_node(Node* cond, Node* then, Node* elseb) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_if_node(Arena* arena, Node* cond, Node* then, Node* elseb) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_If,
     .if_node =
@@ -268,8 +260,8 @@ Node* make_if_node(Node* cond, Node* then, Node* elseb) {
   return node;
 }
 
-Node* make_while_node(Node* cond, Node* then) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_while_node(Arena* arena, Node* cond, Node* then) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_While,
     .while_node =
@@ -281,14 +273,14 @@ Node* make_while_node(Node* cond, Node* then) {
   return node;
 }
 
-Node* make_call_node(StrView view, Node* args) {
-  Node* node = parser_alloc(sizeof(Node));
+Node* make_call_node(Arena* arena, StrView view, Node* args) {
+  Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Call,
     .call_node =
       (CallNode){
         .args = args,
-        .name = alloc_string(view),
+        .name = alloc_string(arena, view),
       },
   };
   return node;
