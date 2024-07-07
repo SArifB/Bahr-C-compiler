@@ -1,4 +1,5 @@
 #pragma once
+#include <arena/mod.h>
 #include <hashmap/mod.h>
 #include <parser/lexer.h>
 #include <utility/mod.h>
@@ -12,6 +13,7 @@ typedef struct IfNode IfNode;
 typedef struct WhileNode WhileNode;
 typedef struct CallNode CallNode;
 typedef struct Node Node;
+typedef struct ParserOutput ParserOutput;
 
 typedef HashMap* Scope;
 DEFINE_VECTOR(Scope)
@@ -137,6 +139,11 @@ struct Node {
   };
 };
 
-extern Node* parse_string(const StrView view);
+struct ParserOutput {
+  Node* tree;
+  Arena arena;
+};
+
+extern ParserOutput parse_string(const StrView view);
 extern void enable_verbosity();
 extern void parser_dealloc();

@@ -18,17 +18,17 @@ i32 main(i32 argc, cstr argv[]) {
 
   // Parse String
   // enable_verbosity();
-  Node* prog = parse_string((StrView){
+  ParserOutput out = parse_string((StrView){
     .ptr = input.file,
     .length = input.length,
   });
 
   // Generate code
-  codegen_generate(input.name, prog, argv[2]);
+  codegen_generate(input.name, out.tree, argv[2]);
   // eputs("\n-----------------------------------------------");
 
   // Cleanup owned memory
   input_free(input);
-  parser_dealloc();
+  arena_free(&out.arena);
   return 0;
 }
