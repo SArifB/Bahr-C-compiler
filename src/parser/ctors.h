@@ -3,12 +3,6 @@
 #include <parser/mod.h>
 #include <utility/vec.h>
 
-typedef struct Context Context;
-struct Context {
-  Scopes* scopes;
-  Arena* arena;
-};
-
 extern Node* make_add(Arena* arena, Node* lhs, Node* rhs, Token* token);
 extern Node* make_sub(Arena* arena, Node* lhs, Node* rhs, Token* token);
 extern Node* make_oper(Arena* arena, OperKind oper, Node* lhs, Node* rhs);

@@ -13,6 +13,7 @@ typedef struct IfNode IfNode;
 typedef struct WhileNode WhileNode;
 typedef struct CallNode CallNode;
 typedef struct Node Node;
+typedef struct Context Context;
 typedef struct ParserOutput ParserOutput;
 
 typedef HashMap* Scope;
@@ -137,6 +138,11 @@ struct Node {
     WhileNode while_node;
     CallNode call_node;
   };
+};
+
+struct Context {
+  Scopes* scopes;
+  Arena* arena;
 };
 
 struct ParserOutput {
