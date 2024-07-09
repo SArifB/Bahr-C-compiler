@@ -7,6 +7,7 @@ ContinuationIndentWidth: 2
 AllowShortBlocksOnASingleLine: Never
 AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: Never
+Cpp11BracedListStyle: false
 AlignTrailingComments:
   Kind: Always
   OverEmptyLines: 2
