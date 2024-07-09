@@ -14,6 +14,7 @@ typedef struct WhileNode WhileNode;
 typedef struct CallNode CallNode;
 typedef struct Node Node;
 typedef struct Context Context;
+typedef struct ParserOptions ParserOptions;
 typedef struct ParserOutput ParserOutput;
 
 typedef HashMap* Scope;
@@ -71,7 +72,7 @@ struct ValueNode {
   Node* type;
   union {
     Node* base;
-    u64 number;
+    usize number;
     StrArr* basic;
   };
 };
@@ -143,6 +144,9 @@ struct Node {
 struct Context {
   Scopes* scopes;
   Arena* arena;
+struct ParserOptions {
+  StrView view;
+  bool print_verbose;
 };
 
 struct ParserOutput {
@@ -150,6 +154,6 @@ struct ParserOutput {
   Arena arena;
 };
 
-extern ParserOutput parse_string(const StrView view);
+extern ParserOutput parse_string(ParserOptions options);
 extern void enable_verbosity();
 extern void parser_dealloc();

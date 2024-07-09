@@ -9,30 +9,25 @@
 #include <utility/mod.h>
 #include <utility/vec.h>
 
-static bool print_verbose = false;
+static Node* parse_lexer(LexerOutput lexer, Arena* arena);
 
-void enable_verbosity() {
-  print_verbose = true;
-}
-
-static Node* parse_lexer(TokenVector* tokens, Arena* arena);
-
-ParserOutput parse_string(const StrView view) {
-  TokenVector* tokens = lex_string(view);
-  if (print_verbose) {
-    lexer_print(tokens);
+ParserOutput parse_string(ParserOptions opts) {
+  LexerOutput lexer = lex_string(opts.view);
+  if (opts.print_verbose) {
+    lexer_print(lexer.tokens);
     eputs("\n-----------------------------------------------");
   }
   Arena arena = {};
-  Node* prog = parse_lexer(tokens, &arena);
-  if (print_verbose) {
-    print_ast(prog);
+  Node* tree = parse_lexer(lexer, &arena);
+  if (opts.print_verbose) {
+    print_ast(tree);
     eputs("\n-----------------------------------------------");
   }
-  free(tokens);
+  free(lexer.tokens);
+  free(lexer.views);
   return (ParserOutput){
     .arena = arena,
-    .tree = prog,
+    .tree = tree,
   };
 }
 

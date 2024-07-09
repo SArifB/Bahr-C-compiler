@@ -82,10 +82,8 @@ static DeclVarVector* decl_vars = nullptr;
 static DeclFn* get_decl_fn(StrView name) {
   usize size = name.length;
   for (usize i = 0; i < decl_fns->length; ++i) {
-    if (
-      memcmp(name.ptr, decl_fns->buffer[i].name, size) == 0 &&
-      decl_fns->buffer[i].name[size] == 0
-    ) {
+    if (memcmp(name.ptr, decl_fns->buffer[i].name, size) == 0 &&
+        decl_fns->buffer[i].name[size] == 0) {
       return &decl_fns->buffer[i];
     }
   }
@@ -95,10 +93,8 @@ static DeclFn* get_decl_fn(StrView name) {
 static DeclVar* get_decl_var(StrView name) {
   usize size = name.length;
   for (usize i = 0; i < decl_vars->length; ++i) {
-    if (
-      memcmp(name.ptr, decl_vars->buffer[i].name, size) == 0 &&
-      decl_vars->buffer[i].name[size] == 0
-    ) {
+    if (memcmp(name.ptr, decl_vars->buffer[i].name, size) == 0 &&
+        decl_vars->buffer[i].name[size] == 0) {
       return &decl_vars->buffer[i];
     }
   }

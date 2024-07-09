@@ -122,14 +122,14 @@ Node* make_str_value(Arena* arena, StrView view) {
   return node;
 }
 
-Node* make_numeric_value(Arena* arena, Node* type, u64 num) {
+Node* make_numeric_value(Arena* arena, Node* type, usize number) {
   Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Value,
     .value =
       (ValueNode){
         .type = type,
-        .number = num,
+        .number = number,
       },
   };
   return node;
@@ -160,7 +160,7 @@ Node* make_basic_type(Arena* arena, TypeKind kind) {
   return node;
 }
 
-Node* make_numeric_type(Arena* arena, TypeKind kind, i32 width) {
+Node* make_numeric_type(Arena* arena, TypeKind kind, usize width) {
   Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Type,

@@ -17,10 +17,12 @@ i32 main(i32 argc, cstr argv[]) {
   // eputs("\n-----------------------------------------------");
 
   // Parse String
-  // enable_verbosity();
-  ParserOutput out = parse_string((StrView){
-    .ptr = input.file,
-    .length = input.length,
+  ParserOutput out = parse_string((ParserOptions){
+    .print_verbose = false,
+    .view = {
+      .ptr = input.file,
+      .length = input.length,
+    },
   });
 
   // Generate code
