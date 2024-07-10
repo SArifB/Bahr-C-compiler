@@ -2,11 +2,9 @@
 #include <utility/mod.h>
 #include <utility/vec.h>
 
-typedef struct Lexer Lexer;
-typedef struct Token Token;
-
-typedef enum {
+typedef enum TokenKind : u16 {
   TK_Ident,
+  TK_BasicType,
   TK_IntLiteral,
   TK_FltLiteral,
   TK_StrLiteral,
@@ -15,7 +13,7 @@ typedef enum {
   TK_Punct,
 } TokenKind;
 
-typedef enum {
+typedef enum AddInfo : u16 {
   AD_None,
 
   // Integer types
@@ -96,17 +94,19 @@ typedef enum {
   KW_Return,
 } AddInfo;
 
+typedef struct Token Token;
 struct Token {
-  TokenKind kind : 8;
-  bool is_eol;
+  TokenKind kind : 15;
+  bool is_eol : 1;
   AddInfo info;
-  StrView pos;
+  u32 len;
+  cstr pos;
 };
 DEFINE_VECTOR(Token)
 
-extern TokenVector* lex_string(const StrView view);
+extern TokenVector* lex_string(StrView view);
 extern void lexer_print(TokenVector* lexer);
 
-unreturning void error(cstr fmt, ...);
-unreturning void error_at(cstr loc, cstr fmt, ...);
-unreturning void error_tok(Token* tok, cstr fmt, ...);
+unreturning extern void error(cstr fmt, ...);
+unreturning extern void error_at(StrView view, cstr loc, cstr fmt, ...);
+unreturning extern void error_tok(StrView view, Token* tok, cstr fmt, ...);

@@ -371,30 +371,32 @@ TokenVector* lex_string(const StrView view) {
     }
 
     /// Number
-    OptNumIdx opt_num = try_get_num_lit(iter);
+    OptNumIdx opt_num = try_get_num_lit(view, iter);
     if (opt_num.some == true) {
       if (opt_num.flt == true) {
         tokens_push({
           .kind = TK_FltLiteral,
-          .pos = {iter, opt_num.size},
+          .pos = iter,
+          .len = opt_num.size,
         });
       } else {
         tokens_push({
           .kind = TK_IntLiteral,
-          .pos = {iter, opt_num.size},
+          .pos = iter,
+          .len = opt_num.size,
         });
       }
       iter += opt_num.size;
       continue;
     }
 
-    OptIdx opt;
     /// String
     opt = try_get_str_lit(iter);
     if (opt.some == true) {
       tokens_push({
         .kind = TK_StrLiteral,
-        .pos = {iter + 1, opt.size - 1},
+        .pos = iter + 1,
+        .len = opt.size - 1,
       });
       iter += opt.size + 1;
       continue;
@@ -405,7 +407,8 @@ TokenVector* lex_string(const StrView view) {
     if (opt.some == true) {
       tokens_push({
         .kind = TK_CharLiteral,
-        .pos = {iter + 1, opt.size},
+        .pos = iter + 1,
+        .len = opt.size,
       });
       iter += opt.size + 1;
       continue;
@@ -417,7 +420,8 @@ TokenVector* lex_string(const StrView view) {
       tokens_push({
         .kind = TK_Keyword,
         .info = kwrd_info_table[opt.size],
-        .pos = {iter, kwrd_size_table[opt.size]},
+        .pos = iter,
+        .len = kwrd_size_table[opt.size],
       });
       iter += kwrd_size_table[opt.size];
       continue;
@@ -429,7 +433,8 @@ TokenVector* lex_string(const StrView view) {
       tokens_push({
         .kind = TK_Ident,
         .info = flt_info_table[opt.size],
-        .pos = {iter, flt_size_table[opt.size]},
+        .pos = iter,
+        .len = flt_size_table[opt.size],
       });
       iter += flt_size_table[opt.size];
       continue;
@@ -441,7 +446,8 @@ TokenVector* lex_string(const StrView view) {
       tokens_push({
         .kind = TK_Ident,
         .info = AD_SIntType,
-        .pos = {iter, opt.size},
+        .pos = iter,
+        .len = opt.size,
       });
       iter += opt.size;
       continue;
@@ -453,7 +459,8 @@ TokenVector* lex_string(const StrView view) {
       tokens_push({
         .kind = TK_Ident,
         .info = AD_UIntType,
-        .pos = {iter, opt.size},
+        .pos = iter,
+        .len = opt.size,
       });
       iter += opt.size;
       continue;
@@ -464,7 +471,8 @@ TokenVector* lex_string(const StrView view) {
     if (opt.some == true) {
       tokens_push({
         .kind = TK_Ident,
-        .pos = {iter, opt.size},
+        .pos = iter,
+        .len = opt.size,
       });
       iter += opt.size;
       continue;
@@ -476,23 +484,25 @@ TokenVector* lex_string(const StrView view) {
       tokens_push({
         .kind = TK_Punct,
         .info = punct_info_table[opt.size],
-        .pos = {iter, punct_size_table[opt.size]},
+        .pos = iter,
+        .len = punct_size_table[opt.size],
       });
       iter += punct_size_table[opt.size];
       continue;
     }
 
-    error_at(iter, "Invalid token");
+    error_at(view, iter, "Invalid token");
   }
   return tokens;
 }
 
 void lexer_print(TokenVector* tokens) {
-  Token* itr = tokens->buffer;
+  Token* iter = tokens->buffer;
   Token* sen = tokens->buffer + tokens->length;
-  for (; itr != sen; ++itr) {
-    switch (itr->kind) {  // clang-format off
+  for (; iter != sen; ++iter) {
+    switch (iter->kind) {  // clang-format off
       case TK_Ident:        eprintf("Ident:%*s", 8, "");       break;
+      case TK_BasicType:    eprintf("BasicType:%*s", 4, "");   break;
       case TK_IntLiteral:   eprintf("IntLiteral:%*s", 3, "");  break;
       case TK_FltLiteral:   eprintf("FltLiteral:%*s", 3, "");  break;
       case TK_StrLiteral:   eprintf("StrLiteral:%*s", 3, "");  break;
@@ -500,6 +510,7 @@ void lexer_print(TokenVector* tokens) {
       case TK_Keyword:      eprintf("Keyword:%*s", 6, "");     break;
       case TK_Punct:        eprintf("Punct:%*s", 8, "");       break;
     }  // clang-format on
-    eputw(itr->pos);
+    StrView str = { .ptr = iter->pos, .length = iter->len };
+    eputw(str);
   }
 }
