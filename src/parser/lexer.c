@@ -8,8 +8,6 @@
 
 DEFINE_VEC_FNS(Token, malloc, free)
 
-static StrView current_input;
-
 unreturning void error(cstr fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -18,14 +16,16 @@ unreturning void error(cstr fmt, ...) {
   exit(1);
 }
 
-unreturning static void verror_at(cstr location, cstr fmt, va_list ap) {
-  i32 line_num = 1;
-  for (cstr cursor = current_input.ptr; cursor < location; ++cursor) {
+unreturning static void verror_at(
+  StrView view, cstr location, cstr fmt, va_list ap
+) {
+  cstr input = view.ptr;
+  u32 line_num = 1;
+  for (cstr cursor = input; cursor < location; ++cursor) {
     if (*cursor == '\n') {
       line_num += 1;
     }
   }
-  cstr input = current_input.ptr;
   cstr line = location;
   while (input < line && line[-1] != '\n') {
     line--;
@@ -34,7 +34,7 @@ unreturning static void verror_at(cstr location, cstr fmt, va_list ap) {
   while (*end && *end != '\n') {
     end++;
   }
-  i32 chars_written = eprintf("%d: ", line_num);
+  i32 chars_written = eprintf("%u: ", line_num);
   eprintf("%.*s\n", (i32)(end - line), line);
   i32 position = (i32)(location - line) + chars_written;
 
@@ -45,16 +45,16 @@ unreturning static void verror_at(cstr location, cstr fmt, va_list ap) {
   exit(1);
 }
 
-unreturning void error_at(cstr location, cstr fmt, ...) {
+unreturning void error_at(StrView view, cstr location, cstr fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  verror_at(location, fmt, ap);
+  verror_at(view, location, fmt, ap);
 }
 
-unreturning void error_tok(Token* token, cstr fmt, ...) {
+unreturning void error_tok(StrView view, Token* token, cstr fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  verror_at(token->pos.ptr, fmt, ap);
+  verror_at(view, token->pos, fmt, ap);
 }
 
 static inline bool is_skippable(char ref) {
@@ -207,15 +207,15 @@ struct OptNumIdx {
   bool some;
 };
 
-static OptNumIdx try_get_num_lit(cstr iter) {
-  if (is_number(*iter) != true) {
+static OptNumIdx try_get_num_lit(StrView view, cstr iter) {
+  if (is_number(*iter) == false) {
     return (OptNumIdx){};
   }
   usize size = 0;
   bool flt_found = false;
   for (; is_num_literal(iter[size]) == true; ++size) {
     if (iter[size] == '.' && flt_found == true) {
-      error_at(&iter[size], "More than one '.' found");
+      error_at(view, &iter[size], "More than one '.' found");
     } else if (iter[size] == '.' && flt_found == false) {
       flt_found = true;
     }
