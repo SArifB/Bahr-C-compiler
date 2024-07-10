@@ -78,7 +78,7 @@ static inline bool is_char_number(char ref) {
 }
 
 #define MAKE_NAME_TABLE(NAME, SIZE) \
-  static const char NAME##_table[][SIZE] = {ENTRIES};
+  static const char NAME##_table[][SIZE] = { ENTRIES };
 #define MAKE_TABLE(TYPE, NAME, NAME2)                                    \
   static const TYPE NAME##_##NAME2##_table[sizeof_arr(NAME##_table)] = { \
     ENTRIES                                                              \
@@ -270,8 +270,8 @@ static OptIdx try_get_kwrd(cstr iter) {
     return (OptIdx){};
   }
   for (usize i = 0; i < sizeof_arr(kwrd_table); ++i) {
-    if (memcmp(iter, kwrd_table[i], kwrd_size_table[i]) == 0 && //
-      is_char_number(iter[kwrd_size_table[i]]) == false) {
+    if (memcmp(iter, kwrd_table[i], kwrd_size_table[i]) == 0 &&
+        is_char_number(iter[kwrd_size_table[i]]) == false) {
       return (OptIdx){
         .size = i,
         .some = true,
@@ -286,8 +286,8 @@ static OptIdx try_get_fltt(cstr iter) {
     return (OptIdx){};
   }
   for (usize i = 0; i < sizeof_arr(flt_table); ++i) {
-    if (memcmp(iter, flt_table[i], flt_size_table[i]) == 0 && //
-      is_char_number(iter[flt_size_table[i]]) == false) {
+    if (memcmp(iter, flt_table[i], flt_size_table[i]) == 0 &&
+        is_char_number(iter[flt_size_table[i]]) == false) {
       return (OptIdx){
         .size = i,
         .some = true,
@@ -340,14 +340,14 @@ static OptIdx try_get_punct(cstr iter) {
   return (OptIdx){};
 }
 
-#define tokens_push(...) Token_vector_push(&tokens, ((Token)__VA_ARGS__))
-
-TokenVector* lex_string(const StrView view) {
+TokenVector* lex_string(StrView view) {
   TokenVector* tokens = Token_vector_make(64);
-  current_input = view;
+
+#define tokens_push(...) Token_vector_push(&tokens, ((Token)__VA_ARGS__))
 
   cstr iter = view.ptr;
   while (iter != view.ptr + view.length) {
+    /// Skippable
     if (is_skippable(*iter) == true) {
       iter += 1;
       continue;
@@ -391,7 +391,7 @@ TokenVector* lex_string(const StrView view) {
     }
 
     /// String
-    opt = try_get_str_lit(iter);
+    OptIdx opt = try_get_str_lit(iter);
     if (opt.some == true) {
       tokens_push({
         .kind = TK_StrLiteral,
