@@ -18,8 +18,8 @@ i32 main(i32 argc, cstr argv[]) {
 
   // Parse String
   ParserOutput out = parse_string((ParserOptions){
-    .print_verbose = false,
-    .view = {
+    // .verbose = true,
+    .input = {
       .ptr = input.file,
       .length = input.length,
     },

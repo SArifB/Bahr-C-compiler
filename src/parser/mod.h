@@ -19,7 +19,6 @@ typedef struct ParserOutput ParserOutput;
 
 typedef HashMap* Scope;
 DEFINE_VECTOR(Scope)
-typedef ScopeVector Scopes;
 
 typedef enum {
   OP_Add,
@@ -142,15 +141,19 @@ struct Node {
 };
 
 struct Context {
-  Scopes* scopes;
   Arena* arena;
+  ScopeVector* scopes;
+  StrView input;
+};
+
 struct ParserOptions {
-  StrView view;
-  bool print_verbose;
+  StrView input;
+  bool verbose;
 };
 
 struct ParserOutput {
   Node* tree;
+  TokenVector* tokens;
   Arena arena;
 };
 
