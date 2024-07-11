@@ -104,6 +104,11 @@ struct Token {
 };
 DEFINE_VECTOR(Token)
 
+#define view_from_token(token)                   \
+  (StrView) {                                    \
+    .ptr = (token)->pos, .length = (token)->len, \
+  }
+
 extern TokenVector* lex_string(StrView view);
 extern void lexer_print(TokenVector* lexer);
 

@@ -33,7 +33,10 @@ struct StrArr {
   char array[];
 };
 
-#define arr_view(arr) ((StrView){ (arr)->array, (arr)->length })
+#define arr_view(arr)                             \
+  (StrView) {                                     \
+    .ptr = (arr)->array, .length = (arr)->length, \
+  }
 
 #define unused [[maybe_unused]]
 #define undiscardable [[nodiscard]]

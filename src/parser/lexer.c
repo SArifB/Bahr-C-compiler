@@ -408,7 +408,7 @@ TokenVector* lex_string(StrView view) {
       tokens_push({
         .kind = TK_CharLiteral,
         .pos = iter + 1,
-        .len = opt.size,
+        .len = opt.size - 1,
       });
       iter += opt.size + 1;
       continue;
