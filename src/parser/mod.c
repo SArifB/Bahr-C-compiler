@@ -9,22 +9,25 @@
 #include <utility/mod.h>
 #include <utility/vec.h>
 
-static Node* parse_lexer(LexerOutput lexer, Arena* arena);
+static Node* parse_lexer(StrView input, TokenVector* tokens, Arena* arena);
 
 ParserOutput parse_string(ParserOptions opts) {
-  LexerOutput lexer = lex_string(opts.view);
-  if (opts.print_verbose) {
-    lexer_print(lexer.tokens);
+  if (opts.verbose) {
+    eputw(opts.input);
+    eputs("\n-----------------------------------------------");
+  }
+  TokenVector* tokens = lex_string(opts.input);
+  if (opts.verbose) {
+    lexer_print(tokens);
     eputs("\n-----------------------------------------------");
   }
   Arena arena = {};
-  Node* tree = parse_lexer(lexer, &arena);
-  if (opts.print_verbose) {
+  Node* tree = parse_lexer(opts.input, tokens, &arena);
+  if (opts.verbose) {
     print_ast(tree);
     eputs("\n-----------------------------------------------");
   }
-  free(lexer.tokens);
-  free(lexer.views);
+  free(tokens);
   return (ParserOutput){
     .arena = arena,
     .tree = tree,
@@ -38,7 +41,7 @@ static Node* find_variable(Token* token, Context cx) {
   Scope* rev_sen = cx.scopes->buffer - 1;
 
   for (; rev_itr != rev_sen; --rev_itr) {
-    Node* var = *hashmap_find(rev_itr, token->pos);
+    Node* var = *hashmap_find(rev_itr, view_from_token(token));
     if (var != nullptr) {
       return make_unary(cx.arena, ND_Variable, var);
     }
@@ -55,23 +58,23 @@ static bool consume(Token** rest, Token* token, AddInfo info) {
   return true;
 }
 
-static Token* expect_info(Token* token, AddInfo info) {
+static Token* expect_info(StrView input, Token* token, AddInfo info) {
   if (token->info != info) {
-    error_tok(token, "Invalid expression");
+    error_tok(input, token, "Invalid expression");
   }
   return token + 1;
 }
 
-static Token* expect_eol(Token* token) {
+static Token* expect_eol(StrView input, Token* token) {
   if (token->is_eol != true) {
-    error_tok(token + 1, "Expected end of the line");
+    error_tok(input, token + 1, "Expected end of the line");
   }
   return token + 1;
 }
 
-static Token* expect_ident(Token* token) {
+static Token* expect_ident(StrView input, Token* token) {
   if (token->kind != TK_Ident) {
-    error_tok(token, "Expected an identifier");
+    error_tok(input, token, "Expected an identifier");
   }
   return token + 1;
 }
@@ -84,7 +87,7 @@ static Node* parse_list(
   Node* cursor = &handle;
   while (token->info != breaker) {
     if (cursor != &handle) {
-      token = expect_info(token, PK_Comma);
+      token = expect_info(cx.input, token, PK_Comma);
     }
     if (token->info == breaker) {
       break;
@@ -120,27 +123,28 @@ static Node* parse_type(Token** rest, Token* token, Context cx) {
 
     } else if (consume(&token, token, PK_LeftBracket)) {
       Node* size = expr(&token, token, cx);
-      Node* type = parse_type(rest, expect_info(token, PK_RightBracket), cx);
+      Token* expected = expect_info(cx.input, token, PK_RightBracket);
+      Node* type = parse_type(rest, expected, cx);
       if (size->kind == ND_Value) {
         return make_array_type(cx.arena, type, atoi(size->value.basic->array));
       } else {
-        error_tok(token, "Size value not found");
+        error_tok(cx.input, token, "Size value not found");
       }
     }
   } else if (token->kind == TK_Ident) {
     if (token->info == AD_SIntType) {
-      i32 width = atoi(token->pos.ptr + 1);
+      i32 width = atoi(token->pos + 1);
       if (width > 128) {
-        error_tok(token, "Bit width too wide");
+        error_tok(cx.input, token, "Bit width too wide");
       }
       Node* type = make_numeric_type(cx.arena, TP_SInt, width);
       *rest = token + 1;
       return type;
 
     } else if (token->info == AD_UIntType) {
-      i32 width = atoi(token->pos.ptr + 1);
+      i32 width = atoi(token->pos + 1);
       if (width > 128) {
-        error_tok(token, "Bit width too wide");
+        error_tok(cx.input, token, "Bit width too wide");
       }
       Node* type = make_numeric_type(cx.arena, TP_UInt, width);
       *rest = token + 1;
@@ -172,43 +176,44 @@ static Node* parse_type(Token** rest, Token* token, Context cx) {
       return type;
     }
   }
-  error_tok(token, "Invalid expression");
+  error_tok(cx.input, token, "Invalid expression");
 }
 
 // program = functions*
-static Node* parse_lexer(TokenVector* tokens, Arena* arena) {
+static Node* parse_lexer(StrView input, TokenVector* tokens, Arena* arena) {
   Token* token = tokens->buffer;
   Token* sentinel = tokens->buffer + tokens->length;
-  Scopes* scopes = Scope_vector_make(8);
-  Scope_vector_push(&scopes, hashmap_make(32));
-  Context context = {
-    scopes,
-    arena,
+  Context cx = {
+    .scopes = Scope_vector_make(8),
+    .arena = arena,
+    .input = input,
   };
+  Scope_vector_push(&cx.scopes, hashmap_make(32));
 
   Node handle = {};
   Node* cursor = &handle;
   while (token != sentinel) {
     if (consume(&token, token, KW_Ext)) {
-      cursor->next =
-        extern_function(&token, expect_info(token, KW_Fn), context);
+      Token* expected = expect_info(cx.input, token, KW_Fn);
+      cursor->next = extern_function(&token, expected, cx);
       cursor = cursor->next;
 
     } else {
-      cursor->next = function(&token, expect_info(token, KW_Fn), context);
+      Token* expected = expect_info(cx.input, token, KW_Fn);
+      cursor->next = function(&token, expected, cx);
       cursor = cursor->next;
     }
   }
-  hashmap_free(scopes->buffer[scopes->length - 1]);
-  free(scopes);
+  hashmap_free(cx.scopes->buffer[cx.scopes->length - 1]);
+  free(cx.scopes);
   return handle.next;
 }
 
 // extern_function = indent "(" args? ")" ":" ret_type
 static Node* extern_function(Token** rest, Token* token, Context cx) {
-  StrView name = token->pos;
-  token = expect_ident(token);
-  token = expect_info(token, PK_LeftParen);
+  StrView name = view_from_token(token);
+  token = expect_ident(cx.input, token);
+  token = expect_info(cx.input, token, PK_LeftParen);
 
   Node* args = parse_list(&token, token, cx, PK_RightParen, argument);
   Node* type = parse_type(rest, token + 1, cx);
@@ -217,14 +222,15 @@ static Node* extern_function(Token** rest, Token* token, Context cx) {
 
 // function = indent "(" args? ")" ":" ret_type "{" body "}"
 static Node* function(Token** rest, Token* token, Context cx) {
-  StrView name = token->pos;
-  token = expect_ident(token);
-  token = expect_info(token, PK_LeftParen);
+  StrView name = view_from_token(token);
+  token = expect_ident(cx.input, token);
+  token = expect_info(cx.input, token, PK_LeftParen);
   Scope_vector_push(&cx.scopes, hashmap_make(8));
 
   Node* args = parse_list(&token, token, cx, PK_RightParen, argument);
   Node* type = parse_type(&token, token + 1, cx);
-  Node* body = compound_stmt(rest, expect_info(token, PK_LeftBrace), cx);
+  Token* expected = expect_info(cx.input, token, PK_LeftBrace);
+  Node* body = compound_stmt(rest, expected, cx);
 
   hashmap_free(cx.scopes->buffer[cx.scopes->length - 1]);
   Scope_vector_pop(cx.scopes);
@@ -233,18 +239,18 @@ static Node* function(Token** rest, Token* token, Context cx) {
 
 // argument = indent ":" type
 static Node* argument(Token** rest, Token* token, Context cx) {
-  StrView name = token->pos;
-  token = expect_ident(token);
+  StrView name = view_from_token(token);
+  token = expect_ident(cx.input, token);
   Node* type = parse_type(rest, token, cx);
   return make_arg_var(cx, type, name);
 }
 
 // declaration = indent ":" type "=" expr
 static Node* declaration(Token** rest, Token* token, Context cx) {
-  StrView name = token->pos;
-  token = expect_ident(token);
+  StrView name = view_from_token(token);
+  token = expect_ident(cx.input, token);
   Node* type = parse_type(&token, token, cx);
-  Token* x = expect_info(token, PK_Assign);
+  Token* x = expect_info(cx.input, token, PK_Assign);
   Node* value = expr(rest, x, cx);
   return make_declaration(cx, type, name, value);
 }
@@ -258,7 +264,7 @@ static Node* declaration(Token** rest, Token* token, Context cx) {
 static Node* stmt(Token** rest, Token* token, Context cx) {
   if (token->info == KW_Return) {
     Node* node = make_unary(cx.arena, ND_Return, expr(&token, token + 1, cx));
-    *rest = expect_eol(token - 1);
+    *rest = expect_eol(cx.input, token - 1);
     return node;
 
   } else if (token->info == KW_If) {
@@ -293,7 +299,7 @@ static Node* compound_stmt(Token** rest, Token* token, Context cx) {
   Node handle = {};
   Node* node_cursor = &handle;
   while (token->info != PK_RightBrace) {
-    token = expect_eol(token - 1);
+    token = expect_eol(cx.input, token - 1);
     node_cursor->next = stmt(&token, token, cx);
     node_cursor = node_cursor->next;
   }
@@ -402,13 +408,13 @@ static Node* unary(Token** rest, Token* token, Context cx) {
 
 // funcall = ident "(" (equality ("," equality).*)? ")"
 static Node* fn_call(Token** rest, Token* token, Context cx) {
-  StrView name = token->pos;
-  token = expect_ident(token);
-  token = expect_info(token, PK_LeftParen);
+  StrView name = view_from_token(token);
+  token = expect_ident(cx.input, token);
+  token = expect_info(cx.input, token, PK_LeftParen);
 
   Node* args = parse_list(&token, token, cx, PK_RightParen, equality);
   Node* call = make_call_node(cx.arena, name, args);
-  *rest = expect_info(token, PK_RightParen);
+  *rest = expect_info(cx.input, token, PK_RightParen);
   return call;
 }
 
@@ -421,7 +427,7 @@ static Node* primary(Token** rest, Token* token, Context cx) {
   if (token->kind == TK_Punct) {
     if (token->info == PK_LeftParen) {
       Node* node = expr(&token, token + 1, cx);
-      *rest = expect_info(token, PK_RightParen);
+      *rest = expect_info(cx.input, token, PK_RightParen);
       return node;
 
     } else if (token->info == PK_LeftBrace) {
@@ -440,7 +446,7 @@ static Node* primary(Token** rest, Token* token, Context cx) {
       usize size = 0;
       for (Node* value = list; value != nullptr; value = value->next) {
         if (value->value.type->type.kind != first_type) {
-          error_tok(token, "Non uniform type found in initializer");
+          error_tok(cx.input, token, "Non uniform type found in initializer");
         } else {
           size += 1;
         }
@@ -457,7 +463,7 @@ static Node* primary(Token** rest, Token* token, Context cx) {
 
     Node* var = find_variable(token, cx);
     if (var == nullptr) {
-      error_tok(token, "Variable not found in scope");
+      error_tok(cx.input, token, "Variable not found in scope");
 
     } else if (token[1].info == PK_AddrOf) {
       *rest = token + 2;
@@ -477,20 +483,20 @@ static Node* primary(Token** rest, Token* token, Context cx) {
 
   } else if (token->kind == TK_IntLiteral) {
     Node* type = make_numeric_type(cx.arena, TP_SInt, 32);
-    Node* node = make_basic_value(cx.arena, type, token->pos);
+    Node* node = make_basic_value(cx.arena, type, view_from_token(token));
     *rest = token + 1;
     return node;
 
   } else if (token->kind == TK_FltLiteral) {
     Node* type = make_numeric_type(cx.arena, TP_Flt, 64);
-    Node* node = make_basic_value(cx.arena, type, token->pos);
+    Node* node = make_basic_value(cx.arena, type, view_from_token(token));
     *rest = token + 1;
     return node;
 
   } else if (token->kind == TK_StrLiteral) {
-    Node* node = make_str_value(cx.arena, token->pos);
+    Node* node = make_str_value(cx.arena, view_from_token(token));
     *rest = token + 1;
     return node;
   }
-  error_tok(token, "Expected an expression");
+  error_tok(cx.input, token, "Expected an expression");
 }
