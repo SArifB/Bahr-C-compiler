@@ -11,9 +11,18 @@ main() -> i32 {
   let z = 'sss'// Some comment
   let v = "vvv"
   23
+  //.1.1. not allowed
+  .1.1
+  .1.
+  .1
+  .
+  1
+  1.
+  1.1
+  //1.1. not allowed
 }
 
 extern fn puts(str:s)->isize;fn main()->i32{let x=2.3+332_000+.4;x+=32543234.233232;
-x===++=21+42-23;let y="Some text";//Some comment
+x===++=21+42-23;let y="Some text";let m = "Some \ntext"//Some comment
 //Some comment        
 let z='s';23}
