@@ -122,14 +122,14 @@ static LLVMValueRef codegen_call(
 );
 static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node);
 
-LLVMValueRef codegen_generate(cstr name, Node* prog, cstr output) {
-  Codegen cdgn = codegen_make(name);
+LLVMValueRef codegen_generate(CodegenOptions opts) {
+  Codegen cdgn = codegen_make(opts.name);
   decl_fns = DeclFn_vector_make(8);
 
-  for (Node* func = prog; func != nullptr; func = func->next) {
+  for (Node* func = opts.prog; func != nullptr; func = func->next) {
     unused LLVMValueRef ret = codegen_reg_fns(&cdgn, func);
   }
-  for (Node* func = prog; func != nullptr; func = func->next) {
+  for (Node* func = opts.prog; func != nullptr; func = func->next) {
     unused LLVMValueRef ret = codegen_function(&cdgn, func);
   }
   for (usize i = 0; i < decl_fns->length; ++i) {
@@ -144,7 +144,10 @@ LLVMValueRef codegen_generate(cstr name, Node* prog, cstr output) {
     exit(1);
   }
   LLVMDisposeMessage(message);
-  LLVMDumpModule(cdgn.mod);
+  if (opts.verbose) {
+    LLVMDumpModule(cdgn.mod);
+    eputs("\n-----------------------------------------------");
+  }
 
   LLVMInitializeAllTargetInfos();
   LLVMInitializeAllTargets();
@@ -164,7 +167,7 @@ LLVMValueRef codegen_generate(cstr name, Node* prog, cstr output) {
     LLVMCodeModelDefault
   );
   failed = LLVMTargetMachineEmitToFile(
-    TargetMachine, cdgn.mod, output, LLVMObjectFile, &message
+    TargetMachine, cdgn.mod, opts.output, LLVMObjectFile, &message
   );
   if (failed == true) {
     eprintf("%s", message);

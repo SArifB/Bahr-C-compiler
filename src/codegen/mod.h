@@ -10,4 +10,12 @@ struct Codegen {
   LLVMBuilderRef bldr;
 };
 
-extern LLVMValueRef codegen_generate(cstr name, Node* prog, cstr output);
+typedef struct CodegenOptions CodegenOptions;
+struct CodegenOptions {
+  cstr name;
+  Node* prog;
+  cstr output;
+  bool verbose;
+};
+
+extern LLVMValueRef codegen_generate(CodegenOptions opts);

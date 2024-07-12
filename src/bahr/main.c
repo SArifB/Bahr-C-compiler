@@ -7,16 +7,12 @@
 #include <utility/mod.h>
 
 i32 main(i32 argc, cstr argv[]) {
-  // Get String
   if (argc < 3) {
     eprintln("Usage: %s <input file> <output file>", argv[0]);
     return 1;
   }
   InputFile input = input_file(argv[1]);
-  // eprintln("%.*s", (i32)input.length, input.file);
-  // eputs("\n-----------------------------------------------");
 
-  // Parse String
   ParserOutput out = parse_string((ParserOptions){
     // .verbose = true,
     .input = {
@@ -25,11 +21,13 @@ i32 main(i32 argc, cstr argv[]) {
     },
   });
 
-  // Generate code
-  codegen_generate(input.name, out.tree, argv[2]);
-  // eputs("\n-----------------------------------------------");
+  codegen_generate((CodegenOptions){
+    // .verbose = true,
+    .name = input.name,
+    .output = argv[2],
+    .prog = out.tree,
+  });
 
-  // Cleanup owned memory
   input_free(input);
   arena_free(&out.arena);
   return 0;

@@ -153,10 +153,7 @@ struct ParserOptions {
 
 struct ParserOutput {
   Node* tree;
-  TokenVector* tokens;
   Arena arena;
 };
 
 extern ParserOutput parse_string(ParserOptions options);
-extern void enable_verbosity();
-extern void parser_dealloc();
