@@ -35,9 +35,9 @@ project(Bahr
 
 # Target: bahr
 set(bahr_SOURCES
-	"./src/bahr/input.c"
-	"./src/bahr/main.c"
 	cmake.toml
+	"src/bahr/input.c"
+	"src/bahr/main.c"
 )
 
 add_executable(bahr)
@@ -77,8 +77,8 @@ endif()
 
 # Target: codegen
 set(codegen_SOURCES
-	"./src/codegen/mod.c"
 	cmake.toml
+	"src/codegen/mod.c"
 )
 
 add_library(codegen STATIC)
@@ -107,16 +107,17 @@ target_link_options(codegen PUBLIC
 )
 
 target_link_libraries(codegen PUBLIC
+	parser
 	LLVM
 )
 
 # Target: parser
 set(parser_SOURCES
-	"./src/parser/ctors.c"
-	"./src/parser/lexer.c"
-	"./src/parser/mod.c"
-	"./src/parser/print.c"
 	cmake.toml
+	"src/parser/ctors.c"
+	"src/parser/lexer.c"
+	"src/parser/mod.c"
+	"src/parser/print.c"
 )
 
 add_library(parser STATIC)
@@ -151,8 +152,8 @@ target_link_libraries(parser PUBLIC
 
 # Target: arena
 set(arena_SOURCES
-	"./src/arena/mod.c"
 	cmake.toml
+	"src/arena/mod.c"
 )
 
 add_library(arena STATIC)
@@ -182,8 +183,8 @@ target_link_options(arena PUBLIC
 
 # Target: hashmap
 set(hashmap_SOURCES
-	"./src/hashmap/mod.c"
 	cmake.toml
+	"src/hashmap/mod.c"
 )
 
 add_library(hashmap STATIC)
@@ -213,9 +214,9 @@ target_link_options(hashmap PUBLIC
 
 # Target: utility
 set(utility_SOURCES
-	"./src/utility/mod.h"
-	"./src/utility/vec.h"
 	cmake.toml
+	"src/utility/mod.h"
+	"src/utility/vec.h"
 )
 
 add_library(utility INTERFACE)

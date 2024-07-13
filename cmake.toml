@@ -16,7 +16,7 @@ link-libraries = ["parser", "codegen"]
 [target.codegen]
 type = "my_library"
 sources = ["./src/codegen/*.c"]
-link-libraries = ["LLVM"]
+link-libraries = ["parser", "LLVM"]
 
 [target.parser]
 type = "my_library"
