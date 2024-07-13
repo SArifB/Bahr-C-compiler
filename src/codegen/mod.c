@@ -144,6 +144,11 @@ void codegen_generate(CodegenOptions opts) {
   }
   free(decl_fns);
 
+  if (opts.verbose) {
+    LLVMDumpModule(cdgn.mod);
+    eputs("\n-----------------------------------------------");
+  }
+
   char* message = nullptr;
   bool failed = LLVMVerifyModule(cdgn.mod, LLVMAbortProcessAction, &message);
   if (failed == true) {
@@ -151,37 +156,34 @@ void codegen_generate(CodegenOptions opts) {
     exit(1);
   }
   LLVMDisposeMessage(message);
-  if (opts.verbose) {
-    LLVMDumpModule(cdgn.mod);
-    eputs("\n-----------------------------------------------");
-  }
 
   LLVMInitializeAllTargetInfos();
   LLVMInitializeAllTargets();
   LLVMInitializeAllTargetMCs();
   LLVMInitializeAllAsmPrinters();
 
-  LLVMTargetRef Target;
-  char* Triple = LLVMGetDefaultTargetTriple();
-  failed = LLVMGetTargetFromTriple(Triple, &Target, &message);
+  LLVMTargetRef target;
+  char* triple = LLVMGetDefaultTargetTriple();
+  failed = LLVMGetTargetFromTriple(triple, &target, &message);
   if (failed == true) {
     eprintf("%s", message);
     exit(1);
   }
 
-  LLVMTargetMachineRef TargetMachine = LLVMCreateTargetMachine(
-    Target, Triple, "generic", "", LLVMCodeGenLevelDefault, LLVMRelocPIC,
+  LLVMTargetMachineRef machine = LLVMCreateTargetMachine(
+    target, triple, "generic", "", LLVMCodeGenLevelDefault, LLVMRelocPIC,
     LLVMCodeModelDefault
   );
+
   failed = LLVMTargetMachineEmitToFile(
-    TargetMachine, cdgn.mod, opts.output, LLVMObjectFile, &message
+    machine, cdgn.mod, opts.output, LLVMObjectFile, &message
   );
   if (failed == true) {
     eprintf("%s", message);
     exit(1);
   }
-  LLVMDisposeMessage(Triple);
-  LLVMDisposeTargetMachine(TargetMachine);
+  LLVMDisposeMessage(triple);
+  LLVMDisposeTargetMachine(machine);
 
   codegen_dispose(cdgn);
 }
@@ -302,9 +304,6 @@ static LLVMValueRef codegen_parse(
       eputs("ND_Variable not found");
       exit(1);
     }
-    // if (decl_var->is_ptr ==true) {
-    //   return decl_var->variable;
-    // }
     LLVMValueRef var = LLVMBuildLoad2(cdgn->bldr, type, decl_var->variable, "");
     return var;
 
@@ -321,7 +320,6 @@ static LLVMValueRef codegen_parse(
     exit(1);
 
   } else if (node->kind == ND_Deref) {
-    // ->unary->declaration.type
     LLVMTypeRef type = codegen_type(cdgn, node->unary);
     LLVMValueRef ptr = codegen_parse(cdgn, node->unary, function);
     LLVMValueRef load =
