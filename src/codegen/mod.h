@@ -1,14 +1,6 @@
 #pragma once
-#include <llvm-c/Types.h>
 #include <parser/mod.h>
 #include <utility/mod.h>
-
-typedef struct Codegen Codegen;
-struct Codegen {
-  LLVMContextRef ctx;
-  LLVMModuleRef mod;
-  LLVMBuilderRef bldr;
-};
 
 typedef struct CodegenOptions CodegenOptions;
 struct CodegenOptions {
@@ -18,4 +10,4 @@ struct CodegenOptions {
   bool verbose;
 };
 
-extern LLVMValueRef codegen_generate(CodegenOptions opts);
+extern void codegen_generate(CodegenOptions opts);

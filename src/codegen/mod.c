@@ -10,6 +10,13 @@
 #include <utility/mod.h>
 #include <utility/vec.h>
 
+typedef struct Codegen Codegen;
+struct Codegen {
+  LLVMContextRef ctx;
+  LLVMModuleRef mod;
+  LLVMBuilderRef bldr;
+};
+
 DEFINE_VECTOR(LLVMValueRef)
 DEFINE_VEC_FNS(LLVMValueRef, malloc, free)
 
@@ -122,7 +129,7 @@ static LLVMValueRef codegen_call(
 );
 static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node);
 
-LLVMValueRef codegen_generate(CodegenOptions opts) {
+void codegen_generate(CodegenOptions opts) {
   Codegen cdgn = codegen_make(opts.name);
   decl_fns = DeclFn_vector_make(8);
 
@@ -177,7 +184,6 @@ LLVMValueRef codegen_generate(CodegenOptions opts) {
   LLVMDisposeTargetMachine(TargetMachine);
 
   codegen_dispose(cdgn);
-  return nullptr;
 }
 
 static LLVMValueRef codegen_reg_fns(Codegen* cdgn, Node* node) {
