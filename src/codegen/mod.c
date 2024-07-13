@@ -416,7 +416,9 @@ static LLVMValueRef codegen_value(Codegen* cdgn, Node* node) {
     LLVMSetLinkage(global_str, LLVMPrivateLinkage);
     LLVMSetUnnamedAddr(global_str, LLVMGlobalUnnamedAddr);
     LLVMSetAlignment(global_str, 1);
+    LLVMSetGlobalConstant(global_str, true);
     return global_str;
+
   } else if (node->value.type->type.kind == TP_Arr) {
     // TODO: Implement array value
   }
@@ -434,9 +436,7 @@ static LLVMValueRef codegen_call(
   LLVMValueRefVector* call_args = LLVMValueRef_vector_make(0);
   for (Node* arg = node->call_node.args; arg != nullptr; arg = arg->next) {
     LLVMValueRef value = codegen_parse(cdgn, arg, function);
-    LLVMValueRef value_load =
-      LLVMBuildLoad2(cdgn->bldr, LLVMTypeOf(value), value, "");
-    LLVMValueRef_vector_push(&call_args, value_load);
+    LLVMValueRef_vector_push(&call_args, value);
   }
   LLVMValueRef result = LLVMBuildCall2(
     cdgn->bldr, decl_fn->type, decl_fn->value, call_args->buffer,
