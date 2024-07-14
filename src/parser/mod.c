@@ -116,6 +116,41 @@ static Node* mul(Token** rest, Token* token, Context cx);
 static Node* unary(Token** rest, Token* token, Context cx);
 static Node* primary(Token** rest, Token* token, Context cx);
 
+// program = functions*
+static Node* parse_lexer(StrView input, TokenVector* tokens, Arena* arena) {
+  Token* token = tokens->buffer;
+  Token* sentinel = tokens->buffer + tokens->length;
+  Context cx = {
+    .scopes = Scope_vector_make(8),
+    .arena = arena,
+    .input = input,
+  };
+  Scope_vector_push(&cx.scopes, hashmap_make(32));
+
+  Node handle = {};
+  Node* cursor = &handle;
+  while (token != sentinel) {
+    if (consume(&token, token, KW_Pub)) {
+      Token* expected = expect_info(cx.input, token, KW_Fn);
+      cursor->next = public_function(&token, expected, cx);
+      cursor = cursor->next;
+
+    } else if (consume(&token, token, KW_Ext)) {
+      Token* expected = expect_info(cx.input, token, KW_Fn);
+      cursor->next = extern_function(&token, expected, cx);
+      cursor = cursor->next;
+
+    } else {
+      Token* expected = expect_info(cx.input, token, KW_Fn);
+      cursor->next = function(&token, expected, cx);
+      cursor = cursor->next;
+    }
+  }
+  hashmap_free(cx.scopes->buffer[cx.scopes->length - 1]);
+  free(cx.scopes);
+  return handle.next;
+}
+
 // parse_type = "[" num "]" | "*" | "i"num | "f"num
 static Node* parse_type(Token** rest, Token* token, Context cx) {
   if (token->kind == TK_Punct) {
@@ -178,41 +213,6 @@ static Node* parse_type(Token** rest, Token* token, Context cx) {
     }
   }
   error_tok(cx.input, token, "Invalid expression");
-}
-
-// program = functions*
-static Node* parse_lexer(StrView input, TokenVector* tokens, Arena* arena) {
-  Token* token = tokens->buffer;
-  Token* sentinel = tokens->buffer + tokens->length;
-  Context cx = {
-    .scopes = Scope_vector_make(8),
-    .arena = arena,
-    .input = input,
-  };
-  Scope_vector_push(&cx.scopes, hashmap_make(32));
-
-  Node handle = {};
-  Node* cursor = &handle;
-  while (token != sentinel) {
-    if (consume(&token, token, KW_Pub)) {
-      Token* expected = expect_info(cx.input, token, KW_Fn);
-      cursor->next = public_function(&token, expected, cx);
-      cursor = cursor->next;
-
-    } else if (consume(&token, token, KW_Ext)) {
-      Token* expected = expect_info(cx.input, token, KW_Fn);
-      cursor->next = extern_function(&token, expected, cx);
-      cursor = cursor->next;
-
-    } else {
-      Token* expected = expect_info(cx.input, token, KW_Fn);
-      cursor->next = function(&token, expected, cx);
-      cursor = cursor->next;
-    }
-  }
-  hashmap_free(cx.scopes->buffer[cx.scopes->length - 1]);
-  free(cx.scopes);
-  return handle.next;
 }
 
 // public_function = indent "(" args? ")" ":" ret_type
