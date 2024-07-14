@@ -21,7 +21,9 @@ extern Node* make_arg_var(Context cx, Node* type, StrView value);
 extern Node* make_if_node(Arena* arena, Node* cond, Node* then, Node* elseb);
 extern Node* make_while_node(Arena* arena, Node* cond, Node* then);
 extern Node* make_call_node(Arena* arena, StrView view, Node* args);
-extern Node* make_function(Arena* arena, Node* type, StrView view, Node* body, Node* args);
+extern Node* make_function(
+  Arena* arena, Node* type, StrView view, Node* body, Node* args, Linkage linkage
+);
 // clang-format on
 
 extern void print_ast(Node* prog);

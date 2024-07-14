@@ -82,11 +82,18 @@ struct DeclNode {
   StrArr* name;
 };
 
+typedef enum Linkage {
+  LN_Private,
+  LN_Public,
+  LN_Unspecified,
+} Linkage;
+
 struct FnNode {
   Node* ret_type;
   Node* args;
   Node* body;
   StrArr* name;
+  Linkage linkage;
 };
 
 struct IfNode {

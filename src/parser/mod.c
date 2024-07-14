@@ -100,6 +100,7 @@ static Node* parse_list(
 }
 
 static Node* parse_type(Token** rest, Token* token, Context cx);
+static Node* public_function(Token** rest, Token* token, Context cx);
 static Node* extern_function(Token** rest, Token* token, Context cx);
 static Node* function(Token** rest, Token* token, Context cx);
 static Node* argument(Token** rest, Token* token, Context cx);
@@ -193,7 +194,12 @@ static Node* parse_lexer(StrView input, TokenVector* tokens, Arena* arena) {
   Node handle = {};
   Node* cursor = &handle;
   while (token != sentinel) {
-    if (consume(&token, token, KW_Ext)) {
+    if (consume(&token, token, KW_Pub)) {
+      Token* expected = expect_info(cx.input, token, KW_Fn);
+      cursor->next = public_function(&token, expected, cx);
+      cursor = cursor->next;
+
+    } else if (consume(&token, token, KW_Ext)) {
       Token* expected = expect_info(cx.input, token, KW_Fn);
       cursor->next = extern_function(&token, expected, cx);
       cursor = cursor->next;
@@ -209,6 +215,23 @@ static Node* parse_lexer(StrView input, TokenVector* tokens, Arena* arena) {
   return handle.next;
 }
 
+// public_function = indent "(" args? ")" ":" ret_type
+static Node* public_function(Token** rest, Token* token, Context cx) {
+  StrView name = view_from_token(token);
+  token = expect_ident(cx.input, token);
+  token = expect_info(cx.input, token, PK_LeftParen);
+  Scope_vector_push(&cx.scopes, hashmap_make(8));
+
+  Node* args = parse_list(&token, token, cx, PK_RightParen, argument);
+  Node* type = parse_type(&token, token + 1, cx);
+  Token* expected = expect_info(cx.input, token, PK_LeftBrace);
+  Node* body = compound_stmt(rest, expected, cx);
+
+  hashmap_free(cx.scopes->buffer[cx.scopes->length - 1]);
+  Scope_vector_pop(cx.scopes);
+  return make_function(cx.arena, type, name, body, args, LN_Public);
+}
+
 // extern_function = indent "(" args? ")" ":" ret_type
 static Node* extern_function(Token** rest, Token* token, Context cx) {
   StrView name = view_from_token(token);
@@ -217,7 +240,7 @@ static Node* extern_function(Token** rest, Token* token, Context cx) {
 
   Node* args = parse_list(&token, token, cx, PK_RightParen, argument);
   Node* type = parse_type(rest, token + 1, cx);
-  return make_function(cx.arena, type, name, nullptr, args);
+  return make_function(cx.arena, type, name, nullptr, args, LN_Unspecified);
 }
 
 // function = indent "(" args? ")" ":" ret_type "{" body "}"
@@ -234,7 +257,7 @@ static Node* function(Token** rest, Token* token, Context cx) {
 
   hashmap_free(cx.scopes->buffer[cx.scopes->length - 1]);
   Scope_vector_pop(cx.scopes);
-  return make_function(cx.arena, type, name, body, args);
+  return make_function(cx.arena, type, name, body, args, LN_Private);
 }
 
 // argument = indent ":" type

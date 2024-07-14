@@ -230,13 +230,15 @@ Node* make_arg_var(Context cx, Node* type, StrView view) {
 }
 
 Node* make_function(
-  Arena* arena, Node* type, StrView view, Node* body, Node* args
+  Arena* arena, Node* type, StrView view, Node* body, Node* args,
+  Linkage linkage
 ) {
   Node* node = arena_alloc(arena, sizeof(Node));
   *node = (Node){
     .kind = ND_Function,
     .function =
       (FnNode){
+        .linkage = linkage,
         .body = body,
         .args = args,
         .ret_type = type,

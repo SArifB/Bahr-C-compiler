@@ -204,6 +204,10 @@ static LLVMValueRef codegen_reg_fns(Codegen* cdgn, Node* node) {
   LLVMValueRef function =
     LLVMAddFunction(cdgn->mod, node->function.name->array, function_type);
 
+  if (node->function.linkage == LN_Private) {
+    LLVMSetLinkage(function, LLVMInternalLinkage);
+  }
+
   DeclFn_vector_push(
     &decl_fns,
     (DeclFn){
