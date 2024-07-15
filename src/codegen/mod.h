@@ -1,13 +1,12 @@
 #pragma once
-#include <parser/mod.h>
 #include <utility/mod.h>
 
-typedef struct CodegenOptions CodegenOptions;
-struct CodegenOptions {
-  cstr name;
-  Node* prog;
-  cstr output;
-  bool verbose;
+typedef struct CompileOptions CompileOptions;
+struct CompileOptions {
+  StrView input_string;
+  cstr input_file_name;
+  cstr output_file_name;
+  u32 verbosity_level;
 };
 
-extern void codegen_generate(CodegenOptions opts);
+extern void compile_string(CompileOptions opts);

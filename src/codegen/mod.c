@@ -10,6 +10,32 @@
 #include <utility/mod.h>
 #include <utility/vec.h>
 
+typedef struct CodegenOptions CodegenOptions;
+struct CodegenOptions {
+  cstr name;
+  Node* prog;
+  cstr output;
+  bool verbose;
+};
+
+static void codegen_generate(CodegenOptions opts);
+
+void compile_string(CompileOptions opts) {
+  ParserOutput out = parse_string((ParserOptions){
+    .verbose = opts.verbosity_level > 1,
+    .input = opts.input_string,
+  });
+
+  codegen_generate((CodegenOptions){
+    .verbose = opts.verbosity_level > 0,
+    .name = opts.input_file_name,
+    .output = opts.output_file_name,
+    .prog = out.tree,
+  });
+
+  arena_free(&out.arena);
+}
+
 typedef struct Codegen Codegen;
 struct Codegen {
   LLVMContextRef ctx;
