@@ -23,8 +23,8 @@ typedef char* restrict str;
 
 typedef struct StrView StrView;
 struct StrView {
-  cstr ptr;
-  usize length;
+  const cstr ptr;
+  const usize length;
 };
 
 typedef struct StrArr StrArr;
