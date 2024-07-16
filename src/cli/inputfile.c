@@ -1,5 +1,5 @@
 #include <arena/mod.h>
-#include <bahr/input.h>
+#include <cli/inputfile.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

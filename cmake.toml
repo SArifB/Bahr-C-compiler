@@ -8,32 +8,32 @@ CMAKE_CXX_STANDARD = "23"
 CMAKE_C_STANDARD = "23"
 
 # Targets
-[target.bahr]
+[target.bahr-cli]
 type = "my_executable"
-sources = ["./src/bahr/*.c"]
-link-libraries = ["parser", "codegen"]
+sources = ["src/cli/*.c"]
+link-libraries = ["bahr-codegen-llvm"]
 
-[target.codegen]
+[target.bahr-codegen-llvm]
 type = "my_library"
-sources = ["./src/codegen/*.c"]
+sources = ["src/codegen-llvm/*.c"]
 link-libraries = ["parser", "LLVM"]
 
 [target.parser]
 type = "my_library"
-sources = ["./src/parser/*.c"]
+sources = ["src/parser/*.c"]
 link-libraries = ["arena", "hashmap"]
 
 [target.arena]
 type = "my_library"
-sources = ["./src/arena/*.c"]
+sources = ["src/arena/*.c"]
 
 [target.hashmap]
 type = "my_library"
-sources = ["./src/hashmap/*.c"]
+sources = ["src/hashmap/*.c"]
 
 [target.utility]
 type = "my_interface"
-sources = ["./src/utility/*.h"]
+sources = ["src/utility/*.h"]
 
 # Templates
 [template.my_executable]

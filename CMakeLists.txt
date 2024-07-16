@@ -33,80 +33,79 @@ project(Bahr
 		C
 )
 
-# Target: bahr
-set(bahr_SOURCES
+# Target: bahr-cli
+set(bahr-cli_SOURCES
 	cmake.toml
-	"src/bahr/input.c"
-	"src/bahr/main.c"
+	"src/cli/inputfile.c"
+	"src/cli/main.c"
 )
 
-add_executable(bahr)
+add_executable(bahr-cli)
 
-target_sources(bahr PRIVATE ${bahr_SOURCES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${bahr_SOURCES})
+target_sources(bahr-cli PRIVATE ${bahr-cli_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${bahr-cli_SOURCES})
 
-target_compile_options(bahr PRIVATE
+target_compile_options(bahr-cli PRIVATE
 	-Wall
 	-Werror
 	-Wextra
 	-Wpedantic
 )
 
-target_include_directories(bahr PRIVATE
+target_include_directories(bahr-cli PRIVATE
 	src
 )
 
-target_link_libraries(bahr PRIVATE
+target_link_libraries(bahr-cli PRIVATE
 	utility
 	jemalloc
 )
 
-target_link_options(bahr PRIVATE
+target_link_options(bahr-cli PRIVATE
 	-fuse-ld=mold
 )
 
-target_link_libraries(bahr PRIVATE
-	parser
-	codegen
+target_link_libraries(bahr-cli PRIVATE
+	bahr-codegen-llvm
 )
 
 get_directory_property(CMKR_VS_STARTUP_PROJECT DIRECTORY ${PROJECT_SOURCE_DIR} DEFINITION VS_STARTUP_PROJECT)
 if(NOT CMKR_VS_STARTUP_PROJECT)
-	set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bahr)
+	set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bahr-cli)
 endif()
 
-# Target: codegen
-set(codegen_SOURCES
+# Target: bahr-codegen-llvm
+set(bahr-codegen-llvm_SOURCES
 	cmake.toml
-	"src/codegen/mod.c"
+	"src/codegen-llvm/mod.c"
 )
 
-add_library(codegen STATIC)
+add_library(bahr-codegen-llvm STATIC)
 
-target_sources(codegen PRIVATE ${codegen_SOURCES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${codegen_SOURCES})
+target_sources(bahr-codegen-llvm PRIVATE ${bahr-codegen-llvm_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${bahr-codegen-llvm_SOURCES})
 
-target_compile_options(codegen PUBLIC
+target_compile_options(bahr-codegen-llvm PUBLIC
 	-Wall
 	-Werror
 	-Wextra
 	-Wpedantic
 )
 
-target_include_directories(codegen PUBLIC
+target_include_directories(bahr-codegen-llvm PUBLIC
 	src
 )
 
-target_link_libraries(codegen PUBLIC
+target_link_libraries(bahr-codegen-llvm PUBLIC
 	utility
 	jemalloc
 )
 
-target_link_options(codegen PUBLIC
+target_link_options(bahr-codegen-llvm PUBLIC
 	-fuse-ld=mold
 )
 
-target_link_libraries(codegen PUBLIC
+target_link_libraries(bahr-codegen-llvm PUBLIC
 	parser
 	LLVM
 )
