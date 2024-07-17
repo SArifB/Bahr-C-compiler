@@ -20,15 +20,15 @@
       eprintf("%s\n", stringify(alloc));                                      \
       exit(1);                                                                \
     }                                                                         \
-    *tmp = (T##Vector){.capacity = new_size};                                 \
+    *tmp = (T##Vector){ .capacity = new_size };                               \
     return tmp;                                                               \
   }                                                                           \
                                                                               \
   unused undiscardable static T##Vector* T##_vector_realloc(                  \
-    T##Vector** vec_adrs                                                      \
+    T##Vector** vec_adrs, usize size                                          \
   ) {                                                                         \
     T##Vector* vec = *vec_adrs;                                               \
-    T##Vector* tmp = T##_vector_make(vec->capacity + 1);                      \
+    T##Vector* tmp = T##_vector_make(size);                                   \
     memcpy(                                                                   \
       (void* restrict)tmp->buffer, (const void* restrict)vec->buffer,         \
       sizeof(T) * vec->length                                                 \
@@ -42,7 +42,7 @@
   unused static void T##_vector_push(T##Vector** vec_adrs, T val) {           \
     T##Vector* vec = *vec_adrs;                                               \
     if (vec->length == vec->capacity) {                                       \
-      vec = T##_vector_realloc(vec_adrs);                                     \
+      vec = T##_vector_realloc(vec_adrs, vec->length + 1);                    \
     }                                                                         \
     vec->buffer[vec->length] = val;                                           \
     vec->length += 1;                                                         \
@@ -52,8 +52,8 @@
     T##Vector** vec_adrs, const T* src, usize src_size                        \
   ) {                                                                         \
     T##Vector* vec = *vec_adrs;                                               \
-    if (vec->length >= vec->capacity) {                                       \
-      vec = T##_vector_realloc(vec_adrs);                                     \
+    if (vec->length + src_size >= vec->capacity) {                            \
+      vec = T##_vector_realloc(vec_adrs, vec->length + src_size);             \
     }                                                                         \
     memcpy(                                                                   \
       (void* restrict)(vec->buffer + vec->length), (const void* restrict)src, \
@@ -66,8 +66,8 @@
     T##Vector** vec_adrs, const T##Vector* src                                \
   ) {                                                                         \
     T##Vector* vec = *vec_adrs;                                               \
-    if (vec->length >= vec->capacity) {                                       \
-      vec = T##_vector_realloc(vec_adrs);                                     \
+    if (vec->length + src->length >= vec->capacity) {                         \
+      vec = T##_vector_realloc(vec_adrs, vec->length + src->length);          \
     }                                                                         \
     memcpy(                                                                   \
       (void* restrict)(vec->buffer + vec->length),                            \
