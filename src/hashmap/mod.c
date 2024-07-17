@@ -75,7 +75,7 @@ static HashNode* alloc_node(usize hash) {
     perror("malloc");
     exit(1);
   }
-  *node = (HashNode){.key = hash};
+  *node = (HashNode){ .key = hash };
   return node;
 }
 
@@ -189,7 +189,7 @@ static inline usize add_to_hash(usize hash, usize i) {
 static inline usize get_hash(StrView key) {
   usize hash = 0;
   usize length = key.length;
-  const u8* bytes = (const u8*)key.ptr;
+  const u8* restrict bytes = (const u8* restrict)key.pointer;
 
   while (length >= sizeof(usize)) {
     usize val = 0;

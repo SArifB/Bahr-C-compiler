@@ -8,7 +8,7 @@
 
 DEFINE_VEC_FNS(Token, malloc, free)
 
-unreturning void error(cstr fmt, ...) {
+unreturning void error(rcstr fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   evprintf(fmt, ap);
@@ -17,20 +17,20 @@ unreturning void error(cstr fmt, ...) {
 }
 
 unreturning static void verror_at(
-  StrView view, cstr location, cstr fmt, va_list ap
+  StrView view, rcstr location, rcstr fmt, va_list ap
 ) {
-  cstr input = view.ptr;
+  rcstr input = view.pointer;
   u32 line_num = 1;
-  for (cstr cursor = input; cursor < location; ++cursor) {
+  for (rcstr cursor = input; cursor < location; ++cursor) {
     if (*cursor == '\n') {
       line_num += 1;
     }
   }
-  cstr line = location;
+  rcstr line = location;
   while (input < line && line[-1] != '\n') {
     line--;
   }
-  cstr end = location;
+  rcstr end = location;
   while (*end && *end != '\n') {
     end++;
   }
@@ -45,13 +45,13 @@ unreturning static void verror_at(
   exit(1);
 }
 
-unreturning void error_at(StrView view, cstr location, cstr fmt, ...) {
+unreturning void error_at(StrView view, rcstr location, rcstr fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   verror_at(view, location, fmt, ap);
 }
 
-unreturning void error_tok(StrView view, Token* token, cstr fmt, ...) {
+unreturning void error_tok(StrView view, Token* token, rcstr fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   verror_at(view, token->pos, fmt, ap);
@@ -207,7 +207,7 @@ struct OptNumIdx {
   bool some;
 };
 
-static OptNumIdx try_get_num_lit(StrView view, cstr iter) {
+static OptNumIdx try_get_num_lit(StrView view, rcstr iter) {
   if (is_number(*iter) == false) {
     return (OptNumIdx){};
   }
@@ -237,7 +237,7 @@ static inline bool not_quote_punct(char ref, char prev) {
   return ref != '\"' || (ref != '\"' && prev != '\\');
 }
 
-static OptIdx try_get_str_lit(cstr iter) {
+static OptIdx try_get_str_lit(rcstr iter) {
   if (*iter != '\"') {
     return (OptIdx){};
   }
@@ -251,7 +251,7 @@ static OptIdx try_get_str_lit(cstr iter) {
   };
 }
 
-static OptIdx try_get_char_lit(cstr iter) {
+static OptIdx try_get_char_lit(rcstr iter) {
   if (*iter != '\'') {
     return (OptIdx){};
   }
@@ -265,7 +265,7 @@ static OptIdx try_get_char_lit(cstr iter) {
   };
 }
 
-static OptIdx try_get_kwrd(cstr iter) {
+static OptIdx try_get_kwrd(rcstr iter) {
   if (is_char_literal(*iter) == false) {
     return (OptIdx){};
   }
@@ -281,7 +281,7 @@ static OptIdx try_get_kwrd(cstr iter) {
   return (OptIdx){};
 }
 
-static OptIdx try_get_fltt(cstr iter) {
+static OptIdx try_get_fltt(rcstr iter) {
   if (*iter != 'f' && *iter != 'b') {
     return (OptIdx){};
   }
@@ -297,7 +297,7 @@ static OptIdx try_get_fltt(cstr iter) {
   return (OptIdx){};
 }
 
-static OptIdx try_get_intt(cstr iter, char comp) {
+static OptIdx try_get_intt(rcstr iter, char comp) {
   if (*iter != comp) {
     return (OptIdx){};
   }
@@ -314,7 +314,7 @@ static OptIdx try_get_intt(cstr iter, char comp) {
   };
 }
 
-static OptIdx try_get_ident(cstr iter) {
+static OptIdx try_get_ident(rcstr iter) {
   usize size = 0;
   while (is_char_number(iter[size]) == true) {
     size += 1;
@@ -328,7 +328,7 @@ static OptIdx try_get_ident(cstr iter) {
   };
 }
 
-static OptIdx try_get_punct(cstr iter) {
+static OptIdx try_get_punct(rcstr iter) {
   for (usize i = 0; i < sizeof_arr(punct_table); ++i) {
     if (memcmp(iter, punct_table[i], punct_size_table[i]) == 0) {
       return (OptIdx){
@@ -345,8 +345,8 @@ TokenVector* lex_string(StrView view) {
 
 #define tokens_push(...) Token_vector_push(&tokens, ((Token)__VA_ARGS__))
 
-  cstr iter = view.ptr;
-  while (iter != view.ptr + view.length) {
+  rcstr iter = view.pointer;
+  while (iter != view.pointer + view.length) {
     /// Skippable
     if (is_skippable(*iter) == true) {
       iter += 1;
@@ -510,7 +510,7 @@ void lexer_print(TokenVector* tokens) {
       case TK_Keyword:      eprintf("Keyword:%*s", 6, "");     break;
       case TK_Punct:        eprintf("Punct:%*s", 8, "");       break;
     }  // clang-format on
-    StrView str = { .ptr = iter->pos, .length = iter->len };
+    StrView str = { .pointer = iter->pos, .length = iter->len };
     eputw(str);
   }
 }

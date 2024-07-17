@@ -7,8 +7,8 @@
 
 typedef struct InputFile InputFile;
 struct InputFile {
-  const cstr name;
-  const cstr file;
+  const rcstr name;
+  const rcstr file;
   const usize length;
 #ifdef __linux__
   const i32 descriptor;
@@ -18,5 +18,5 @@ struct InputFile {
 #endif
 };
 
-extern InputFile input_file(cstr file_name);
+extern InputFile input_file(rcstr file_name);
 extern void input_free(InputFile input);

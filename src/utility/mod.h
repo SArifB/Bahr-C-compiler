@@ -18,25 +18,14 @@ typedef float f32;
 typedef double f64;
 typedef long double f128;
 
-typedef const char* restrict cstr;
-typedef char* restrict str;
+typedef const char* restrict rcstr;
+typedef char* restrict rstr;
 
 typedef struct StrView StrView;
 struct StrView {
-  const cstr ptr;
   const usize length;
+  const rcstr pointer;
 };
-
-typedef struct StrArr StrArr;
-struct StrArr {
-  usize length;
-  char array[];
-};
-
-#define arr_view(arr)                             \
-  (StrView) {                                     \
-    .ptr = (arr)->array, .length = (arr)->length, \
-  }
 
 #define unused [[maybe_unused]]
 #define undiscardable [[nodiscard]]
@@ -57,5 +46,5 @@ struct StrArr {
 #define evprintf(fmt, ...) vfprintf(stderr, fmt, __VA_ARGS__)
 #define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
 #define eprintln(fmt, ...) eprintf(fmt "\n", __VA_ARGS__)
-#define eputw(view) eprintln("%.*s", (i32)(view).length, (view).ptr)
+#define eputw(view) eprintln("%.*s", (i32)(view).length, (view).pointer)
 #define eputa(arr) eprintln("%.*s", (i32)(arr)->length, (arr)->array)

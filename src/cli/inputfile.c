@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-InputFile input_file(cstr file_name) {
+InputFile input_file(rcstr file_name) {
   i32 fd = open(file_name, O_RDONLY);
   if (fd == -1) {
     perror("open");
@@ -24,13 +24,13 @@ InputFile input_file(cstr file_name) {
     exit(1);
   }
 
-  cstr adrs = mmap(nullptr, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
+  rcstr adrs = mmap(nullptr, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
   if (adrs == MAP_FAILED) {
     perror("mmap");
     exit(1);
   }
 
-  cstr name = strdup(file_name);
+  rcstr name = strdup(file_name);
   if (name == nullptr) {
     perror("strdup");
     exit(1);
@@ -45,7 +45,7 @@ InputFile input_file(cstr file_name) {
 }
 
 void input_free(InputFile input) {
-  if (munmap((str)input.file, input.length) == -1) {
+  if (munmap((void*)input.file, input.length) == -1) {
     perror("munmap");
     exit(1);
   };
@@ -59,7 +59,7 @@ void input_free(InputFile input) {
 #elif _WIN32  // TODO: Test on Windows
 #include <windows.h>
 
-InputFile input_file(cstr file_name) {
+InputFile input_file(rcstr file_name) {
   HANDLE handle = CreateFile(
     file_name, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
     FILE_ATTRIBUTE_NORMAL, nullptr
@@ -91,7 +91,7 @@ InputFile input_file(cstr file_name) {
     exit(1);
   }
 
-  cstr name = strdup(file_name);
+  rcstr name = strdup(file_name);
   if (name == nullptr) {
     perror("strdup");
     exit(1);

@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <utility/mod.h>
 
-i32 main(i32 argc, cstr argv[]) {
+i32 main(i32 argc, rcstr argv[]) {
   if (argc < 3) {
     eprintln("Usage: %s <input file> <output file>", argv[0]);
     return 1;
@@ -15,7 +15,7 @@ i32 main(i32 argc, cstr argv[]) {
     .output_file_name = argv[2],
     .input_file_name = input.name,
     .input_string = {
-      .ptr = input.file,
+      .pointer = input.file,
       .length = input.length,
     }, 
   });

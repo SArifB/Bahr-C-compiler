@@ -20,6 +20,17 @@ typedef struct ParserOutput ParserOutput;
 typedef HashMap* Scope;
 DEFINE_VECTOR(Scope)
 
+typedef struct StrNode StrNode;
+struct StrNode {
+  usize capacity;
+  char array[];
+};
+
+#define strview_from_strnode(arr)                       \
+  (StrView) {                                           \
+    .pointer = (arr)->array, .length = (arr)->capacity, \
+  }
+
 typedef enum {
   OP_Add,
   // OP_PtrAdd,
@@ -72,14 +83,14 @@ struct ValueNode {
   union {
     Node* base;
     usize number;
-    StrArr* basic;
+    StrNode* basic;
   };
 };
 
 struct DeclNode {
   Node* type;
   Node* value;
-  StrArr* name;
+  StrNode* name;
 };
 
 typedef enum Linkage {
@@ -92,7 +103,7 @@ struct FnNode {
   Node* ret_type;
   Node* args;
   Node* body;
-  StrArr* name;
+  StrNode* name;
   Linkage linkage;
 };
 
@@ -109,7 +120,7 @@ struct WhileNode {
 
 struct CallNode {
   Node* args;
-  StrArr* name;
+  StrNode* name;
 };
 
 typedef enum {

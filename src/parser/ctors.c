@@ -66,12 +66,12 @@ Node* make_unary(Arena* arena, NodeKind kind, Node* value) {
   return node;
 }
 
-static StrArr* alloc_string(Arena* arena, StrView view) {
+static StrNode* alloc_string(Arena* arena, StrView view) {
   usize size = sizeof(usize) + sizeof(char) * (view.length + 1);
-  StrArr* string = arena_alloc(arena, size);
-  memcpy(string->array, view.ptr, view.length);
+  StrNode* string = arena_alloc(arena, size);
+  memcpy(string->array, view.pointer, view.length);
   string->array[view.length] = 0;
-  string->length = view.length;
+  string->capacity = view.length;
   return string;
 }
 
@@ -88,14 +88,14 @@ Node* make_basic_value(Arena* arena, Node* type, StrView view) {
   return node;
 }
 
-static StrArr* alloc_str_lit(Arena* arena, StrView view) {
+static StrNode* alloc_str_lit(Arena* arena, StrView view) {
   usize size = sizeof(usize) + sizeof(char) * (view.length + 1);
-  StrArr* string = arena_alloc(arena, size);
-  cstr src = view.ptr;
-  str itr = string->array;
+  StrNode* string = arena_alloc(arena, size);
+  rcstr src = view.pointer;
+  rstr itr = string->array;
   size = view.length;
 
-  for (; src != view.ptr + view.length; ++itr, ++src) {
+  for (; src != view.pointer + view.length; ++itr, ++src) {
     if (*src == '\\' && src[1] == 'n') {
       *itr = '\n';
       src += 1;
@@ -105,7 +105,7 @@ static StrArr* alloc_str_lit(Arena* arena, StrView view) {
     }
   }
   *itr = 0;
-  string->length = size;
+  string->capacity = size;
   return string;
 }
 

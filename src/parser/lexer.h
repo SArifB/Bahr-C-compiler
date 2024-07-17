@@ -100,18 +100,18 @@ struct Token {
   bool is_eol : 1;
   AddInfo info;
   u32 len;
-  cstr pos;
+  rcstr pos;
 };
 DEFINE_VECTOR(Token)
 
-#define view_from_token(token)                   \
-  (StrView) {                                    \
-    .ptr = (token)->pos, .length = (token)->len, \
+#define strview_from_token(token)                    \
+  (StrView) {                                        \
+    .pointer = (token)->pos, .length = (token)->len, \
   }
 
 extern TokenVector* lex_string(StrView view);
 extern void lexer_print(TokenVector* lexer);
 
-unreturning extern void error(cstr fmt, ...);
-unreturning extern void error_at(StrView view, cstr loc, cstr fmt, ...);
-unreturning extern void error_tok(StrView view, Token* tok, cstr fmt, ...);
+unreturning extern void error(rcstr fmt, ...);
+unreturning extern void error_at(StrView view, rcstr loc, rcstr fmt, ...);
+unreturning extern void error_tok(StrView view, Token* tok, rcstr fmt, ...);

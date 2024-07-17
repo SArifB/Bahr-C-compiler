@@ -41,7 +41,7 @@ static Node* find_variable(Token* token, Context cx) {
   Scope* rev_sen = cx.scopes->buffer - 1;
 
   for (; rev_itr != rev_sen; --rev_itr) {
-    Node* var = *hashmap_find(rev_itr, view_from_token(token));
+    Node* var = *hashmap_find(rev_itr, strview_from_token(token));
     if (var != nullptr) {
       return make_unary(cx.arena, ND_Variable, var);
     }
@@ -217,7 +217,7 @@ static Node* parse_type(Token** rest, Token* token, Context cx) {
 
 // public_function = indent "(" args? ")" ":" ret_type
 static Node* public_function(Token** rest, Token* token, Context cx) {
-  StrView name = view_from_token(token);
+  StrView name = strview_from_token(token);
   token = expect_ident(cx.input, token);
   token = expect_info(cx.input, token, PK_LeftParen);
   Scope_vector_push(&cx.scopes, hashmap_make(8));
@@ -234,7 +234,7 @@ static Node* public_function(Token** rest, Token* token, Context cx) {
 
 // extern_function = indent "(" args? ")" ":" ret_type
 static Node* extern_function(Token** rest, Token* token, Context cx) {
-  StrView name = view_from_token(token);
+  StrView name = strview_from_token(token);
   token = expect_ident(cx.input, token);
   token = expect_info(cx.input, token, PK_LeftParen);
 
@@ -245,7 +245,7 @@ static Node* extern_function(Token** rest, Token* token, Context cx) {
 
 // function = indent "(" args? ")" ":" ret_type "{" body "}"
 static Node* function(Token** rest, Token* token, Context cx) {
-  StrView name = view_from_token(token);
+  StrView name = strview_from_token(token);
   token = expect_ident(cx.input, token);
   token = expect_info(cx.input, token, PK_LeftParen);
   Scope_vector_push(&cx.scopes, hashmap_make(8));
@@ -262,7 +262,7 @@ static Node* function(Token** rest, Token* token, Context cx) {
 
 // argument = indent ":" type
 static Node* argument(Token** rest, Token* token, Context cx) {
-  StrView name = view_from_token(token);
+  StrView name = strview_from_token(token);
   token = expect_ident(cx.input, token);
   Node* type = parse_type(rest, token, cx);
   return make_arg_var(cx, type, name);
@@ -270,7 +270,7 @@ static Node* argument(Token** rest, Token* token, Context cx) {
 
 // declaration = indent ":" type "=" expr
 static Node* declaration(Token** rest, Token* token, Context cx) {
-  StrView name = view_from_token(token);
+  StrView name = strview_from_token(token);
   token = expect_ident(cx.input, token);
   Node* type = parse_type(&token, token, cx);
   Token* x = expect_info(cx.input, token, PK_Assign);
@@ -431,7 +431,7 @@ static Node* unary(Token** rest, Token* token, Context cx) {
 
 // funcall = ident "(" (equality ("," equality).*)? ")"
 static Node* fn_call(Token** rest, Token* token, Context cx) {
-  StrView name = view_from_token(token);
+  StrView name = strview_from_token(token);
   token = expect_ident(cx.input, token);
   token = expect_info(cx.input, token, PK_LeftParen);
 
@@ -445,7 +445,7 @@ static Node* fn_call(Token** rest, Token* token, Context cx) {
 //         | ident ( func-args? )
 //         | ident*
 //         | ident&
-//         | num | flt | str
+//         | num | flt | rstr
 static Node* primary(Token** rest, Token* token, Context cx) {
   if (token->kind == TK_Punct) {
     if (token->info == PK_LeftParen) {
@@ -506,18 +506,18 @@ static Node* primary(Token** rest, Token* token, Context cx) {
 
   } else if (token->kind == TK_IntLiteral) {
     Node* type = make_numeric_type(cx.arena, TP_SInt, 32);
-    Node* node = make_basic_value(cx.arena, type, view_from_token(token));
+    Node* node = make_basic_value(cx.arena, type, strview_from_token(token));
     *rest = token + 1;
     return node;
 
   } else if (token->kind == TK_FltLiteral) {
     Node* type = make_numeric_type(cx.arena, TP_Flt, 64);
-    Node* node = make_basic_value(cx.arena, type, view_from_token(token));
+    Node* node = make_basic_value(cx.arena, type, strview_from_token(token));
     *rest = token + 1;
     return node;
 
   } else if (token->kind == TK_StrLiteral) {
-    Node* node = make_str_value(cx.arena, view_from_token(token));
+    Node* node = make_str_value(cx.arena, strview_from_token(token));
     *rest = token + 1;
     return node;
   }
