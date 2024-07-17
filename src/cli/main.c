@@ -1,5 +1,5 @@
 #include <cli/inputfile.h>
-#include <codegen-llvm/mod.h>
+#include <codegen-llvm/lib.h>
 #include <stdio.h>
 #include <utility/mod.h>
 
