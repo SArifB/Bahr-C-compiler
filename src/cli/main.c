@@ -7,14 +7,16 @@
 
 i32 main(i32 argc, rcstr argv[]) {
   CLParserOutput cl_input = parse_cl_input(argc, argv);
+  eputn("compile: ");
+  eputw(cl_input.compile);
   if (cl_input.compile.length != 0) {
-    eprintln("compile: %.*s", (i32)cl_input.compile.length, cl_input.compile.pointer);
   }
+  eputn("output: ");
+  eputw(cl_input.output);
   if (cl_input.output.length != 0) {
-    eprintln("output: %.*s", (i32)cl_input.output.length, cl_input.output.pointer);
   }
+  eprintln("verbosity: %d", cl_input.verbosity);
   if (cl_input.verbosity != 0) {
-    eprintln("verbosity: %d", cl_input.verbosity);
   }
 
   // if (argc < 3) {
