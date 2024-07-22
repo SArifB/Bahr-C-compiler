@@ -4,8 +4,8 @@
 typedef struct CompileOptions CompileOptions;
 struct CompileOptions {
   StrView input_string;
-  rcstr input_file_name;
-  rcstr output_file_name;
+  StrView input_file_name;
+  StrView output_file_name;
   u32 verbosity_level;
 };
 

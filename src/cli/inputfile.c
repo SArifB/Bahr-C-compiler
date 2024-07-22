@@ -11,35 +11,33 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-InputFile input_file(rcstr file_name) {
-  i32 fd = open(file_name, O_RDONLY);
+InputFile input_file(StrView file_name) {
+  if (file_name.pointer[file_name.length] != '\0') {
+    eputs("Invalid file name given");
+    exit(1);
+  }
+
+  i32 fd = open(file_name.pointer, O_RDONLY);
   if (fd == -1) {
     perror("open");
     exit(1);
   }
 
-  struct stat sb;
-  if (fstat(fd, &sb) == -1) {
+  struct stat st;
+  if (fstat(fd, &st) == -1) {
     perror("stat");
     exit(1);
   }
 
-  rcstr adrs = mmap(nullptr, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
-  if (adrs == MAP_FAILED) {
+  rcstr address = mmap(nullptr, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+  if (address == MAP_FAILED) {
     perror("mmap");
     exit(1);
   }
 
-  rcstr name = strdup(file_name);
-  if (name == nullptr) {
-    perror("strdup");
-    exit(1);
-  }
-
   return (InputFile){
-    .name = name,
-    .file = adrs,
-    .length = sb.st_size,
+    .file = address,
+    .length = st.st_size,
     .descriptor = fd,
   };
 }

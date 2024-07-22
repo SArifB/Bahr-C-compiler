@@ -18,5 +18,5 @@ struct InputFile {
 #endif
 };
 
-extern InputFile input_file(rcstr file_name);
+extern InputFile input_file(StrView file_name);
 extern void input_free(InputFile input);

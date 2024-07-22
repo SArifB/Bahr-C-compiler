@@ -1,4 +1,4 @@
-#include <codegen-llvm/mod.h>
+#include <codegen-llvm/lib.h>
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/TargetMachine.h>
@@ -12,9 +12,9 @@
 
 typedef struct CodegenOptions CodegenOptions;
 struct CodegenOptions {
-  rcstr name;
+  StrView name;
   Node* prog;
-  rcstr output;
+  StrView output;
   bool verbose;
 };
 
@@ -71,11 +71,11 @@ typedef struct {
 DEFINE_VECTOR(DeclVar)
 DEFINE_VEC_FNS(DeclVar, malloc, free)
 
-static Codegen codegen_make(rcstr name) {
+static Codegen codegen_make(StrView name) {
   LLVMContextRef ctx = LLVMContextCreate();
   return (Codegen){
     .ctx = ctx,
-    .mod = LLVMModuleCreateWithNameInContext(name, ctx),
+    .mod = LLVMModuleCreateWithNameInContext(name.pointer, ctx),
     .bldr = LLVMCreateBuilderInContext(ctx),
   };
 }
@@ -156,6 +156,16 @@ static LLVMValueRef codegen_call(
 static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node);
 
 void codegen_generate(CodegenOptions opts) {
+  if (opts.name.pointer[opts.name.length] != '\0') {
+    eputn("Invalid module name given, string required to be nullbyte terminated: ");
+    eputw(opts.name);
+    exit(1);
+  }
+  if (opts.output.pointer[opts.output.length] != '\0') {
+    eputn("Invalid output file name given, string required to be nullbyte terminated: ");
+    eputw(opts.output);
+    exit(1);
+  }
   Codegen cdgn = codegen_make(opts.name);
   decl_fns = DeclFn_vector_make(8);
 
@@ -202,7 +212,7 @@ void codegen_generate(CodegenOptions opts) {
   );
 
   failed = LLVMTargetMachineEmitToFile(
-    machine, cdgn.mod, opts.output, LLVMObjectFile, &message
+    machine, cdgn.mod, opts.output.pointer, LLVMObjectFile, &message
   );
   if (failed == true) {
     eprintf("%s", message);
