@@ -36,6 +36,7 @@ project(Bahr
 # Target: bahr-cli
 set(bahr-cli_SOURCES
 	cmake.toml
+	"src/cli/cl-input-parse.c"
 	"src/cli/inputfile.c"
 	"src/cli/main.c"
 )
@@ -77,7 +78,7 @@ endif()
 # Target: bahr-codegen-llvm
 set(bahr-codegen-llvm_SOURCES
 	cmake.toml
-	"src/codegen-llvm/mod.c"
+	"src/codegen-llvm/lib.c"
 )
 
 add_library(bahr-codegen-llvm STATIC)

@@ -9,48 +9,48 @@ CMAKE_C_STANDARD = "23"
 
 # Targets
 [target.bahr-cli]
-type = "my_executable"
+type = "my-executable"
 sources = ["src/cli/*.c"]
 link-libraries = ["bahr-codegen-llvm"]
 
 [target.bahr-codegen-llvm]
-type = "my_library"
+type = "my-library"
 sources = ["src/codegen-llvm/*.c"]
 link-libraries = ["parser", "LLVM"]
 
 [target.parser]
-type = "my_library"
+type = "my-library"
 sources = ["src/parser/*.c"]
 link-libraries = ["arena", "hashmap"]
 
 [target.arena]
-type = "my_library"
+type = "my-library"
 sources = ["src/arena/*.c"]
 
 [target.hashmap]
-type = "my_library"
+type = "my-library"
 sources = ["src/hashmap/*.c"]
 
 [target.utility]
-type = "my_interface"
+type = "my-interface"
 sources = ["src/utility/*.h"]
 
 # Templates
-[template.my_executable]
+[template.my-executable]
 type = "executable"
 include-directories = ["src"]
 compile-options = ["-Wall", "-Werror", "-Wextra", "-Wpedantic"]
 link-libraries = ["utility", "jemalloc"]
 link-options = ["-fuse-ld=mold"]
 
-[template.my_library]
+[template.my-library]
 type = "static"
 include-directories = ["src"]
 compile-options = ["-Wall", "-Werror", "-Wextra", "-Wpedantic"]
 link-libraries = ["utility", "jemalloc"]
 link-options = ["-fuse-ld=mold"]
 
-[template.my_interface]
+[template.my-interface]
 type = "interface"
 include-directories = ["src"]
 compile-options = ["-Wall", "-Werror", "-Wextra", "-Wpedantic"]
