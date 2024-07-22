@@ -42,7 +42,8 @@ struct StrView {
 #define sizeof_arr(arr) (sizeof(arr) / sizeof(*(arr)))
 
 #define eputc(ch) fputc(ch, stderr)
-#define eputs(string) fputs(string "\n", stderr)
+#define eputn(string) fputs(string, stderr)
+#define eputs(string) eputn(string "\n")
 #define evprintf(fmt, ...) vfprintf(stderr, fmt, __VA_ARGS__)
 #define eprintf(fmt, ...) fprintf(stderr, fmt, __VA_ARGS__)
 #define eprintln(fmt, ...) eprintf(fmt "\n", __VA_ARGS__)
