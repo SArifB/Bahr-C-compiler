@@ -8,4 +8,5 @@ struct CLParserOutput {
   const i32 verbosity;
 };
 
-CLParserOutput parse_cl_input(i32 argc, rcstr argv[]);
+typedef const rcstr* const restrict argv_t;
+CLParserOutput parse_cl_input(isize argc, argv_t argv);

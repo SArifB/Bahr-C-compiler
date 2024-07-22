@@ -75,7 +75,24 @@ MAKE_ARG_TABLE(char, short_arg)
 
 #undef ENTRIES
 
-ArgFindResult argument_parse(usize index, MutStrView option) {
+typedef enum CLErrorType : u32 {
+  CLE_NoArgs,
+  CLE_NoCompile,
+  CLE_NoOutput,
+  CLE_InvalidArg,
+} CLErrorType;
+
+static const char cl_error_msg_table[][64] = {
+  [CLE_NoArgs] = "No command options given",
+  [CLE_NoCompile] = "No input file to be compiled designated",
+  [CLE_NoOutput] = "No output file designated",
+  [CLE_InvalidArg] = "Invalid arg given",
+};
+
+#define cle_print(TYPE) \
+  eprintln("Invalid options: %s", cl_error_msg_table[TYPE])
+
+static ArgFindResult argument_parse(usize index, MutStrView option) {
   ArgFindType type = arg_type_table[index];
   if (type == AFT_String) {
     return (ArgFindResult){
@@ -101,7 +118,7 @@ ArgFindResult argument_parse(usize index, MutStrView option) {
       (ARG).pointer + 2, long_arg_table[IDX], long_arg_size_table[IDX] \
     ) == 0
 
-ArgFindResult argument_find(StrView argument, MutStrView option) {
+static ArgFindResult argument_find(StrView argument, MutStrView option) {
   if (argument.length == 2 && argument.pointer[0] == '-') {
     for (usize i = 0; i < total_args_size; ++i) {
       if (argument.pointer[1] == short_arg_table[i]) {
@@ -116,9 +133,7 @@ ArgFindResult argument_find(StrView argument, MutStrView option) {
       }
     }
   }
-  return (ArgFindResult){
-    .type = AFT_None,
-  };
+  return (ArgFindResult){};
 }
 
 typedef struct TMP_CLParserOutput TMP_CLParserOutput;
@@ -128,14 +143,14 @@ struct TMP_CLParserOutput {
   i32 verbosity;
 };
 
-#define clpo_from_tmp(out)                             \
+#define clpo_from_tmp(OUT)                             \
   (CLParserOutput) {                                   \
-    .compile = strview_from_mutstrview((out).compile), \
-    .output = strview_from_mutstrview((out).output),   \
-    .verbosity = (out).verbosity,                      \
+    .compile = strview_from_mutstrview((OUT).compile), \
+    .output = strview_from_mutstrview((OUT).output),   \
+    .verbosity = (OUT).verbosity,                      \
   }
 
-CLParserOutput argument_build_output(ArgFindResultVector* results) {
+static CLParserOutput argument_build_output(ArgFindResultVector* results) {
   TMP_CLParserOutput out = {};
   for (usize i = 0; i < results->length; ++i) {
     ArgFindResult result = results->buffer[i];
@@ -155,12 +170,34 @@ CLParserOutput argument_build_output(ArgFindResultVector* results) {
         break;
     }
   }
+  if (out.compile.length == 0) {
+    cle_print(CLE_NoCompile);
+    exit(1);
+  }
+  if (out.output.length == 0) {
+    cle_print(CLE_NoOutput);
+    exit(1);
+  }
   return clpo_from_tmp(out);
 }
 
-CLParserOutput parse_cl_input(i32 argc, rcstr argv[]) {
+static const char cli_info_fmt[] =
+  "Usage: %s [--compile, -c] <input-file> [--output, -o] <output-file>\n"
+  "Options:\n"
+  "  [--compile, -c] <input-file: string>: Input file to be compiled\n"
+  "  [--output, -o] <output-file: string>: Output file to be written\n"
+  "  [--verbosity, -v] <level: number>: Level of verbosity to output messages\n"
+  "Additional info:\n"
+  "  - Verbosity level does not affect error output and defaults to 0\n";
+
+CLParserOutput parse_cl_input(isize argc, argv_t argv) {
+  if (argc < 2) {
+    cle_print(CLE_NoArgs);
+    eprintf(cli_info_fmt, argv[0]);
+    exit(1);
+  }
   ArgFindResultVector* results = ArgFindResult_vector_make(8);
-  for (i32 i = 1; i + 1 < argc; i += 2) {
+  for (usize i = 1; i + 1 < (usize)argc; i += 2) {
     StrView argument = {
       .pointer = argv[i],
       .length = strlen(argv[i]),
@@ -172,6 +209,10 @@ CLParserOutput parse_cl_input(i32 argc, rcstr argv[]) {
     ArgFindResult result = argument_find(argument, option);
     if (result.type != AFT_None) {
       ArgFindResult_vector_push(&results, result);
+    } else {
+      cle_print(CLE_InvalidArg);
+      eputn("Argument: ");
+      eputw(argument);
     }
   }
   CLParserOutput out = argument_build_output(results);
