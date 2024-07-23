@@ -1,22 +1,9 @@
-#include <cli/cl-input-parse.h>
+#include <bahrc/cli-options.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <utility/mod.h>
 #include <utility/vec.h>
-
-typedef enum ArgOption : u32 {
-  AO_None,
-  AO_Compile,
-  AO_Output,
-  AO_Verbosity,
-} ArgOption;
-
-typedef enum ArgFindType : u32 {
-  AFT_None,
-  AFT_String,
-  AFT_Number,
-} ArgFindType;
 
 typedef struct MutStrView MutStrView;
 struct MutStrView {
@@ -29,8 +16,35 @@ struct MutStrView {
     .pointer = (VIEW).pointer, .length = (VIEW).length \
   }
 
+typedef struct MutCLIOptions MutCLIOptions;
+struct MutCLIOptions {
+  MutStrView compile;
+  MutStrView output;
+  i32 verbosity;
+};
+
+#define clio_from_mclio(OUT)                           \
+  (CLIOptions) {                                       \
+    .compile = strview_from_mutstrview((OUT).compile), \
+    .output = strview_from_mutstrview((OUT).output),   \
+    .verbosity = (OUT).verbosity,                      \
+  }
+
+typedef enum ArgFindOption : u32 {
+  AO_None,
+  AO_Compile,
+  AO_Output,
+  AO_Verbosity,
+} ArgFindOption;
+
+typedef enum ArgFindType : u32 {
+  AT_None,
+  AT_String,
+  AT_Number,
+} ArgFindType;
+
 typedef struct ArgFindResult {
-  ArgOption option;
+  ArgFindOption option;
   ArgFindType type;
   union {
     MutStrView view;
@@ -47,9 +61,9 @@ DEFINE_VEC_FNS(ArgFindResult, malloc, free)
   static const TYPE NAME##_table[total_args_size] = { ENTRIES };
 
 #define ENTRIES                             \
-  X(AO_Compile, AFT_String, "compile", 'c') \
-  X(AO_Output, AFT_String, "output", 'o')   \
-  X(AO_Verbosity, AFT_Number, "verbosity", 'v')
+  X(AO_Compile, AT_String, "compile", 'c') \
+  X(AO_Output, AT_String, "output", 'o')   \
+  X(AO_Verbosity, AT_Number, "verbosity", 'v')
 
 #define X(OPT, TYPE, LONG, SHORT) LONG,
 MAKE_LONG_ARG_TABLE
@@ -62,7 +76,7 @@ MAKE_ARG_TABLE(usize, long_arg_size)
 #undef X
 
 #define X(OPT, TYPE, LONG, SHORT) OPT,
-MAKE_ARG_TABLE(ArgOption, arg_opt)
+MAKE_ARG_TABLE(ArgFindOption, arg_opt)
 #undef X
 
 #define X(OPT, TYPE, LONG, SHORT) TYPE,
@@ -75,32 +89,29 @@ MAKE_ARG_TABLE(char, short_arg)
 
 #undef ENTRIES
 
-typedef enum CLErrorType : u32 {
-  CLE_NoArgs,
-  CLE_NoCompile,
-  CLE_NoOutput,
-  CLE_InvalidArg,
-} CLErrorType;
+typedef enum CLIErrorType : u32 {
+  CE_NoArgs,
+  CE_NoCompile,
+  CE_InvalidArg,
+} CLIErrorType;
 
-static const char cl_error_msg_table[][64] = {
-  [CLE_NoArgs] = "No command options given",
-  [CLE_NoCompile] = "No input file to be compiled designated",
-  [CLE_NoOutput] = "No output file designated",
-  [CLE_InvalidArg] = "Invalid arg given",
+static const char cli_error_table[][64] = {
+  [CE_NoArgs] = "No command options given",
+  [CE_NoCompile] = "No input file to be compiled designated",
+  [CE_InvalidArg] = "Invalid arg given",
 };
 
-#define cle_print(TYPE) \
-  eprintln("Invalid options: %s", cl_error_msg_table[TYPE])
+#define cli_eputt(TYPE) eprintln("Invalid options: %s", cli_error_table[TYPE])
 
 static ArgFindResult argument_parse(usize index, MutStrView option) {
   ArgFindType type = arg_type_table[index];
-  if (type == AFT_String) {
+  if (type == AT_String) {
     return (ArgFindResult){
       .option = arg_opt_table[index],
       .type = type,
       .view = option,
     };
-  } else if (type == AFT_Number) {
+  } else if (type == AT_Number) {
     return (ArgFindResult){
       .option = arg_opt_table[index],
       .type = type,
@@ -136,29 +147,11 @@ static ArgFindResult argument_find(StrView argument, MutStrView option) {
   return (ArgFindResult){};
 }
 
-typedef struct TMP_CLParserOutput TMP_CLParserOutput;
-struct TMP_CLParserOutput {
-  MutStrView compile;
-  MutStrView output;
-  i32 verbosity;
-};
-
-#define clpo_from_tmp(OUT)                             \
-  (CLParserOutput) {                                   \
-    .compile = strview_from_mutstrview((OUT).compile), \
-    .output = strview_from_mutstrview((OUT).output),   \
-    .verbosity = (OUT).verbosity,                      \
-  }
-
-static CLParserOutput argument_build_output(ArgFindResultVector* results) {
-  TMP_CLParserOutput out = {};
+static CLIOptions argument_build_output(ArgFindResultVector* results) {
+  MutCLIOptions out = {};
   for (usize i = 0; i < results->length; ++i) {
     ArgFindResult result = results->buffer[i];
     switch (result.option) {
-      case AO_None:
-        eputs("Invalid result received");
-        exit(1);
-        break;
       case AO_Compile:
         out.compile = result.view;
         break;
@@ -168,13 +161,17 @@ static CLParserOutput argument_build_output(ArgFindResultVector* results) {
       case AO_Verbosity:
         out.verbosity = (i32)result.number;
         break;
+      case AO_None:
+        eputs("Invalid result received");
+        exit(1);
+        break;
     }
   }
   if (out.compile.length == 0) {
-    cle_print(CLE_NoCompile);
+    cli_eputt(CE_NoCompile);
     exit(1);
   }
-  return clpo_from_tmp(out);
+  return clio_from_mclio(out);
 }
 
 static const char cli_info_fmt[] =
@@ -187,9 +184,9 @@ static const char cli_info_fmt[] =
   "  - Output file defaults to input file with '.o' extension\n"
   "  - Verbosity level does not affect error output and defaults to 0\n";
 
-CLParserOutput parse_cl_input(isize argc, argv_t argv) {
+CLIOptions cli_options_parse(isize argc, argv_t argv) {
   if (argc < 2) {
-    cle_print(CLE_NoArgs);
+    cli_eputt(CE_NoArgs);
     eprintf(cli_info_fmt, argv[0]);
     exit(1);
   }
@@ -204,15 +201,15 @@ CLParserOutput parse_cl_input(isize argc, argv_t argv) {
       .length = strlen(argv[i + 1]),
     };
     ArgFindResult result = argument_find(argument, option);
-    if (result.type != AFT_None) {
+    if (result.type != AT_None) {
       ArgFindResult_vector_push(&results, result);
     } else {
-      cle_print(CLE_InvalidArg);
+      cli_eputt(CE_InvalidArg);
       eputn("Argument: ");
       eputw(argument);
     }
   }
-  CLParserOutput out = argument_build_output(results);
+  CLIOptions out = argument_build_output(results);
   free(results);
   return out;
 }

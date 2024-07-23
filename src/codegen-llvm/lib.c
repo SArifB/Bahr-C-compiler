@@ -28,8 +28,8 @@ void compile_string(CompileOptions opts) {
 
   codegen_generate((CodegenOptions){
     .verbose = opts.verbosity_level > 0,
-    .name = opts.input_file_name,
-    .output = opts.output_file_name,
+    .name = opts.input_filename,
+    .output = opts.output_filename,
     .prog = out.tree,
   });
 

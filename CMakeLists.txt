@@ -33,46 +33,46 @@ project(Bahr
 		C
 )
 
-# Target: bahr-cli
-set(bahr-cli_SOURCES
+# Target: bahrc
+set(bahrc_SOURCES
 	cmake.toml
-	"src/cli/cl-input-parse.c"
-	"src/cli/inputfile.c"
-	"src/cli/main.c"
+	"src/bahrc/cli-options.c"
+	"src/bahrc/inputfile.c"
+	"src/bahrc/main.c"
 )
 
-add_executable(bahr-cli)
+add_executable(bahrc)
 
-target_sources(bahr-cli PRIVATE ${bahr-cli_SOURCES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${bahr-cli_SOURCES})
+target_sources(bahrc PRIVATE ${bahrc_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${bahrc_SOURCES})
 
-target_compile_options(bahr-cli PRIVATE
+target_compile_options(bahrc PRIVATE
 	-Wall
 	-Werror
 	-Wextra
 	-Wpedantic
 )
 
-target_include_directories(bahr-cli PRIVATE
+target_include_directories(bahrc PRIVATE
 	src
 )
 
-target_link_libraries(bahr-cli PRIVATE
+target_link_libraries(bahrc PRIVATE
 	utility
 	jemalloc
 )
 
-target_link_options(bahr-cli PRIVATE
+target_link_options(bahrc PRIVATE
 	-fuse-ld=mold
 )
 
-target_link_libraries(bahr-cli PRIVATE
+target_link_libraries(bahrc PRIVATE
 	bahr-codegen-llvm
 )
 
 get_directory_property(CMKR_VS_STARTUP_PROJECT DIRECTORY ${PROJECT_SOURCE_DIR} DEFINITION VS_STARTUP_PROJECT)
 if(NOT CMKR_VS_STARTUP_PROJECT)
-	set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bahr-cli)
+	set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bahrc)
 endif()
 
 # Target: bahr-codegen-llvm
