@@ -12,36 +12,29 @@
 
 typedef struct CodegenOptions CodegenOptions;
 struct CodegenOptions {
-  StrView name;
-  Node* prog;
-  StrView output;
+  StrView input_name;
+  StrView output_name;
+  Node* tree;
   bool verbose;
 };
 
 static void codegen_generate(CodegenOptions opts);
 
 void compile_string(CompileOptions opts) {
-  ParserOutput out = parse_string((ParserOptions){
+  ParserOutput ast = parse_string((ParserOptions){
     .verbose = opts.verbosity_level > 1,
     .input = opts.input_string,
   });
 
   codegen_generate((CodegenOptions){
     .verbose = opts.verbosity_level > 0,
-    .name = opts.input_filename,
-    .output = opts.output_filename,
-    .prog = out.tree,
+    .input_name = opts.input_filename,
+    .output_name = opts.output_filename,
+    .tree = ast.tree,
   });
 
-  arena_free(&out.arena);
+  arena_free(&ast.arena);
 }
-
-typedef struct Codegen Codegen;
-struct Codegen {
-  LLVMContextRef ctx;
-  LLVMModuleRef mod;
-  LLVMBuilderRef bldr;
-};
 
 DEFINE_VECTOR(LLVMValueRef)
 DEFINE_VEC_FNS(LLVMValueRef, malloc, free)
@@ -71,21 +64,56 @@ typedef struct {
 DEFINE_VECTOR(DeclVar)
 DEFINE_VEC_FNS(DeclVar, malloc, free)
 
+static DeclFn* get_decl_fn(DeclFnVector* funcs, StrView name) {
+  for (usize i = 0; i < funcs->length; ++i) {
+    if (memcmp(name.pointer, funcs->buffer[i].name, name.length) == 0 &&
+        funcs->buffer[i].name[name.length] == 0) {
+      return &funcs->buffer[i];
+    }
+  }
+  return nullptr;
+}
+
+static DeclVar* get_decl_var(DeclVarVector* vars, StrView name) {
+  for (usize i = 0; i < vars->length; ++i) {
+    if (memcmp(name.pointer, vars->buffer[i].name, name.length) == 0 &&
+        vars->buffer[i].name[name.length] == 0) {
+      return &vars->buffer[i];
+    }
+  }
+  return nullptr;
+}
+
+typedef struct Codegen Codegen;
+struct Codegen {
+  LLVMContextRef context;
+  LLVMModuleRef module;
+  LLVMBuilderRef builder;
+};
+
 static Codegen codegen_make(StrView name) {
-  LLVMContextRef ctx = LLVMContextCreate();
+  LLVMContextRef context = LLVMContextCreate();
   return (Codegen){
-    .ctx = ctx,
-    .mod = LLVMModuleCreateWithNameInContext(name.pointer, ctx),
-    .bldr = LLVMCreateBuilderInContext(ctx),
+    .context = context,
+    .module = LLVMModuleCreateWithNameInContext(name.pointer, context),
+    .builder = LLVMCreateBuilderInContext(context),
   };
 }
 
-static void codegen_dispose(Codegen cdgn) {
+static void codegen_dispose(Codegen gen) {
   LLVMShutdown();
-  LLVMDisposeBuilder(cdgn.bldr);
-  LLVMDisposeModule(cdgn.mod);
-  LLVMContextDispose(cdgn.ctx);
+  LLVMDisposeBuilder(gen.builder);
+  LLVMDisposeModule(gen.module);
+  LLVMContextDispose(gen.context);
 }
+
+typedef struct CContext CContext;
+struct CContext {
+  Codegen gen;
+  DeclFn* func;
+  DeclFnVector* funcs;
+  DeclVarVector* vars;
+};
 
 unreturning static void print_cdgn_err(NodeKind kind) {
   switch (kind) {  // clang-format off
@@ -109,51 +137,20 @@ unreturning static void print_cdgn_err(NodeKind kind) {
   exit(1);
 }
 
-static DeclFnVector* decl_fns = nullptr;
-static DeclVarVector* decl_vars = nullptr;
-
-static DeclFn* get_decl_fn(StrView name) {
-  usize size = name.length;
-  for (usize i = 0; i < decl_fns->length; ++i) {
-    if (memcmp(name.pointer, decl_fns->buffer[i].name, size) == 0 &&
-        decl_fns->buffer[i].name[size] == 0) {
-      return &decl_fns->buffer[i];
-    }
-  }
-  return nullptr;
-}
-
-static DeclVar* get_decl_var(StrView name) {
-  usize size = name.length;
-  for (usize i = 0; i < decl_vars->length; ++i) {
-    if (memcmp(name.pointer, decl_vars->buffer[i].name, size) == 0 &&
-        decl_vars->buffer[i].name[size] == 0) {
-      return &decl_vars->buffer[i];
-    }
-  }
-  return nullptr;
-}
-
 static bool is_integer(Node* node) {
   return node->type.kind == TP_SInt || node->type.kind == TP_UInt;
 }
 
-static LLVMValueRef codegen_reg_fns(Codegen* cdgn, Node* node);
-static LLVMValueRef codegen_function(Codegen* cdgn, Node* node);
-static LLVMValueRef codegen_parse(
-  Codegen* cdgn, Node* node, LLVMValueRef function
-);
+static LLVMValueRef codegen_reg_fns(CContext cx, Node* node);
+static LLVMValueRef codegen_function(CContext cx, Node* node);
+static LLVMValueRef codegen_parse(CContext cx, Node* node);
+static LLVMValueRef codegen_oper(CContext cx, Node* node);
+static LLVMValueRef codegen_value(CContext cx, Node* node);
+static LLVMValueRef codegen_call(CContext cx, Node* node);
+static LLVMTypeRef codegen_type(CContext cx, Node* node);
 static LLVMBasicBlockRef codegen_parse_block(
-  Codegen* cdgn, Node* node, LLVMValueRef function, rcstr name
+  CContext cx, Node* node, rcstr name
 );
-static LLVMValueRef codegen_oper(
-  Codegen* cdgn, Node* node, LLVMValueRef function
-);
-static LLVMValueRef codegen_value(Codegen* cdgn, Node* node);
-static LLVMValueRef codegen_call(
-  Codegen* cdgn, Node* node, LLVMValueRef function
-);
-static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node);
 
 char* alloc_tmp_outname(StrView filename) {
   usize tmp_outname_size = filename.length + 2;
@@ -169,32 +166,35 @@ char* alloc_tmp_outname(StrView filename) {
 }
 
 void codegen_generate(CodegenOptions opts) {
-  if (opts.name.pointer[opts.name.length] != '\0') {
+  if (opts.input_name.pointer[opts.input_name.length] != '\0') {
     eputn("Invalid module name, required to be nullbyte terminated: ");
-    eputw(opts.name);
+    eputw(opts.input_name);
     exit(1);
   }
-  Codegen cdgn = codegen_make(opts.name);
-  decl_fns = DeclFn_vector_make(8);
+  CContext cx = {
+    .gen = codegen_make(opts.input_name),
+    .funcs = DeclFn_vector_make(8),
+  };
 
-  for (Node* func = opts.prog; func != nullptr; func = func->next) {
-    unused LLVMValueRef ret = codegen_reg_fns(&cdgn, func);
+  for (Node* func = opts.tree; func != nullptr; func = func->next) {
+    unused LLVMValueRef ret = codegen_reg_fns(cx, func);
   }
-  for (Node* func = opts.prog; func != nullptr; func = func->next) {
-    unused LLVMValueRef ret = codegen_function(&cdgn, func);
+  for (Node* func = opts.tree; func != nullptr; func = func->next) {
+    unused LLVMValueRef ret = codegen_function(cx, func);
   }
-  for (usize i = 0; i < decl_fns->length; ++i) {
-    free(decl_fns->buffer[i].arg_names);
+  for (usize i = 0; i < cx.funcs->length; ++i) {
+    free(cx.funcs->buffer[i].arg_names);
   }
-  free(decl_fns);
+  free(cx.funcs);
 
   if (opts.verbose) {
-    LLVMDumpModule(cdgn.mod);
+    LLVMDumpModule(cx.gen.module);
     eputs("\n-----------------------------------------------");
   }
 
   char* message = nullptr;
-  bool failed = LLVMVerifyModule(cdgn.mod, LLVMAbortProcessAction, &message);
+  bool failed =
+    LLVMVerifyModule(cx.gen.module, LLVMAbortProcessAction, &message);
   if (failed == true) {
     eprintf("%s", message);
     exit(1);
@@ -219,14 +219,14 @@ void codegen_generate(CodegenOptions opts) {
     LLVMCodeModelDefault
   );
 
-  if (opts.output.length != 0) {
+  if (opts.output_name.length != 0) {
     failed = LLVMTargetMachineEmitToFile(
-      machine, cdgn.mod, opts.output.pointer, LLVMObjectFile, &message
+      machine, cx.gen.module, opts.output_name.pointer, LLVMObjectFile, &message
     );
   } else {
-    char* tmp_outname = alloc_tmp_outname(opts.name);
+    char* tmp_outname = alloc_tmp_outname(opts.input_name);
     failed = LLVMTargetMachineEmitToFile(
-      machine, cdgn.mod, tmp_outname, LLVMObjectFile, &message
+      machine, cx.gen.module, tmp_outname, LLVMObjectFile, &message
     );
     free(tmp_outname);
   }
@@ -237,31 +237,31 @@ void codegen_generate(CodegenOptions opts) {
   LLVMDisposeMessage(triple);
   LLVMDisposeTargetMachine(machine);
 
-  codegen_dispose(cdgn);
+  codegen_dispose(cx.gen);
 }
 
-static LLVMValueRef codegen_reg_fns(Codegen* cdgn, Node* node) {
+static LLVMValueRef codegen_reg_fns(CContext cx, Node* node) {
   LLVMTypeRefVector* arg_types = LLVMTypeRef_vector_make(2);
   rcstrVector* arg_names = rcstr_vector_make(2);
 
   for (Node* arg = node->function.args; arg != nullptr; arg = arg->next) {
-    LLVMTypeRef type = codegen_type(cdgn, arg->declaration.type);
+    LLVMTypeRef type = codegen_type(cx, arg->declaration.type);
     LLVMTypeRef_vector_push(&arg_types, type);
     rcstr_vector_push(&arg_names, arg->declaration.name->array);
   }
-  LLVMTypeRef ret_type = codegen_type(cdgn, node->function.ret_type);
+  LLVMTypeRef ret_type = codegen_type(cx, node->function.ret_type);
 
   LLVMTypeRef function_type =
     LLVMFunctionType(ret_type, arg_types->buffer, arg_types->length, false);
   LLVMValueRef function =
-    LLVMAddFunction(cdgn->mod, node->function.name->array, function_type);
+    LLVMAddFunction(cx.gen.module, node->function.name->array, function_type);
 
   if (node->function.linkage == LN_Private) {
     LLVMSetLinkage(function, LLVMInternalLinkage);
   }
 
   DeclFn_vector_push(
-    &decl_fns,
+    &cx.funcs,
     (DeclFn){
       .name = node->function.name->array,
       .value = function,
@@ -274,29 +274,30 @@ static LLVMValueRef codegen_reg_fns(Codegen* cdgn, Node* node) {
   return function;
 }
 
-static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
+static LLVMValueRef codegen_function(CContext cx, Node* node) {
   if (node->function.body == nullptr) {
     return nullptr;
   }
-  decl_vars = DeclVar_vector_make(2);
-  DeclFn* function = get_decl_fn(strview_from_strnode(node->function.name));
+  cx.vars = DeclVar_vector_make(8);
+  cx.func = get_decl_fn(cx.funcs, strview_from_strnode(node->function.name));
 
-  usize arg_count = LLVMCountParams(function->value);
+  usize arg_count = LLVMCountParams(cx.func->value);
   LLVMTypeRefVector* arg_types = LLVMTypeRef_vector_make(arg_count);
-  LLVMGetParamTypes(function->type, arg_types->buffer);
+  LLVMGetParamTypes(cx.func->type, arg_types->buffer);
 
   LLVMBasicBlockRef block =
-    LLVMAppendBasicBlockInContext(cdgn->ctx, function->value, "entry");
-  LLVMPositionBuilderAtEnd(cdgn->bldr, block);
+    LLVMAppendBasicBlockInContext(cx.gen.context, cx.func->value, "entry");
+  LLVMPositionBuilderAtEnd(cx.gen.builder, block);
 
   for (usize i = 0; i < arg_count; ++i) {
-    rcstr name = function->arg_names->buffer[i];
-    LLVMValueRef decl = LLVMBuildAlloca(cdgn->bldr, arg_types->buffer[i], name);
-    LLVMValueRef val = LLVMGetParam(function->value, i);
-    LLVMBuildStore(cdgn->bldr, val, decl);
+    rcstr name = cx.func->arg_names->buffer[i];
+    LLVMValueRef decl =
+      LLVMBuildAlloca(cx.gen.builder, arg_types->buffer[i], name);
+    LLVMValueRef val = LLVMGetParam(cx.func->value, i);
+    LLVMBuildStore(cx.gen.builder, val, decl);
 
     DeclVar_vector_push(
-      &decl_vars,
+      &cx.vars,
       (DeclVar){
         .name = name,
         .variable = decl,
@@ -307,42 +308,54 @@ static LLVMValueRef codegen_function(Codegen* cdgn, Node* node) {
 
   for (Node* branch = node->function.body->unary; branch != nullptr;
        branch = branch->next) {
-    unused LLVMValueRef ret = codegen_parse(cdgn, branch, function->value);
+    unused LLVMValueRef ret = codegen_parse(cx, branch);
   }
 
   free(arg_types);
-  free(decl_vars);
-  return function->value;
+  free(cx.vars);
+  return cx.func->value;
 }
 
-static LLVMValueRef codegen_parse(
-  Codegen* cdgn, Node* node, LLVMValueRef function
+static LLVMBasicBlockRef codegen_parse_block(
+  CContext cx, Node* node, rcstr name
 ) {
+  LLVMBasicBlockRef entry =
+    LLVMAppendBasicBlockInContext(cx.gen.context, cx.func->value, name);
+  LLVMPositionBuilderAtEnd(cx.gen.builder, entry);
+
+  for (Node* branch = node->unary; branch != nullptr; branch = branch->next) {
+    unused LLVMValueRef ret = codegen_parse(cx, branch);
+  }
+  return entry;
+}
+
+static LLVMValueRef codegen_parse(CContext cx, Node* node) {
   if (node->kind == ND_Operation) {
-    return codegen_oper(cdgn, node, function);
+    return codegen_oper(cx, node);
 
   } else if (node->kind == ND_Negation) {
     LLVMValueRef zero =
-      LLVMConstInt(LLVMInt32TypeInContext(cdgn->ctx), 0, false);
-    LLVMValueRef value = codegen_parse(cdgn, node->unary, function);
-    return LLVMBuildSub(cdgn->bldr, zero, value, "neg");
+      LLVMConstInt(LLVMInt32TypeInContext(cx.gen.context), 0, false);
+    LLVMValueRef value = codegen_parse(cx, node->unary);
+    return LLVMBuildSub(cx.gen.builder, zero, value, "neg");
 
   } else if (node->kind == ND_Return) {
-    LLVMValueRef val = codegen_parse(cdgn, node->unary, function);
-    return LLVMBuildRet(cdgn->bldr, val);
+    LLVMValueRef val = codegen_parse(cx, node->unary);
+    return LLVMBuildRet(cx.gen.builder, val);
 
   } else if (node->kind == ND_Type) {
     eputs("Raw ND_Type unimplemented");
     exit(1);
 
   } else if (node->kind == ND_Decl) {
-    LLVMTypeRef type = codegen_type(cdgn, node->declaration.type);
+    LLVMTypeRef type = codegen_type(cx, node->declaration.type);
     LLVMValueRef decl =
-      LLVMBuildAlloca(cdgn->bldr, type, node->declaration.name->array);
-    LLVMValueRef val = codegen_parse(cdgn, node->declaration.value, function);
-    LLVMBuildStore(cdgn->bldr, val, decl);
+      LLVMBuildAlloca(cx.gen.builder, type, node->declaration.name->array);
+    LLVMValueRef val = codegen_parse(cx, node->declaration.value);
+    LLVMBuildStore(cx.gen.builder, val, decl);
+
     DeclVar_vector_push(
-      &decl_vars,
+      &cx.vars,
       (DeclVar){
         .variable = decl,
         .name = node->declaration.name->array,
@@ -351,17 +364,19 @@ static LLVMValueRef codegen_parse(
     return decl;
 
   } else if (node->kind == ND_Value) {
-    return codegen_value(cdgn, node);
+    return codegen_value(cx, node);
 
   } else if (node->kind == ND_Variable) {
-    LLVMTypeRef type = codegen_type(cdgn, node->unary->declaration.type);
-    DeclVar* decl_var =
-      get_decl_var(strview_from_strnode(node->unary->declaration.name));
+    LLVMTypeRef type = codegen_type(cx, node->unary->declaration.type);
+    DeclVar* decl_var = get_decl_var(
+      cx.vars, strview_from_strnode(node->unary->declaration.name)
+    );
     if (decl_var == nullptr) {
       eputs("ND_Variable not found");
       exit(1);
     }
-    LLVMValueRef var = LLVMBuildLoad2(cdgn->bldr, type, decl_var->variable, "");
+    LLVMValueRef var =
+      LLVMBuildLoad2(cx.gen.builder, type, decl_var->variable, "");
     return var;
 
   } else if (node->kind == ND_ArgVar) {
@@ -377,10 +392,10 @@ static LLVMValueRef codegen_parse(
     exit(1);
 
   } else if (node->kind == ND_Deref) {
-    LLVMTypeRef type = codegen_type(cdgn, node->unary);
-    LLVMValueRef ptr = codegen_parse(cdgn, node->unary, function);
+    LLVMTypeRef type = codegen_type(cx, node->unary);
+    LLVMValueRef ptr = codegen_parse(cx, node->unary);
     LLVMValueRef load =
-      LLVMBuildLoad2(cdgn->bldr, LLVMPointerType(type, 0), ptr, "");
+      LLVMBuildLoad2(cx.gen.builder, LLVMPointerType(type, 0), ptr, "");
     return load;
 
   } else if (node->kind == ND_Function) {
@@ -388,12 +403,12 @@ static LLVMValueRef codegen_parse(
     exit(1);
 
   } else if (node->kind == ND_If) {
-    LLVMValueRef cond = codegen_parse(cdgn, node->if_node.cond, function);
+    LLVMValueRef cond = codegen_parse(cx, node->if_node.cond);
     LLVMBasicBlockRef then =
-      codegen_parse_block(cdgn, node->if_node.then, function, "if_then");
+      codegen_parse_block(cx, node->if_node.then, "if_then");
     LLVMBasicBlockRef elseb =
-      codegen_parse_block(cdgn, node->if_node.elseb, function, "if_elseb");
-    LLVMValueRef if_block = LLVMBuildCondBr(cdgn->bldr, cond, then, elseb);
+      codegen_parse_block(cx, node->if_node.elseb, "if_elseb");
+    LLVMValueRef if_block = LLVMBuildCondBr(cx.gen.builder, cond, then, elseb);
     return if_block;
 
   } else if (node->kind == ND_While) {
@@ -401,72 +416,58 @@ static LLVMValueRef codegen_parse(
     exit(1);
 
   } else if (node->kind == ND_Call) {
-    return codegen_call(cdgn, node, function);
+    return codegen_call(cx, node);
   }
   print_cdgn_err(node->kind);
 }
 
-static LLVMBasicBlockRef codegen_parse_block(
-  Codegen* cdgn, Node* node, LLVMValueRef function, rcstr name
-) {
-  LLVMBasicBlockRef entry =
-    LLVMAppendBasicBlockInContext(cdgn->ctx, function, name);
-  LLVMPositionBuilderAtEnd(cdgn->bldr, entry);
-
-  for (Node* branch = node->unary; branch != nullptr; branch = branch->next) {
-    unused LLVMValueRef ret = codegen_parse(cdgn, branch, function);
-  }
-  return entry;
-}
-
-static LLVMValueRef codegen_oper(
-  Codegen* cdgn, Node* node, LLVMValueRef function
-) {
-  LLVMValueRef lhs = codegen_parse(cdgn, node->operation.lhs, function);
-  LLVMValueRef rhs = codegen_parse(cdgn, node->operation.rhs, function);
+static LLVMValueRef codegen_oper(CContext cx, Node* node) {
+  LLVMValueRef lhs = codegen_parse(cx, node->operation.lhs);
+  LLVMValueRef rhs = codegen_parse(cx, node->operation.rhs);
   switch (node->operation.kind) {
     case OP_Add:
-      return LLVMBuildAdd(cdgn->bldr, lhs, rhs, "add");
+      return LLVMBuildAdd(cx.gen.builder, lhs, rhs, "add");
     case OP_Sub:
-      return LLVMBuildSub(cdgn->bldr, lhs, rhs, "sub");
+      return LLVMBuildSub(cx.gen.builder, lhs, rhs, "sub");
     case OP_Mul:
-      return LLVMBuildMul(cdgn->bldr, lhs, rhs, "mul");
+      return LLVMBuildMul(cx.gen.builder, lhs, rhs, "mul");
     case OP_Div:
-      return LLVMBuildUDiv(cdgn->bldr, lhs, rhs, "div");
+      return LLVMBuildUDiv(cx.gen.builder, lhs, rhs, "div");
     case OP_Eq:
-      return LLVMBuildICmp(cdgn->bldr, LLVMIntEQ, lhs, rhs, "eq");
+      return LLVMBuildICmp(cx.gen.builder, LLVMIntEQ, lhs, rhs, "eq");
     case OP_NEq:
-      return LLVMBuildICmp(cdgn->bldr, LLVMIntNE, lhs, rhs, "neq");
+      return LLVMBuildICmp(cx.gen.builder, LLVMIntNE, lhs, rhs, "neq");
     case OP_Lt:
-      return LLVMBuildICmp(cdgn->bldr, LLVMIntSLT, lhs, rhs, "lt");
+      return LLVMBuildICmp(cx.gen.builder, LLVMIntSLT, lhs, rhs, "lt");
     case OP_Lte:
-      return LLVMBuildICmp(cdgn->bldr, LLVMIntSLE, lhs, rhs, "lte");
+      return LLVMBuildICmp(cx.gen.builder, LLVMIntSLE, lhs, rhs, "lte");
     case OP_Gt:
-      return LLVMBuildICmp(cdgn->bldr, LLVMIntSGT, lhs, rhs, "gt");
+      return LLVMBuildICmp(cx.gen.builder, LLVMIntSGT, lhs, rhs, "gt");
     case OP_Gte:
-      return LLVMBuildICmp(cdgn->bldr, LLVMIntSGE, lhs, rhs, "gte");
+      return LLVMBuildICmp(cx.gen.builder, LLVMIntSGE, lhs, rhs, "gte");
     case OP_Asg:
-      return LLVMBuildStore(cdgn->bldr, rhs, lhs);
+      return LLVMBuildStore(cx.gen.builder, rhs, lhs);
     case OP_ArrIdx:
       return LLVMBuildInBoundsGEP2(
-        cdgn->bldr, LLVMTypeOf(lhs), lhs, &rhs, 1, "arr_idx"
+        cx.gen.builder, LLVMTypeOf(lhs), lhs, &rhs, 1, "arr_idx"
       );
   }
   print_cdgn_err(node->kind);
 }
 
-static LLVMValueRef codegen_value(Codegen* cdgn, Node* node) {
+static LLVMValueRef codegen_value(CContext cx, Node* node) {
   if (is_integer(node->value.type) == true) {
-    LLVMTypeRef type = codegen_type(cdgn, node->value.type);
+    LLVMTypeRef type = codegen_type(cx, node->value.type);
     return LLVMConstInt(type, atoi(node->value.basic->array), true);
   } else if (node->value.type->type.kind == TP_Str) {
     LLVMTypeRef type = LLVMArrayType(
-      LLVMInt8TypeInContext(cdgn->ctx), node->value.basic->capacity + 1
+      LLVMInt8TypeInContext(cx.gen.context), node->value.basic->capacity + 1
     );
     LLVMValueRef str_val = LLVMConstStringInContext(
-      cdgn->ctx, node->value.basic->array, node->value.basic->capacity, false
+      cx.gen.context, node->value.basic->array, node->value.basic->capacity,
+      false
     );
-    LLVMValueRef global_str = LLVMAddGlobal(cdgn->mod, type, ".str");
+    LLVMValueRef global_str = LLVMAddGlobal(cx.gen.module, type, ".str");
     LLVMSetInitializer(global_str, str_val);
     LLVMSetLinkage(global_str, LLVMPrivateLinkage);
     LLVMSetUnnamedAddr(global_str, LLVMGlobalUnnamedAddr);
@@ -480,60 +481,59 @@ static LLVMValueRef codegen_value(Codegen* cdgn, Node* node) {
   print_cdgn_err(node->kind);
 }
 
-static LLVMValueRef codegen_call(
-  Codegen* cdgn, Node* node, LLVMValueRef function
-) {
-  DeclFn* decl_fn = get_decl_fn(strview_from_strnode(node->call_node.name));
+static LLVMValueRef codegen_call(CContext cx, Node* node) {
+  DeclFn* decl_fn =
+    get_decl_fn(cx.funcs, strview_from_strnode(node->call_node.name));
   if (decl_fn == nullptr) {
     eputs("ND_Call function not found");
     exit(1);
   }
   LLVMValueRefVector* call_args = LLVMValueRef_vector_make(0);
   for (Node* arg = node->call_node.args; arg != nullptr; arg = arg->next) {
-    LLVMValueRef value = codegen_parse(cdgn, arg, function);
+    LLVMValueRef value = codegen_parse(cx, arg);
     LLVMValueRef_vector_push(&call_args, value);
   }
   LLVMValueRef result = LLVMBuildCall2(
-    cdgn->bldr, decl_fn->type, decl_fn->value, call_args->buffer,
+    cx.gen.builder, decl_fn->type, decl_fn->value, call_args->buffer,
     call_args->length, decl_fn->name
   );
   free(call_args);
   return result;
 }
 
-static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node) {
+static LLVMTypeRef codegen_type(CContext cx, Node* node) {
   if (node->kind == ND_Variable) {
-    return codegen_type(cdgn, node->unary);
+    return codegen_type(cx, node->unary);
 
   } else if (node->kind == ND_Decl || node->kind == ND_ArgVar) {
-    return codegen_type(cdgn, node->declaration.type);
+    return codegen_type(cx, node->declaration.type);
 
   } else if (node->kind == ND_Value) {
-    return codegen_type(cdgn, node->value.type);
+    return codegen_type(cx, node->value.type);
 
   } else if (node->kind == ND_Type) {
     if (is_integer(node)) {
-      return LLVMIntTypeInContext(cdgn->ctx, node->type.bit_width);
+      return LLVMIntTypeInContext(cx.gen.context, node->type.bit_width);
 
     } else if (node->type.kind == TP_Flt) {
       if (node->type.bit_width == 15) {
-        return LLVMBFloatTypeInContext(cdgn->ctx);
+        return LLVMBFloatTypeInContext(cx.gen.context);
       } else if (node->type.bit_width == 16) {
-        return LLVMHalfTypeInContext(cdgn->ctx);
+        return LLVMHalfTypeInContext(cx.gen.context);
       } else if (node->type.bit_width == 32) {
-        return LLVMFloatTypeInContext(cdgn->ctx);
+        return LLVMFloatTypeInContext(cx.gen.context);
       } else if (node->type.bit_width == 64) {
-        return LLVMDoubleTypeInContext(cdgn->ctx);
+        return LLVMDoubleTypeInContext(cx.gen.context);
       } else if (node->type.bit_width == 128) {
-        return LLVMFP128TypeInContext(cdgn->ctx);
+        return LLVMFP128TypeInContext(cx.gen.context);
       }
 
     } else if (node->type.kind == TP_Ptr) {
-      return LLVMPointerType(codegen_type(cdgn, node->type.base), 0);
+      return LLVMPointerType(codegen_type(cx, node->type.base), 0);
 
     } else if (node->type.kind == TP_Arr) {
       return LLVMArrayType(
-        codegen_type(cdgn, node->type.array.base), node->type.array.size
+        codegen_type(cx, node->type.array.base), node->type.array.size
       );
     }
     eputs("Type unimplemented");
