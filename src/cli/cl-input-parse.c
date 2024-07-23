@@ -174,20 +174,17 @@ static CLParserOutput argument_build_output(ArgFindResultVector* results) {
     cle_print(CLE_NoCompile);
     exit(1);
   }
-  if (out.output.length == 0) {
-    cle_print(CLE_NoOutput);
-    exit(1);
-  }
   return clpo_from_tmp(out);
 }
 
 static const char cli_info_fmt[] =
-  "Usage: %s [--compile, -c] <input-file> [--output, -o] <output-file>\n"
+  "Usage: %s [--compile, -c] <input-file>\n"
   "Options:\n"
   "  [--compile, -c] <input-file: string>: Input file to be compiled\n"
   "  [--output, -o] <output-file: string>: Output file to be written\n"
   "  [--verbosity, -v] <level: number>: Level of verbosity to output messages\n"
   "Additional info:\n"
+  "  - Output file defaults to input file with '.o' extension\n"
   "  - Verbosity level does not affect error output and defaults to 0\n";
 
 CLParserOutput parse_cl_input(isize argc, argv_t argv) {

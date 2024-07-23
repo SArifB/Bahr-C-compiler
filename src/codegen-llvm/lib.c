@@ -155,15 +155,23 @@ static LLVMValueRef codegen_call(
 );
 static LLVMTypeRef codegen_type(Codegen* cdgn, Node* node);
 
-void codegen_generate(CodegenOptions opts) {
-  if (opts.name.pointer[opts.name.length] != '\0') {
-    eputn("Invalid module name given, string required to be nullbyte terminated: ");
-    eputw(opts.name);
+char* alloc_tmp_outname(StrView filename) {
+  usize tmp_outname_size = filename.length + 2;
+  char* tmp_outname = malloc(tmp_outname_size);
+  if (tmp_outname == nullptr) {
+    perror("malloc");
     exit(1);
   }
-  if (opts.output.pointer[opts.output.length] != '\0') {
-    eputn("Invalid output file name given, string required to be nullbyte terminated: ");
-    eputw(opts.output);
+  memcpy(tmp_outname, filename.pointer, filename.length);
+  tmp_outname[tmp_outname_size - 2] = '.';
+  tmp_outname[tmp_outname_size - 1] = 'o';
+  return tmp_outname;
+}
+
+void codegen_generate(CodegenOptions opts) {
+  if (opts.name.pointer[opts.name.length] != '\0') {
+    eputn("Invalid module name, required to be nullbyte terminated: ");
+    eputw(opts.name);
     exit(1);
   }
   Codegen cdgn = codegen_make(opts.name);
@@ -211,9 +219,17 @@ void codegen_generate(CodegenOptions opts) {
     LLVMCodeModelDefault
   );
 
-  failed = LLVMTargetMachineEmitToFile(
-    machine, cdgn.mod, opts.output.pointer, LLVMObjectFile, &message
-  );
+  if (opts.output.length != 0) {
+    failed = LLVMTargetMachineEmitToFile(
+      machine, cdgn.mod, opts.output.pointer, LLVMObjectFile, &message
+    );
+  } else {
+    char* tmp_outname = alloc_tmp_outname(opts.name);
+    failed = LLVMTargetMachineEmitToFile(
+      machine, cdgn.mod, tmp_outname, LLVMObjectFile, &message
+    );
+    free(tmp_outname);
+  }
   if (failed == true) {
     eprintf("%s", message);
     exit(1);
