@@ -64,20 +64,20 @@ typedef struct {
 DEFINE_VECTOR(DeclVar)
 DEFINE_VEC_FNS(DeclVar, malloc, free)
 
-static DeclFn* get_decl_fn(DeclFnVector* funcs, StrView name) {
+static DeclFn* get_decl_fn(DeclFnVector* funcs, StrNode* name) {
   for (usize i = 0; i < funcs->length; ++i) {
-    if (memcmp(name.pointer, funcs->buffer[i].name, name.length) == 0 &&
-        funcs->buffer[i].name[name.length] == 0) {
+    if (memcmp(name->array, funcs->buffer[i].name, name->capacity) == 0 &&
+        funcs->buffer[i].name[name->capacity] == 0) {
       return &funcs->buffer[i];
     }
   }
   return nullptr;
 }
 
-static DeclVar* get_decl_var(DeclVarVector* vars, StrView name) {
+static DeclVar* get_decl_var(DeclVarVector* vars, StrNode* name) {
   for (usize i = 0; i < vars->length; ++i) {
-    if (memcmp(name.pointer, vars->buffer[i].name, name.length) == 0 &&
-        vars->buffer[i].name[name.length] == 0) {
+    if (memcmp(name->array, vars->buffer[i].name, name->capacity) == 0 &&
+        vars->buffer[i].name[name->capacity] == 0) {
       return &vars->buffer[i];
     }
   }
@@ -279,7 +279,7 @@ static LLVMValueRef codegen_function(CContext cx, Node* node) {
     return nullptr;
   }
   cx.vars = DeclVar_vector_make(8);
-  cx.func = get_decl_fn(cx.funcs, strview_from_strnode(node->function.name));
+  cx.func = get_decl_fn(cx.funcs, node->function.name);
 
   usize arg_count = LLVMCountParams(cx.func->value);
   LLVMTypeRefVector* arg_types = LLVMTypeRef_vector_make(arg_count);
@@ -334,13 +334,15 @@ static LLVMValueRef codegen_parse(CContext cx, Node* node) {
     return codegen_oper(cx, node);
 
   } else if (node->kind == ND_Negation) {
-    LLVMValueRef zero =
-      LLVMConstInt(LLVMInt32TypeInContext(cx.gen.context), 0, false);
     LLVMValueRef value = codegen_parse(cx, node->unary);
-    return LLVMBuildSub(cx.gen.builder, zero, value, "neg");
+    return LLVMBuildNeg(cx.gen.builder, value, "neg");
 
   } else if (node->kind == ND_Return) {
     LLVMValueRef val = codegen_parse(cx, node->unary);
+    if (node->unary->kind == ND_Variable) {
+      LLVMTypeRef val_type = codegen_type(cx, node->unary);
+      val = LLVMBuildLoad2(cx.gen.builder, val_type, val, "");
+    }
     return LLVMBuildRet(cx.gen.builder, val);
 
   } else if (node->kind == ND_Type) {
@@ -367,17 +369,12 @@ static LLVMValueRef codegen_parse(CContext cx, Node* node) {
     return codegen_value(cx, node);
 
   } else if (node->kind == ND_Variable) {
-    LLVMTypeRef type = codegen_type(cx, node->unary->declaration.type);
-    DeclVar* decl_var = get_decl_var(
-      cx.vars, strview_from_strnode(node->unary->declaration.name)
-    );
+    DeclVar* decl_var = get_decl_var(cx.vars, node->unary->declaration.name);
     if (decl_var == nullptr) {
       eputs("ND_Variable not found");
       exit(1);
     }
-    LLVMValueRef var =
-      LLVMBuildLoad2(cx.gen.builder, type, decl_var->variable, "");
-    return var;
+    return decl_var->variable;
 
   } else if (node->kind == ND_ArgVar) {
     eputs("Raw ND_ArgVar unimplemented");
@@ -422,8 +419,30 @@ static LLVMValueRef codegen_parse(CContext cx, Node* node) {
 }
 
 static LLVMValueRef codegen_oper(CContext cx, Node* node) {
+  if (node->operation.kind == OP_Asg) {
+    if (node->operation.lhs->kind != ND_Variable) {
+      eputs("Variable required on left side for assignment");
+      exit(1);
+    }
+    LLVMValueRef lhs = codegen_parse(cx, node->operation.lhs);
+    LLVMValueRef rhs = codegen_parse(cx, node->operation.rhs);
+    if (node->operation.rhs->kind == ND_Variable) {
+      LLVMTypeRef rhs_type = codegen_type(cx, node->operation.rhs);
+      rhs = LLVMBuildLoad2(cx.gen.builder, rhs_type, rhs, "");
+    }
+    return LLVMBuildStore(cx.gen.builder, rhs, lhs);
+  }
+
   LLVMValueRef lhs = codegen_parse(cx, node->operation.lhs);
+  if (node->operation.lhs->kind == ND_Variable) {
+    LLVMTypeRef lhs_type = codegen_type(cx, node->operation.lhs);
+    lhs = LLVMBuildLoad2(cx.gen.builder, lhs_type, lhs, "");
+  }
   LLVMValueRef rhs = codegen_parse(cx, node->operation.rhs);
+  if (node->operation.rhs->kind == ND_Variable) {
+    LLVMTypeRef rhs_type = codegen_type(cx, node->operation.rhs);
+    rhs = LLVMBuildLoad2(cx.gen.builder, rhs_type, rhs, "");
+  }
   switch (node->operation.kind) {
     case OP_Add:
       return LLVMBuildAdd(cx.gen.builder, lhs, rhs, "add");
@@ -446,7 +465,7 @@ static LLVMValueRef codegen_oper(CContext cx, Node* node) {
     case OP_Gte:
       return LLVMBuildICmp(cx.gen.builder, LLVMIntSGE, lhs, rhs, "gte");
     case OP_Asg:
-      return LLVMBuildStore(cx.gen.builder, rhs, lhs);
+      print_cdgn_err(node->kind);
     case OP_ArrIdx:
       return LLVMBuildInBoundsGEP2(
         cx.gen.builder, LLVMTypeOf(lhs), lhs, &rhs, 1, "arr_idx"
@@ -459,6 +478,7 @@ static LLVMValueRef codegen_value(CContext cx, Node* node) {
   if (is_integer(node->value.type) == true) {
     LLVMTypeRef type = codegen_type(cx, node->value.type);
     return LLVMConstInt(type, atoi(node->value.basic->array), true);
+
   } else if (node->value.type->type.kind == TP_Str) {
     LLVMTypeRef type = LLVMArrayType(
       LLVMInt8TypeInContext(cx.gen.context), node->value.basic->capacity + 1
@@ -482,15 +502,18 @@ static LLVMValueRef codegen_value(CContext cx, Node* node) {
 }
 
 static LLVMValueRef codegen_call(CContext cx, Node* node) {
-  DeclFn* decl_fn =
-    get_decl_fn(cx.funcs, strview_from_strnode(node->call_node.name));
+  DeclFn* decl_fn = get_decl_fn(cx.funcs, node->call_node.name);
   if (decl_fn == nullptr) {
     eputs("ND_Call function not found");
     exit(1);
   }
-  LLVMValueRefVector* call_args = LLVMValueRef_vector_make(0);
+  LLVMValueRefVector* call_args = LLVMValueRef_vector_make(2);
   for (Node* arg = node->call_node.args; arg != nullptr; arg = arg->next) {
     LLVMValueRef value = codegen_parse(cx, arg);
+    if (arg->kind == ND_Variable || arg->kind == ND_Deref ||
+        (arg->kind == ND_Operation && arg->operation.kind == OP_ArrIdx)) {
+      value = LLVMBuildLoad2(cx.gen.builder, LLVMTypeOf(value), value, "");
+    }
     LLVMValueRef_vector_push(&call_args, value);
   }
   LLVMValueRef result = LLVMBuildCall2(
@@ -532,7 +555,7 @@ static LLVMTypeRef codegen_type(CContext cx, Node* node) {
       return LLVMPointerType(codegen_type(cx, node->type.base), 0);
 
     } else if (node->type.kind == TP_Arr) {
-      return LLVMArrayType(
+      return LLVMArrayType2(
         codegen_type(cx, node->type.array.base), node->type.array.size
       );
     }
