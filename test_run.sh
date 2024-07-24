@@ -4,7 +4,7 @@
 # It should then print the main functions output
 # The project needs to be built first
 
-./build/bahr test/src/test.bh test/out/test.o
+./build/bahrc -c test/src/test.bh -o test/out/test.o
 cd test/out
 gcc -fuse-ld=mold -o test main.c test.o
 ./test
