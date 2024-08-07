@@ -60,7 +60,7 @@ DEFINE_VEC_FNS(ArgFindResult, malloc, free)
 #define MAKE_ARG_TABLE(TYPE, NAME) \
   static const TYPE NAME##_table[total_args_size] = { ENTRIES };
 
-#define ENTRIES                             \
+#define ENTRIES                            \
   X(AO_Compile, AT_String, "compile", 'c') \
   X(AO_Output, AT_String, "output", 'o')   \
   X(AO_Verbosity, AT_Number, "verbosity", 'v')
@@ -118,8 +118,7 @@ static ArgFindResult argument_parse(usize index, MutStrView option) {
       .number = atoi(option.pointer),
     };
   } else {
-    eputs("Invalid argument type found");
-    exit(1);
+    return (ArgFindResult){};
   }
 }
 
@@ -129,15 +128,18 @@ static ArgFindResult argument_parse(usize index, MutStrView option) {
       (ARG).pointer + 2, long_arg_table[IDX], long_arg_size_table[IDX] \
     ) == 0
 
-static ArgFindResult argument_find(StrView argument, MutStrView option) {
+static ArgFindResult argument_find_separated(
+  StrView argument, MutStrView option
+) {
   if (argument.length == 2 && argument.pointer[0] == '-') {
     for (usize i = 0; i < total_args_size; ++i) {
       if (argument.pointer[1] == short_arg_table[i]) {
         return argument_parse(i, option);
       }
     }
-  } else if (argument.length > 3 && argument.pointer[0] == '-' &&
-             argument.pointer[1] == '-') {
+  }
+  if (argument.length > 3 && argument.pointer[0] == '-' &&
+      argument.pointer[1] == '-') {
     for (usize i = 0; i < total_args_size; ++i) {
       if (long_arg_found(i, argument)) {
         return argument_parse(i, option);
@@ -174,8 +176,37 @@ static CLIOptions argument_build_output(ArgFindResultVector* results) {
   return clio_from_mclio(out);
 }
 
-static const char cli_info_fmt[] =
-  "Usage: %s [--compile, -c] <input-file>\n"
+#define strview_equals(V1, V2)    \
+  ((V1).length == (V2).length) && \
+    memcmp((V1).pointer, (V2).pointer, (V2).length) == 0
+
+static size_t strview_find_char(StrView str, char c) {
+  size_t i = 0;
+  for (; i < str.length; ++i) {
+    if (str.pointer[i] == c) {
+      return i;
+    }
+  }
+  return i;
+}
+
+static ArgFindResult argument_find_combined(StrView full_arg) {
+  size_t index = strview_find_char(full_arg, '=');
+  if (index == full_arg.length) {
+    return (ArgFindResult){};
+  }
+  StrView argument = {
+    .pointer = full_arg.pointer,
+    .length = full_arg.length - (full_arg.length - index),
+  };
+  MutStrView option = {
+    .pointer = full_arg.pointer + index + 1,
+    .length = full_arg.length - index - 1,
+  };
+  return argument_find_separated(argument, option);
+}
+
+static const char cli_info[] =
   "Options:\n"
   "  [--compile, -c] <input-file: string>: Input file to be compiled\n"
   "  [--output, -o] <output-file: string>: Output file to be written\n"
@@ -187,26 +218,41 @@ static const char cli_info_fmt[] =
 CLIOptions cli_options_parse(isize argc, argv_t argv) {
   if (argc < 2) {
     cli_eputt(CE_NoArgs);
-    eprintf(cli_info_fmt, argv[0]);
+    eprintln("Usage: %s [--compile, -c] '='? <input-file>", argv[0]);
+    eputn(cli_info);
     exit(1);
   }
+  if (strncmp(argv[1], "-h", 2) == 0 || strncmp(argv[1], "--help", 6) == 0) {
+    eputn(cli_info);
+    exit(0);
+  }
+  usize arg_count = argc;
   ArgFindResultVector* results = ArgFindResult_vector_make(8);
-  for (usize i = 1; i + 1 < (usize)argc; i += 2) {
-    StrView argument = {
+  for (usize i = 1; i < arg_count; ++i) {
+    StrView full_arg = {
       .pointer = argv[i],
       .length = strlen(argv[i]),
     };
+    ArgFindResult combined_result = argument_find_combined(full_arg);
+    if (combined_result.type != AT_None) {
+      ArgFindResult_vector_push(&results, combined_result);
+      continue;
+    }
+    if (i + 1 >= arg_count) {
+      break;
+    }
     MutStrView option = {
       .pointer = argv[i + 1],
       .length = strlen(argv[i + 1]),
     };
-    ArgFindResult result = argument_find(argument, option);
-    if (result.type != AT_None) {
-      ArgFindResult_vector_push(&results, result);
+    i += 1;
+    ArgFindResult separated_result = argument_find_separated(full_arg, option);
+    if (separated_result.type != AT_None) {
+      ArgFindResult_vector_push(&results, separated_result);
     } else {
       cli_eputt(CE_InvalidArg);
       eputn("Argument: ");
-      eputw(argument);
+      eputw(full_arg);
     }
   }
   CLIOptions out = argument_build_output(results);
